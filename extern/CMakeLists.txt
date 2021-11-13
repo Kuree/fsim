@@ -1,4 +1,6 @@
-add_subdirectory(slang)
 # slang specific flags
-target_compile_definitions(slangcompiler PRIVATE DEBUG)
+if (CMAKE_BUILD_TYPE MATCHES "Debug")
+    add_compile_options(-DDEBUG)
+endif()
+add_subdirectory(slang)
 add_subdirectory(googletest)

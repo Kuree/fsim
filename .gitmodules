@@ -1,0 +1,9 @@
+[submodule "extern/slang"]
+	path = extern/slang
+	url = https://github.com/MikePopoloski/slang/
+[submodule "extern/logic"]
+	path = extern/logic
+	url = https://github.com/Kuree/logic
+[submodule "extern/googletest"]
+	path = extern/googletest
+	url = https://github.com/google/googletest

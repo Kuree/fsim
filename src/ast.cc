@@ -32,6 +32,15 @@ DependencyAnalysisVisitor::Node *DependencyAnalysisVisitor::Graph::get_node(
     return node_mapping.at(sym.name);
 }
 
+DependencyAnalysisVisitor::Node *DependencyAnalysisVisitor::Graph::get_node(
+    std::string_view name) const {
+    if (node_mapping.find(name) != node_mapping.end()) {
+        return node_mapping.at(name);
+    } else {
+        return nullptr;
+    }
+}
+
 DependencyAnalysisVisitor::DependencyAnalysisVisitor() {
     graph_ = std::make_unique<Graph>();
     graph = graph_.get();

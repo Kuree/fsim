@@ -27,9 +27,33 @@ endmodule
     EXPECT_EQ(vis.modules.size(), 4);
 }
 
+TEST(ast, var_dep_chained) {    // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+module m;
+    logic a, b, c, d;
+    assign a = b;
+    assign b = c;
+    assign c = d;
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    DependencyAnalysisVisitor v;
+    compilation.getRoot().visit(v);
+    EXPECT_TRUE(v.error.empty());
+    EXPECT_EQ(v.graph->nodes.size(), 4);
+    auto const *n = v.graph->get_node("d");
+    EXPECT_TRUE(n);
+    for (auto i = 0; i < 3; i++) {
+        EXPECT_EQ(n->edges_to.size(), 1);
+        n = n->edges_to.front();
+    }
+    EXPECT_EQ(n->name, "a");
+}
+
 TEST(ast, var_dep_mult_left) {    // NOLINT
     auto tree = SyntaxTree::fromText(R"(
-
 module m;
     logic a, b, c, d;
     assign {a, b} = {c, d};
@@ -40,6 +64,7 @@ endmodule
     DependencyAnalysisVisitor v;
     compilation.getRoot().visit(v);
     EXPECT_TRUE(v.error.empty());
-    auto *n = v.graph->node_mapping.at("a");
+    auto *n = v.graph->get_node("a");
+    EXPECT_TRUE(n);
     EXPECT_EQ(n->edges_from.size(), 2);
 }

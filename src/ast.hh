@@ -24,7 +24,7 @@ class ModuleComplexityVisitor : public slang::ASTVisitor<ModuleComplexityVisitor
     // https://clang.llvm.org/extra/clang-tidy/checks/readability-function-cognitive-complexity.html
 };
 
-class DependencyAnalysisVisitor: public slang::ASTVisitor<DependencyAnalysisVisitor, true, true> {
+class DependencyAnalysisVisitor : public slang::ASTVisitor<DependencyAnalysisVisitor, true, true> {
 public:
     struct Node {
         // double linked graph
@@ -36,13 +36,15 @@ public:
 
     struct Graph {
         std::vector<std::unique_ptr<Node>> nodes;
-        std::unordered_map<std::string_view, Node*> node_mapping;
+        std::unordered_map<std::string_view, Node *> node_mapping;
 
-        Node *get_node(const slang::NamedValueExpression * name);
+        Node *get_node(const slang::NamedValueExpression *name);
+
+        Node *get_node(std::string_view name) const;
     };
 
     DependencyAnalysisVisitor();
-    explicit DependencyAnalysisVisitor(Graph *graph): graph(graph) {}
+    explicit DependencyAnalysisVisitor(Graph *graph) : graph(graph) {}
 
     [[maybe_unused]] void handle(const slang::ContinuousAssignSymbol &stmt);
     [[maybe_unused]] void handle(const slang::ProceduralBlockSymbol &stmt);

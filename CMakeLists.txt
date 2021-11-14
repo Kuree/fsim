@@ -5,6 +5,11 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# slang specific flags
+if (CMAKE_BUILD_TYPE MATCHES "Debug")
+    add_compile_options(-DDEBUG)
+endif()
+
 # external library
 add_subdirectory(extern)
 

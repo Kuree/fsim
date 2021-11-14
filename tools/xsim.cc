@@ -25,72 +25,8 @@
 using namespace slang;
 
 namespace xsim {
-static constexpr auto noteColor = fmt::terminal_color::bright_black;
 static constexpr auto warningColor = fmt::terminal_color::bright_yellow;
 static constexpr auto errorColor = fmt::terminal_color::bright_red;
-static constexpr auto highlightColor = fmt::terminal_color::bright_green;
-
-void writeToFile(string_view fileName, string_view contents);
-
-bool runPreprocessor(SourceManager& sourceManager, const Bag& options,
-                     const std::vector<SourceBuffer>& buffers, bool includeComments,
-                     bool includeDirectives) {
-    BumpAllocator alloc;
-    Diagnostics diagnostics;
-    Preprocessor preprocessor(sourceManager, alloc, diagnostics, options);
-
-    // NOLINTNEXTLINE
-    for (auto it = buffers.rbegin(); it != buffers.rend(); it++) preprocessor.pushSource(*it);
-
-    SyntaxPrinter output;
-    output.setIncludeComments(includeComments);
-    output.setIncludeDirectives(includeDirectives);
-
-    while (true) {
-        Token token = preprocessor.next();
-        output.print(token);
-        if (token.kind == TokenKind::EndOfFile) break;
-    }
-
-    // Only print diagnostics if actual errors occurred.
-    for (auto& diag : diagnostics) {
-        if (diag.isError()) {
-            OS::printE("{}", DiagnosticEngine::reportAll(sourceManager, diagnostics));
-            return false;
-        }
-    }
-
-    OS::print("{}\n", output.str());
-    return true;
-}
-
-void printMacros(SourceManager& sourceManager, const Bag& options,
-                 const std::vector<SourceBuffer>& buffers) {
-    BumpAllocator alloc;
-    Diagnostics diagnostics;
-    Preprocessor preprocessor(sourceManager, alloc, diagnostics, options);
-
-    // NOLINTNEXTLINE
-    for (auto it = buffers.rbegin(); it != buffers.rend(); it++) preprocessor.pushSource(*it);
-
-    while (true) {
-        Token token = preprocessor.next();
-        if (token.kind == TokenKind::EndOfFile) break;
-    }
-
-    for (auto macro : preprocessor.getDefinedMacros()) {
-        SyntaxPrinter printer;
-        printer.setIncludeComments(false);
-        printer.setIncludeTrivia(false);
-        printer.print(macro->name);
-
-        printer.setIncludeTrivia(true);
-        if (macro->formalArguments) printer.print(*macro->formalArguments);
-        printer.print(macro->body);
-
-        OS::print("{}\n", printer.str());
-    }
-}
 
 SourceBuffer readSource(SourceManager& sourceManager, const std::string& file) {
     SourceBuffer buffer = sourceManager.readSource(widen(file));
@@ -235,7 +171,6 @@ public:
     slang::DiagnosticEngine diagEngine;
     std::shared_ptr<TextDiagnosticClient> diagClient;
     bool quiet = false;
-    bool onlyParse = false;
 
     explicit Compiler(Compilation& compilation)
         : compilation(compilation), diagEngine(*compilation.getSourceManager()) {
@@ -258,31 +193,22 @@ public:
     }
 
     bool run() {
-        if (onlyParse) {
-            for (auto& diag : compilation.getParseDiagnostics()) diagEngine.issue(diag);
-        } else {
-            auto topInstances = compilation.getRoot().topInstances;
-            if (!quiet && !topInstances.empty()) {
-                OS::print(fg(warningColor), "Top level design units:\n");
-                for (auto inst : topInstances) OS::print("    {}\n", inst->name);
-                OS::print("\n");
-            }
-
-            for (auto& diag : compilation.getAllDiagnostics()) diagEngine.issue(diag);
+        auto topInstances = compilation.getRoot().topInstances;
+        if (!quiet && !topInstances.empty()) {
+            OS::print(fg(warningColor), "Top level design units:\n");
+            for (auto inst : topInstances) OS::print("    {}\n", inst->name);
+            OS::print("\n");
         }
+
+        for (auto& diag : compilation.getAllDiagnostics()) diagEngine.issue(diag);
 
         bool succeeded = diagEngine.getNumErrors() == 0;
 
         std::string diagStr = diagClient->getString();
         OS::printE("{}", diagStr);
 
-        if (!quiet && !onlyParse) {
+        if (!quiet && !succeeded) {
             if (diagStr.size() > 1) OS::print("\n");
-
-            if (succeeded)
-                OS::print(fg(highlightColor), "Build succeeded: ");
-            else
-                OS::print(fg(errorColor), "Build failed: ");
 
             OS::print("{} error{}, {} warning{}\n", diagEngine.getNumErrors(),
                       diagEngine.getNumErrors() == 1 ? "" : "s", diagEngine.getNumWarnings(),
@@ -290,23 +216,6 @@ public:
         }
 
         return succeeded;
-    }
-
-    void printJson(const std::string& fileName, const std::vector<std::string>& scopes) {
-        JsonWriter writer;
-        writer.setPrettyPrint(true);
-
-        ASTSerializer serializer(compilation, writer);
-        if (scopes.empty()) {
-            serializer.serialize(compilation.getRoot());
-        } else {
-            for (auto& scopeName : scopes) {
-                auto sym = compilation.getRoot().lookupName(scopeName);
-                if (sym) serializer.serialize(*sym);
-            }
-        }
-
-        writeToFile(fileName, writer.view());
     }
 };
 
@@ -321,19 +230,6 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
     cmdLine.add("-h,--help", showHelp, "Display available options");
     cmdLine.add("--version", showVersion, "Display version information and exit");
     cmdLine.add("-q,--quiet", quiet, "Suppress non-essential output");
-
-    // Output control
-    optional<bool> onlyPreprocess;
-    optional<bool> onlyParse;
-    optional<bool> onlyMacros;
-    optional<bool> onlyLint;
-    cmdLine.add("-E,--preprocess", onlyPreprocess,
-                "Only run the preprocessor (and print preprocessed files to stdout)");
-    cmdLine.add("--macros-only", onlyMacros, "Print a list of found macros and exit");
-    cmdLine.add("--parse-only", onlyParse,
-                "Stop after parsing input files, don't perform elaboration or type checking");
-    cmdLine.add("--lint-only", onlyLint,
-                "Only perform linting of code, don't try to elaborate a full hierarchy");
 
     // Include paths
     std::vector<std::string> includeDirs;
@@ -364,52 +260,16 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
                 "Maximum depth of nested include files allowed", "<depth>");
 
     // Parsing
-    optional<uint32_t> maxParseDepth;
     optional<uint32_t> maxLexerErrors;
-    cmdLine.add("--max-parse-depth", maxParseDepth,
-                "Maximum depth of nested language constructs allowed", "<depth>");
     cmdLine.add("--max-lexer-errors", maxLexerErrors,
                 "Maximum number of errors that can occur during lexing before the rest of the file "
                 "is skipped",
                 "<count>");
 
-    // JSON dumping
-    optional<std::string> astJsonFile;
-    cmdLine.add("--ast-json", astJsonFile,
-                "Dump the compiled AST in JSON format to the specified file, or '-' for stdout",
-                "<file>");
-
-    std::vector<std::string> astJsonScopes;
-    cmdLine.add("--ast-json-scope", astJsonScopes,
-                "When dumping AST to JSON, include only the scopes specified by the "
-                "given hierarchical paths",
-                "<path>");
-
     // Compilation
-    optional<uint32_t> maxInstanceDepth;
-    optional<uint32_t> maxGenerateSteps;
-    optional<uint32_t> maxConstexprDepth;
-    optional<uint32_t> maxConstexprSteps;
-    optional<uint32_t> maxConstexprBacktrace;
     optional<std::string> minTypMax;
     std::vector<std::string> topModules;
     std::vector<std::string> paramOverrides;
-    cmdLine.add("--max-hierarchy-depth", maxInstanceDepth, "Maximum depth of the design hierarchy",
-                "<depth>");
-    cmdLine.add("--max-generate-steps", maxGenerateSteps,
-                "Maximum number of steps that can occur during generate block "
-                "evaluation before giving up",
-                "<steps>");
-    cmdLine.add("--max-constexpr-depth", maxConstexprDepth,
-                "Maximum depth of a constant evaluation call stack", "<depth>");
-    cmdLine.add("--max-constexpr-steps", maxConstexprSteps,
-                "Maximum number of steps that can occur during constant "
-                "evaluation before giving up",
-                "<steps>");
-    cmdLine.add("--constexpr-backtrace-limit", maxConstexprBacktrace,
-                "Maximum number of frames to show when printing a constant evaluation "
-                "backtrace; the rest will be abbreviated",
-                "<limit>");
     cmdLine.add("-T,--timing", minTypMax,
                 "Select which value to consider in min:typ:max expressions", "min|typ|max");
     cmdLine.add("--top", topModules,
@@ -532,21 +392,10 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
     if (maxLexerErrors.has_value()) loptions.maxErrors = *maxLexerErrors;
 
     ParserOptions poptions;
-    if (maxParseDepth.has_value()) poptions.maxRecursionDepth = *maxParseDepth;
 
     CompilationOptions coptions;
-    coptions.suppressUnused = false;
-    if (maxInstanceDepth.has_value()) coptions.maxInstanceDepth = *maxInstanceDepth;
-    if (maxGenerateSteps.has_value()) coptions.maxGenerateSteps = *maxGenerateSteps;
-    if (maxConstexprDepth.has_value()) coptions.maxConstexprDepth = *maxConstexprDepth;
-    if (maxConstexprSteps.has_value()) coptions.maxConstexprSteps = *maxConstexprSteps;
-    if (maxConstexprBacktrace.has_value()) coptions.maxConstexprBacktrace = *maxConstexprBacktrace;
+    coptions.suppressUnused = true;
     if (errorLimit.has_value()) coptions.errorLimit = *errorLimit * 2;
-    if (astJsonFile) coptions.disableInstanceCaching = true;
-    if (onlyLint == true) {
-        coptions.suppressUnused = true;
-        coptions.lintMode = true;
-    }
 
     for (auto& name : topModules) coptions.topModules.emplace(name);
     for (auto& opt : paramOverrides) coptions.paramOverrides.emplace_back(opt);
@@ -590,58 +439,32 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
         return 3;
     }
 
-    if (onlyParse.has_value() + onlyPreprocess.has_value() + onlyMacros.has_value() +
-            onlyLint.has_value() >
-        1) {
-        OS::printE(fg(errorColor), "error: ");
-        OS::printE("can only specify one of --preprocess, --macros-only, --parse-only");
-        return 4;
-    }
-
     try {
-        if (onlyPreprocess == true) {
-            anyErrors = !runPreprocessor(sourceManager, options, buffers, includeComments == true,
-                                         includeDirectives == true);
-        } else if (onlyMacros == true) {
-            printMacros(sourceManager, options, buffers);
-        } else {
-            Compilation compilation(options);
-            anyErrors =
-                !loadAllSources(compilation, sourceManager, buffers, options, singleUnit == true,
-                                onlyLint == true, libraryFiles, libDirs, libExts);
+        Compilation compilation(options);
+        anyErrors = !loadAllSources(compilation, sourceManager, buffers, options,
+                                    singleUnit == true, false, libraryFiles, libDirs, libExts);
 
-            if (onlyLint == true) ignoreUnknownModules = true;
+        Compiler compiler(compilation);
+        compiler.quiet = quiet == true;
 
-            Compiler compiler(compilation);
-            compiler.quiet = quiet == true;
-            compiler.onlyParse = onlyParse == true;
+        auto& diag = *compiler.diagClient;
+        diag.showColors(showColors);
+        diag.showColumn(diagColumn.value_or(true));
+        diag.showLocation(diagLocation.value_or(true));
+        diag.showSourceLine(diagSourceLine.value_or(true));
+        diag.showOptionName(diagOptionName.value_or(true));
+        diag.showIncludeStack(diagIncludeStack.value_or(true));
+        diag.showMacroExpansion(diagMacroExpansion.value_or(true));
+        diag.showHierarchyInstance(diagHierarchy.value_or(true));
 
-            auto& diag = *compiler.diagClient;
-            diag.showColors(showColors);
-            diag.showColumn(diagColumn.value_or(true));
-            diag.showLocation(diagLocation.value_or(true));
-            diag.showSourceLine(diagSourceLine.value_or(true));
-            diag.showOptionName(diagOptionName.value_or(true));
-            diag.showIncludeStack(diagIncludeStack.value_or(true));
-            diag.showMacroExpansion(diagMacroExpansion.value_or(true));
-            diag.showHierarchyInstance(diagHierarchy.value_or(true));
+        compiler.diagEngine.setErrorLimit((int)errorLimit.value_or(20));
+        compiler.setDiagnosticOptions(warningOptions, ignoreUnknownModules == true,
+                                      allowUseBeforeDeclare == true);
 
-            compiler.diagEngine.setErrorLimit((int)errorLimit.value_or(20));
-            compiler.setDiagnosticOptions(warningOptions, ignoreUnknownModules == true,
-                                          allowUseBeforeDeclare == true);
+        anyErrors |= !compiler.run();
 
-            anyErrors |= !compiler.run();
+        (void)(anyErrors);
 
-            if (astJsonFile) {
-                compiler.printJson(*astJsonFile, astJsonScopes);
-            }
-
-#if defined(INCLUDE_SIM)
-            if (!anyErrors && !onlyParse.value_or(false) && shouldSim == true) {
-                anyErrors = !runSim(compilation);
-            }
-#endif
-        }
     } catch (const std::exception& e) {
         OS::printE("internal compiler error: {}\n", e.what());
         return 4;
@@ -651,22 +474,6 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
 } catch (const std::exception& e) {
     OS::printE("{}\n", e.what());
     return 5;
-}
-
-template <typename Stream, typename String>
-void writeToFile(Stream& os, string_view fileName, String contents) {
-    os.write(contents.data(), contents.size());
-    os.flush();
-    if (!os) throw std::runtime_error(fmt::format("Unable to write AST to '{}'", fileName));
-}
-
-void writeToFile(string_view fileName, string_view contents) {
-    if (fileName == "-") {
-        writeToFile(std::cout, "stdout", contents);
-    } else {
-        std::ofstream file{std::string(fileName)};
-        writeToFile(file, fileName, contents);
-    }
 }
 }  // namespace xsim
 

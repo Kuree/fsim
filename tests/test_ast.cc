@@ -26,3 +26,20 @@ endmodule
     compilation.getRoot().visit(vis);
     EXPECT_EQ(vis.modules.size(), 4);
 }
+
+TEST(ast, var_dep_mult_left) {    // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+
+module m;
+    logic a, b, c, d;
+    assign {a, b} = {c, d};
+endmodule
+)");
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    DependencyAnalysisVisitor v;
+    compilation.getRoot().visit(v);
+    EXPECT_TRUE(v.error.empty());
+    auto *n = v.graph->node_mapping.at("a");
+    EXPECT_EQ(n->edges_from.size(), 2);
+}

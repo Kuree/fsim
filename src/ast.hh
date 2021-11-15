@@ -1,6 +1,8 @@
 #ifndef XSIM_AST_HH
 #define XSIM_AST_HH
 
+#include <unordered_set>
+
 #include "slang/compilation/Compilation.h"
 #include "slang/symbols/ASTVisitor.h"
 
@@ -27,20 +29,26 @@ class ModuleComplexityVisitor : public slang::ASTVisitor<ModuleComplexityVisitor
 class DependencyAnalysisVisitor : public slang::ASTVisitor<DependencyAnalysisVisitor, true, true> {
 public:
     struct Node {
+        explicit Node(const slang::Symbol &symbol) : symbol(symbol) {}
         // double linked graph
-        std::vector<const Node *> edges_to;
-        std::vector<const Node *> edges_from;
+        std::unordered_set<const Node *> edges_to;
+        std::unordered_set<const Node *> edges_from;
 
-        std::string_view name;
+        const slang::Symbol &symbol;
     };
 
     struct Graph {
+    public:
         std::vector<std::unique_ptr<Node>> nodes;
-        std::unordered_map<std::string_view, Node *> node_mapping;
+        std::unordered_map<std::string, Node *> node_mapping;
 
         Node *get_node(const slang::NamedValueExpression *name);
+        Node *get_node(const std::string &name) const;
+        Node *get_node(const slang::Symbol &symbol);
 
-        Node *get_node(std::string_view name) const;
+    private:
+        uint64_t procedural_blk_count_ = 0;
+        std::unordered_map<const slang::Symbol *, std::string> new_names_;
     };
 
     DependencyAnalysisVisitor();

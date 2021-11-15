@@ -5,7 +5,7 @@
 using namespace xsim;
 using namespace slang;
 
-TEST(ast, instance) {   // NOLINT
+TEST(ast, instance) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module m1;
 endmodule
@@ -27,7 +27,7 @@ endmodule
     EXPECT_EQ(vis.modules.size(), 4);
 }
 
-TEST(ast, var_dep_chained) {    // NOLINT
+TEST(ast, var_dep_chained) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module m;
     logic a, b, c, d;
@@ -47,12 +47,12 @@ endmodule
     EXPECT_TRUE(n);
     for (auto i = 0; i < 3; i++) {
         EXPECT_EQ(n->edges_to.size(), 1);
-        n = n->edges_to.front();
+        n = *n->edges_to.begin();
     }
-    EXPECT_EQ(n->name, "a");
+    EXPECT_EQ(n->symbol.name, "a");
 }
 
-TEST(ast, var_dep_mult_left) {    // NOLINT
+TEST(ast, var_dep_mult_left) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module m;
     logic a, b, c, d;
@@ -67,4 +67,41 @@ endmodule
     auto *n = v.graph->get_node("a");
     EXPECT_TRUE(n);
     EXPECT_EQ(n->edges_from.size(), 2);
+}
+
+TEST(ast, procedural_dep) {  // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+module m;
+logic a, b, c, d, e, f, g;
+always_comb begin
+    if (a) b = c;
+    else b = d;
+end
+always_latch begin
+    case (a)
+        0: e = f;
+    endcase
+end
+always @(*)
+    f = g;
+endmodule
+)");
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    DependencyAnalysisVisitor v;
+    compilation.getRoot().visit(v);
+    auto *n = v.graph->get_node(".blk0");
+    EXPECT_TRUE(n);
+    EXPECT_EQ(n->edges_to.size(), 1);
+    EXPECT_EQ(n->edges_from.size(), 3);
+
+    n = v.graph->get_node(".blk1");
+    EXPECT_TRUE(n);
+    EXPECT_EQ(n->edges_to.size(), 1);
+    EXPECT_EQ(n->edges_from.size(), 2);
+
+    n = v.graph->get_node(".blk2");
+    EXPECT_TRUE(n);
+    EXPECT_EQ(n->edges_to.size(), 1);
+    EXPECT_EQ(n->edges_from.size(), 1);
 }

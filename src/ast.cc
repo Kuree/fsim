@@ -9,7 +9,7 @@ namespace xsim {
 [[maybe_unused]] void ModuleDefinitionVisitor::handle(const slang::InstanceSymbol &symbol) {
     auto const &def = symbol.getDefinition();
     if (def.definitionKind == slang::DefinitionKind::Module) {
-        modules.emplace(def.name, &def);
+        modules.emplace(def.name, &symbol);
     }
     visitDefault(symbol);
 }
@@ -44,6 +44,12 @@ public:
     visitDefault(stmt);
     current_level_--;
 }
+
+[[maybe_unused]] void VariableDefinitionVisitor::handle(const slang::VariableDeclStatement &stmt) {
+    auto const &var = stmt.symbol;
+    vars.emplace_back(&var);
+}
+
 
 DependencyAnalysisVisitor::Node *DependencyAnalysisVisitor::Graph::get_node(
     const slang::NamedValueExpression *name) {

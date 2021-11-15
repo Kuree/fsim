@@ -16,7 +16,7 @@ public:
     // only visit modules
     [[maybe_unused]] void handle(const slang::InstanceSymbol &symbol);
 
-    std::unordered_map<std::string_view, const slang::Definition *> modules;
+    std::unordered_map<std::string_view, const slang::InstanceSymbol *> modules;
 };
 
 // compute complexity for each module definition. small module will be inlined into its parent
@@ -34,6 +34,15 @@ public:
 
 private:
     uint64_t current_level_ = 1;
+};
+
+class VariableDefinitionVisitor: public slang::ASTVisitor<VariableDefinitionVisitor, false, false> {
+public:
+    VariableDefinitionVisitor() = default;
+
+    [[maybe_unused]] void handle(const slang::VariableDeclStatement &stmt);
+
+    std::vector<const slang::VariableSymbol*> vars;
 };
 
 class DependencyAnalysisVisitor : public slang::ASTVisitor<DependencyAnalysisVisitor, true, true> {

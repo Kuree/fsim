@@ -24,6 +24,16 @@ public:
 class ModuleComplexityVisitor : public slang::ASTVisitor<ModuleComplexityVisitor, true, true> {
     // see
     // https://clang.llvm.org/extra/clang-tidy/checks/readability-function-cognitive-complexity.html
+public:
+    [[maybe_unused]] void handle(const slang::AssignmentExpression &stmt);
+    [[maybe_unused]] void handle(const slang::ConditionalStatement &stmt);
+    [[maybe_unused]] void handle(const slang::CaseStatement &stmt);
+    [[maybe_unused]] void handle(const slang::ForLoopStatement &stmt);
+
+    uint64_t complexity = 0;
+
+private:
+    uint64_t current_level_ = 1;
 };
 
 class DependencyAnalysisVisitor : public slang::ASTVisitor<DependencyAnalysisVisitor, true, true> {

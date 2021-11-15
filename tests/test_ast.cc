@@ -27,6 +27,29 @@ endmodule
     EXPECT_EQ(vis.modules.size(), 4);
 }
 
+TEST(ast, module_complexity) {  // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+module m;
+    logic a, b, c, d;
+    assign a = b;
+    always_comb begin
+        if (c) b = c;
+        else b = c;
+    end
+    always_comb begin
+        for (int i = 0; i < 4; i++) begin
+            d = 1;
+        end
+    end
+endmodule
+)");
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    ModuleComplexityVisitor v;
+    compilation.getRoot().visit(v);
+    EXPECT_EQ(v.complexity, 1 + 2 + 2 + 2);
+}
+
 TEST(ast, var_dep_chained) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module m;

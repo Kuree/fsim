@@ -23,6 +23,28 @@ public:
     std::unordered_set<const slang::NamedValueExpression *> vars;
 };
 
+[[maybe_unused]] void ModuleComplexityVisitor::handle(const slang::AssignmentExpression &) {
+    complexity += current_level_;
+}
+
+[[maybe_unused]] void ModuleComplexityVisitor::handle(const slang::ConditionalStatement &stmt) {
+    current_level_++;
+    visitDefault(stmt);
+    current_level_--;
+}
+
+[[maybe_unused]] void ModuleComplexityVisitor::handle(const slang::CaseStatement &stmt) {
+    current_level_++;
+    visitDefault(stmt);
+    current_level_--;
+}
+
+[[maybe_unused]] void ModuleComplexityVisitor::handle(const slang::ForLoopStatement &stmt) {
+    current_level_++;
+    visitDefault(stmt);
+    current_level_--;
+}
+
 DependencyAnalysisVisitor::Node *DependencyAnalysisVisitor::Graph::get_node(
     const slang::NamedValueExpression *name) {
     auto const &sym = name->symbol;

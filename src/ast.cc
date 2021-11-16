@@ -50,16 +50,21 @@ public:
     vars.emplace_back(&var);
 }
 
+DependencyAnalysisVisitor::Node *get_node_(DependencyAnalysisVisitor::Graph *graph,
+                                           const slang::Symbol &sym) {
+    auto n = std::string(sym.name);
+    if (graph->node_mapping.find(n) == graph->node_mapping.end()) {
+        auto ptr = std::make_unique<DependencyAnalysisVisitor::Node>(sym);
+        auto &node = graph->nodes.emplace_back(std::move(ptr));
+        graph->node_mapping.emplace(n, node.get());
+    }
+    return graph->node_mapping.at(n);
+}
 
 DependencyAnalysisVisitor::Node *DependencyAnalysisVisitor::Graph::get_node(
     const slang::NamedValueExpression *name) {
     auto const &sym = name->symbol;
-    auto n = std::string(sym.name);
-    if (node_mapping.find(n) == node_mapping.end()) {
-        auto &node = nodes.emplace_back(std::make_unique<Node>(sym));
-        node_mapping.emplace(n, node.get());
-    }
-    return node_mapping.at(n);
+    return get_node_(this, sym);
 }
 
 DependencyAnalysisVisitor::Node *DependencyAnalysisVisitor::Graph::get_node(
@@ -73,18 +78,26 @@ DependencyAnalysisVisitor::Node *DependencyAnalysisVisitor::Graph::get_node(
 
 DependencyAnalysisVisitor::Node *DependencyAnalysisVisitor::Graph::get_node(
     const slang::Symbol &symbol) {
-    if (symbol.kind == slang::SymbolKind::ProceduralBlock) {
-        // procedural block doesn't have a name
-        // we will only call it once since
-        if (new_names_.find(&symbol) == new_names_.end()) {
-            std::string name = fmt::format(".blk{0}", procedural_blk_count_++);
-            new_names_.emplace(&symbol, name);
-            auto &node = nodes.emplace_back(std::make_unique<Node>(symbol));
-            node_mapping.emplace(name, node.get());
+    switch (symbol.kind) {
+        case slang::SymbolKind::ProceduralBlock: {
+            // procedural block doesn't have a name
+            // we will only call it once since
+            if (new_names_.find(&symbol) == new_names_.end()) {
+                std::string name = fmt::format(".blk{0}", procedural_blk_count_++);
+                new_names_.emplace(&symbol, name);
+                auto &node = nodes.emplace_back(std::move(std::make_unique<Node>(symbol)));
+                node_mapping.emplace(name, node.get());
+            }
+            return node_mapping.at(new_names_.at(&symbol));
         }
-        return node_mapping.at(new_names_.at(&symbol));
-    } else {
-        throw std::runtime_error(fmt::format("Unsupported node {0}", slang::toString(symbol.kind)));
+        case slang::SymbolKind::Variable:
+        case slang::SymbolKind::Net: {
+            return get_node_(this, symbol);
+        }
+        default: {
+            throw std::runtime_error(
+                fmt::format("Unsupported node {0}", slang::toString(symbol.kind)));
+        }
     }
 }
 
@@ -188,6 +201,37 @@ public:
         }
     }
     visitDefault(stmt);
+}
+
+void add_init_node(const slang::Expression *expr, const slang::Symbol &var,
+                   DependencyAnalysisVisitor::Graph *graph) {
+    VariableExtractor v;
+    expr->visit(v);
+    auto *left = graph->get_node(var);
+    auto const &right = v.vars;
+    for (auto const *node : right) {
+        auto *n = graph->get_node(node);
+        left->edges_from.emplace(n);
+        n->edges_to.emplace(left);
+    }
+}
+
+// NOLINTNEXTLINE
+[[maybe_unused]] void DependencyAnalysisVisitor::handle(const slang::VariableSymbol &var) {
+    // notice that we're only interested in the module level variables
+    if (!var.getParentScope()->isProceduralContext() && var.getInitializer()) {
+        // it also has to have an initializer
+        add_init_node(var.getInitializer(), var, graph);
+    }
+}
+
+// NOLINTNEXTLINE
+[[maybe_unused]] void DependencyAnalysisVisitor::handle(const slang::NetSymbol &sym) {
+    // notice that we're only interested in the module level variables
+    if (!sym.getParentScope()->isProceduralContext() && sym.getInitializer()) {
+        // it also has to have an initializer
+        add_init_node(sym.getInitializer(), sym, graph);
+    }
 }
 
 }  // namespace xsim

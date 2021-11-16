@@ -128,3 +128,20 @@ endmodule
     EXPECT_EQ(n->edges_to.size(), 1);
     EXPECT_EQ(n->edges_from.size(), 1);
 }
+
+TEST(ast, init_dep) {   // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+module m;
+logic a;
+logic b = a;
+wire c = b;
+reg d = c;
+endmodule
+)");
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    DependencyAnalysisVisitor v;
+    compilation.getRoot().visit(v);
+
+    EXPECT_EQ(v.graph->nodes.size(), 4);
+}

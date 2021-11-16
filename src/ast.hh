@@ -75,6 +75,8 @@ public:
 
     [[maybe_unused]] void handle(const slang::ContinuousAssignSymbol &stmt);
     [[maybe_unused]] void handle(const slang::ProceduralBlockSymbol &stmt);
+    [[maybe_unused]] void handle(const slang::VariableSymbol &sym);
+    [[maybe_unused]] void handle(const slang::NetSymbol &sym);
 
     Graph *graph;
 

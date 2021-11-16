@@ -13,3 +13,4 @@ function(add_test target)
 endfunction()
 
 add_test(test_ast)
+add_test(test_ir)

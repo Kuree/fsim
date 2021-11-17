@@ -36,13 +36,14 @@ private:
     uint64_t current_level_ = 1;
 };
 
-class VariableDefinitionVisitor: public slang::ASTVisitor<VariableDefinitionVisitor, false, false> {
+class VariableDefinitionVisitor
+    : public slang::ASTVisitor<VariableDefinitionVisitor, false, false> {
 public:
     VariableDefinitionVisitor() = default;
 
     [[maybe_unused]] void handle(const slang::VariableDeclStatement &stmt);
 
-    std::vector<const slang::VariableSymbol*> vars;
+    std::vector<const slang::VariableSymbol *> vars;
 };
 
 class DependencyAnalysisVisitor : public slang::ASTVisitor<DependencyAnalysisVisitor, true, true> {
@@ -70,13 +71,16 @@ public:
         std::unordered_map<const slang::Symbol *, std::string> new_names_;
     };
 
-    DependencyAnalysisVisitor();
-    explicit DependencyAnalysisVisitor(Graph *graph) : graph(graph) {}
+    DependencyAnalysisVisitor() : DependencyAnalysisVisitor(nullptr) {}
+    explicit DependencyAnalysisVisitor(const slang::Symbol *target);
+    DependencyAnalysisVisitor(const slang::Symbol *target, Graph *graph)
+        : graph(graph), target_(target) {}
 
     [[maybe_unused]] void handle(const slang::ContinuousAssignSymbol &stmt);
     [[maybe_unused]] void handle(const slang::ProceduralBlockSymbol &stmt);
     [[maybe_unused]] void handle(const slang::VariableSymbol &sym);
     [[maybe_unused]] void handle(const slang::NetSymbol &sym);
+    [[maybe_unused]] void handle(const slang::InstanceSymbol &symbol);
 
     Graph *graph;
 
@@ -84,6 +88,22 @@ public:
 
 private:
     std::unique_ptr<Graph> graph_;
+    const slang::Symbol *target_;
+};
+
+class ProcedureBlockVisitor : public slang::ASTVisitor<ProcedureBlockVisitor, false, false> {
+public:
+    ProcedureBlockVisitor(const slang::InstanceSymbol *target, slang::ProceduralBlockKind kind)
+        : target_(target), kind_(kind) {}
+
+    [[maybe_unused]] void handle(const slang::ProceduralBlockSymbol &stmt);
+    [[maybe_unused]] void handle(const slang::InstanceSymbol &symbol);
+
+    std::vector<const slang::ProceduralBlockSymbol *> stmts;
+
+private:
+    const slang::InstanceSymbol *target_;
+    slang::ProceduralBlockKind kind_;
 };
 
 }  // namespace xsim

@@ -17,8 +17,9 @@ struct Port {
 class Process {
 public:
     slang::ProceduralBlockKind type;
-
     std::vector<const slang::Symbol*> stmts;
+
+    explicit Process(slang::ProceduralBlockKind type): type(type) {}
 };
 
 class Module {
@@ -27,12 +28,21 @@ public:
     std::string_view name;
 
     std::map<std::string_view, std::unique_ptr<Variable>> vars;
-    std::vector<std::unique_ptr<Process>> processes;
+    std::vector<std::unique_ptr<Process>> comb_processes;
+    std::vector<std::unique_ptr<Process>> ff_processes;
+    std::vector<std::unique_ptr<Process>> init_processes;
+    std::vector<std::unique_ptr<Process>> final_processes;
 
     std::string analyze();
 
 private:
     const slang::InstanceSymbol *def_;
+
+    std::string analyze_vars();
+    std::string analyze_comb();
+    std::string analyze_init();
+    std::string analyze_ff();
+    std::string analyze_final();
 };
 
 }

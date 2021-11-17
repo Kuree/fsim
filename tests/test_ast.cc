@@ -129,7 +129,7 @@ endmodule
     EXPECT_EQ(n->edges_from.size(), 1);
 }
 
-TEST(ast, init_dep) {   // NOLINT
+TEST(ast, init_dep) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module m;
 logic a;
@@ -144,4 +144,80 @@ endmodule
     compilation.getRoot().visit(v);
 
     EXPECT_EQ(v.graph->nodes.size(), 4);
+}
+
+TEST(as, verilog_always_dep) {  // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+module m;
+logic a, b, c, d;
+always @(posedge a, d) c = a; // d -> c  blk0
+always @(*) a = b; // b -> a             blk1
+always @(c) b = a; // c -> b             blk2
+endmodule
+)");
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    DependencyAnalysisVisitor v;
+    compilation.getRoot().visit(v);
+
+    auto *blk0 = v.graph->get_node(".blk0");
+    auto *blk1 = v.graph->get_node(".blk1");
+    auto *blk2 = v.graph->get_node(".blk2");
+    auto const *a = v.graph->get_node("a");
+    auto const *b = v.graph->get_node("b");
+    auto const *c = v.graph->get_node("c");
+    auto const *d = v.graph->get_node("d");
+    // c <- blk0 <- d
+    auto pos = std::find(blk0->edges_to.begin(), blk0->edges_to.end(), c);
+    EXPECT_NE(pos, blk0->edges_to.end());
+    pos = std::find(blk0->edges_from.begin(), blk0->edges_from.end(), d);
+    EXPECT_NE(pos, blk0->edges_from.end());
+    // a <- blk1 <- b
+    pos = std::find(blk1->edges_to.begin(), blk1->edges_to.end(), a);
+    EXPECT_NE(pos, blk1->edges_to.end());
+    pos = std::find(blk1->edges_from.begin(), blk1->edges_from.end(), b);
+    EXPECT_NE(pos, blk1->edges_from.end());
+    // b <- blk2 <- c;
+    pos = std::find(blk2->edges_to.begin(), blk2->edges_to.end(), b);
+    EXPECT_NE(pos, blk2->edges_to.end());
+    pos = std::find(blk2->edges_from.begin(), blk2->edges_from.end(), c);
+    EXPECT_NE(pos, blk2->edges_from.end());
+}
+
+TEST(ast, procedure_extraction) {  // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+module m2;
+initial begin end
+final begin end
+endmodule
+module m1;
+logic clk;
+always_ff @(posedge clk) begin end
+m2 m2();
+endmodule
+)");
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    ModuleDefinitionVisitor defs;
+    compilation.getRoot().visit(defs);
+
+    auto const *m1 = defs.modules.at("m1");
+    EXPECT_TRUE(m1);
+    ProcedureBlockVisitor vis(m1, slang::ProceduralBlockKind::AlwaysFF);
+    m1->visit(vis);
+    EXPECT_EQ(vis.stmts.size(), 1);
+    // should not visit the child
+    vis = ProcedureBlockVisitor(m1, slang::ProceduralBlockKind::Final);
+    m1->visit(vis);
+    EXPECT_TRUE(vis.stmts.empty());
+
+    auto const *m2 = defs.modules.at("m2");
+    EXPECT_TRUE(m2);
+    vis = ProcedureBlockVisitor(m2, slang::ProceduralBlockKind::Final);
+    m2->visit(vis);
+    EXPECT_EQ(vis.stmts.size(), 1);
+
+    vis = ProcedureBlockVisitor(m2, slang::ProceduralBlockKind::Initial);
+    m2->visit(vis);
+    EXPECT_EQ(vis.stmts.size(), 1);
 }

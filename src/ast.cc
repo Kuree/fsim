@@ -79,7 +79,8 @@ DependencyAnalysisVisitor::Node *DependencyAnalysisVisitor::Graph::get_node(
 DependencyAnalysisVisitor::Node *DependencyAnalysisVisitor::Graph::get_node(
     const slang::Symbol &symbol) {
     switch (symbol.kind) {
-        case slang::SymbolKind::ProceduralBlock: {
+        case slang::SymbolKind::ProceduralBlock:
+        case slang::SymbolKind::ContinuousAssign: {
             // procedural block doesn't have a name
             // we will only call it once since
             if (new_names_.find(&symbol) == new_names_.end()) {
@@ -101,13 +102,15 @@ DependencyAnalysisVisitor::Node *DependencyAnalysisVisitor::Graph::get_node(
     }
 }
 
-DependencyAnalysisVisitor::DependencyAnalysisVisitor() {
+DependencyAnalysisVisitor::DependencyAnalysisVisitor(const slang::Symbol *target)
+    : target_(target) {
     graph_ = std::make_unique<Graph>();
     graph = graph_.get();
 }
 
-void process_assignment(const slang::AssignmentExpression &assign,
-                        DependencyAnalysisVisitor::Graph *graph, std::string &error) {
+[[maybe_unused]] void DependencyAnalysisVisitor::handle(const slang::ContinuousAssignSymbol &stmt) {
+    auto const &assign = stmt.getAssignment().as<slang::AssignmentExpression>();
+
     // left depends on the right-hand side
     VariableExtractor v;
     auto const &left_expr = assign.left();
@@ -119,6 +122,10 @@ void process_assignment(const slang::AssignmentExpression &assign,
     auto right_vars = v.vars;
 
     // compute the dependency graph
+    // we treat this as a new node
+    // since it is a continuous assignment, which needs to be put into
+    // always block
+    auto *new_node = graph->get_node(stmt);
     for (auto const *r : right_vars) {
         for (auto const *l : left_vars) {
             if (r == l) {
@@ -128,16 +135,15 @@ void process_assignment(const slang::AssignmentExpression &assign,
             } else {
                 auto *r_node = graph->get_node(r);
                 auto *l_node = graph->get_node(l);
-                r_node->edges_to.emplace(l_node);
-                l_node->edges_from.emplace(r_node);
+
+                r_node->edges_to.emplace(new_node);
+                new_node->edges_to.emplace(l_node);
+
+                l_node->edges_from.emplace(new_node);
+                new_node->edges_from.emplace(r_node);
             }
         }
     }
-}
-
-[[maybe_unused]] void DependencyAnalysisVisitor::handle(const slang::ContinuousAssignSymbol &stmt) {
-    auto const &assign = stmt.getAssignment().as<slang::AssignmentExpression>();
-    process_assignment(assign, graph, error);
 }
 
 class SensitivityListExtraction : public slang::ASTVisitor<SensitivityListExtraction, true, true> {
@@ -179,10 +185,77 @@ public:
     std::unordered_set<const slang::NamedValueExpression *> right;
 };
 
+std::pair<bool, std::unordered_set<const slang::NamedValueExpression *>>
+extract_combinational_sensitivity(const slang::ProceduralBlockSymbol *stmt) {
+    // old-fashioned way of extracting out always block's sensitivity list
+    if (stmt->procedureKind != slang::ProceduralBlockKind::Always) {
+        return {false, {}};
+    }
+    auto const &body = stmt->getBody();
+    if (body.kind != slang::StatementKind::Timed) {
+        return {false, {}};
+    }
+    auto const &timed = body.as<slang::TimedStatement>();
+    auto const &timing_control = timed.timing;
+    std::unordered_set<const slang::NamedValueExpression *> result;
+    if (timing_control.kind == slang::TimingControlKind::SignalEvent) {
+        // maybe?
+        auto const &signal_event = timing_control.as<slang::SignalEventControl>();
+        if (signal_event.edge == slang::EdgeKind::None) {
+            auto const &var = signal_event.expr;
+            VariableExtractor vis;
+            var.visit(vis);
+            for (auto const *v : vis.vars) {
+                result.emplace(v);
+            }
+            return {true, result};
+        }
+        return {false, {}};
+    } else if (timing_control.kind == slang::TimingControlKind::ImplicitEvent) {
+        // need to use the old way to extract out sensitivity
+        return {true, {}};
+    } else if (timing_control.kind == slang::TimingControlKind::EventList) {
+        auto const &event_list = timing_control.as<slang::EventListControl>();
+        for (auto const *event : event_list.events) {
+            if (event->kind == slang::TimingControlKind::SignalEvent) {
+                auto const &sig = event->as<slang::SignalEventControl>();
+                if (sig.edge == slang::EdgeKind::None) {
+                    VariableExtractor vis;
+                    sig.expr.visit(vis);
+                    for (auto const *v : vis.vars) {
+                        result.emplace(v);
+                    }
+                }
+            }
+        }
+        if (result.empty()) {
+            return {false, {}};
+        } else {
+            return {true, result};
+        }
+    } else {
+        return {false, {}};
+    }
+}
+
+// NOLINTNEXTLINE
 [[maybe_unused]] void DependencyAnalysisVisitor::handle(const slang::ProceduralBlockSymbol &stmt) {
     if (stmt.procedureKind == slang::ProceduralBlockKind::AlwaysComb ||
         stmt.procedureKind == slang::ProceduralBlockKind::Always ||
         stmt.procedureKind == slang::ProceduralBlockKind::AlwaysLatch) {
+        // legacy verilog is pain
+        std::unordered_set<const slang::NamedValueExpression *> right_list;
+        if (stmt.procedureKind == slang::ProceduralBlockKind::Always) {
+            auto [comb, lst] = extract_combinational_sensitivity(&stmt);
+            if (comb) {
+                if (!lst.empty()) {
+                    // use that instead
+                    right_list = lst;
+                }
+            } else {
+                return;
+            }
+        }
         // we need to compute analysis on the right-hand side, as well as if and switch
         // conditions.
         // then we create a node in the graph to represent the node
@@ -194,13 +267,13 @@ public:
             node->edges_to.emplace(n);
             n->edges_from.emplace(node);
         }
-        for (auto *right : s.right) {
+        if (right_list.empty()) right_list = s.right;
+        for (auto *right : right_list) {
             auto n = graph->get_node(right);
             node->edges_from.emplace(n);
             n->edges_to.emplace(node);
         }
     }
-    visitDefault(stmt);
 }
 
 void add_init_node(const slang::Expression *expr, const slang::Symbol &var,
@@ -232,6 +305,29 @@ void add_init_node(const slang::Expression *expr, const slang::Symbol &var,
         // it also has to have an initializer
         add_init_node(sym.getInitializer(), sym, graph);
     }
+}
+
+[[maybe_unused]] void DependencyAnalysisVisitor::handle(const slang::InstanceSymbol &sym) {
+    // notice that we don't do anything here to prevent the visitor visit deeper into
+    // the hierarchy since the child module definition will be handled by other module
+    // instances
+    if (target_ && &sym != target_) {
+        return;
+    }
+    visitDefault(sym);
+}
+
+[[maybe_unused]] void ProcedureBlockVisitor::handle(const slang::InstanceSymbol &symbol) {
+    if (target_ == &symbol) {
+        visitDefault(symbol);
+    }
+}
+
+[[maybe_unused]] void ProcedureBlockVisitor::handle(const slang::ProceduralBlockSymbol &stmt) {
+    if (stmt.procedureKind == kind_) {
+        stmts.emplace_back(&stmt);
+    }
+    // no need to visit inside
 }
 
 }  // namespace xsim

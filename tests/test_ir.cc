@@ -24,6 +24,10 @@ endmodule
     Module m(def);
     auto error = m.analyze();
     EXPECT_TRUE(error.empty());
-    EXPECT_EQ(m.processes.size(), 2);
-    EXPECT_EQ(m.processes[1]->stmts.size(), 4);
+    EXPECT_EQ(m.comb_processes.size(), 2);
+    EXPECT_EQ(m.comb_processes[1]->stmts.size(), 2);
+
+    EXPECT_EQ(m.comb_processes[0]->stmts[0]->kind, SymbolKind::ProceduralBlock);
+    EXPECT_EQ(m.comb_processes[1]->stmts[0]->kind, SymbolKind::ContinuousAssign);
+    EXPECT_EQ(m.comb_processes[1]->stmts[1]->kind, SymbolKind::Variable);
 }

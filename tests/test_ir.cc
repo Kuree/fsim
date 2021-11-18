@@ -10,7 +10,7 @@ TEST(ir, module_process) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module m;
 logic a, b, c;
-logic d = c;
+wire d = c;
 assign c = b;
 always_comb
     b = a;
@@ -29,5 +29,5 @@ endmodule
 
     EXPECT_EQ(m.comb_processes[0]->stmts[0]->kind, SymbolKind::ProceduralBlock);
     EXPECT_EQ(m.comb_processes[1]->stmts[0]->kind, SymbolKind::ContinuousAssign);
-    EXPECT_EQ(m.comb_processes[1]->stmts[1]->kind, SymbolKind::Variable);
+    EXPECT_EQ(m.comb_processes[1]->stmts[1]->kind, SymbolKind::Net);
 }

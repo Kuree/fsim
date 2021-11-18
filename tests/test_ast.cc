@@ -65,10 +65,10 @@ endmodule
     DependencyAnalysisVisitor v;
     compilation.getRoot().visit(v);
     EXPECT_TRUE(v.error.empty());
-    EXPECT_EQ(v.graph->nodes.size(), 4);
+    EXPECT_EQ(v.graph->nodes.size(), 7);
     auto const *n = v.graph->get_node("d");
     EXPECT_TRUE(n);
-    for (auto i = 0; i < 3; i++) {
+    while (!n->edges_to.empty()) {
         EXPECT_EQ(n->edges_to.size(), 1);
         n = *n->edges_to.begin();
     }
@@ -87,8 +87,9 @@ endmodule
     DependencyAnalysisVisitor v;
     compilation.getRoot().visit(v);
     EXPECT_TRUE(v.error.empty());
-    auto *n = v.graph->get_node("a");
+    auto const *n = v.graph->get_node("a");
     EXPECT_TRUE(n);
+    n = *n->edges_from.begin();
     EXPECT_EQ(n->edges_from.size(), 2);
 }
 
@@ -133,9 +134,9 @@ TEST(ast, init_dep) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module m;
 logic a;
-logic b = a;
+wire b = a;
 wire c = b;
-reg d = c;
+wire d = c;
 endmodule
 )");
     Compilation compilation;
@@ -220,4 +221,23 @@ endmodule
     vis = ProcedureBlockVisitor(m2, slang::ProceduralBlockKind::Initial);
     m2->visit(vis);
     EXPECT_EQ(vis.stmts.size(), 1);
+}
+
+TEST(ast, timing_procedure) {  // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+module m;
+logic a;
+always #5 a = ~a;
+endmodule
+)");
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    ModuleDefinitionVisitor defs;
+    compilation.getRoot().visit(defs);
+
+    auto const *m = defs.modules.at("m");
+    DependencyAnalysisVisitor vis;
+    m->visit(vis);
+    EXPECT_EQ(vis.timed_stmts.size(), 1);
+    EXPECT_TRUE(vis.graph->nodes.empty());
 }

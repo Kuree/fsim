@@ -97,8 +97,7 @@ std::string Module::analyze_vars() {
 
 bool is_assignment(const slang::Symbol *symbol) {
     if (symbol->kind == slang::SymbolKind::Variable) {
-        auto const &var = symbol->as<slang::VariableSymbol>();
-        return var.getInitializer() != nullptr;
+        return false;
     } else if (symbol->kind == slang::SymbolKind::Net) {
         auto const &net = symbol->as<slang::NetSymbol>();
         return net.getInitializer() != nullptr;
@@ -119,7 +118,7 @@ std::string Module::analyze_comb() {
     // merging nodes and create procedure blocks
     // we treat initial assignment and continuous assignments as combinational
     // block (or always_latch)
-    auto process = std::make_unique<Process>(slang::ProceduralBlockKind::AlwaysComb);
+    auto process = std::make_unique<CombProcess>();
     for (auto const *n : order) {
         auto const &sym = n->symbol;
         // ignore nodes without initializer since we will create the variables/logics in a different
@@ -129,11 +128,11 @@ std::string Module::analyze_comb() {
             // need to flush whatever in the pipe
             if (!process->stmts.empty()) {
                 comb_processes.emplace_back(std::move(process));
-                process = std::make_unique<Process>(slang::ProceduralBlockKind::AlwaysComb);
+                process = std::make_unique<CombProcess>();
             }
             process->stmts.emplace_back(&sym);
             comb_processes.emplace_back(std::move(process));
-            process = std::make_unique<Process>(slang::ProceduralBlockKind::AlwaysComb);
+            process = std::make_unique<CombProcess>();
         } else {
             process->stmts.emplace_back(&sym);
         }
@@ -164,7 +163,7 @@ std::string Module::analyze_init() {
 }
 
 std::string Module::analyze_final() {
-    extract_procedure_blocks(init_processes, def_, slang::ProceduralBlockKind::Final);
+    extract_procedure_blocks(final_processes, def_, slang::ProceduralBlockKind::Final);
     return {};
 }
 

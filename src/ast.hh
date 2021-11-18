@@ -78,11 +78,11 @@ public:
 
     [[maybe_unused]] void handle(const slang::ContinuousAssignSymbol &stmt);
     [[maybe_unused]] void handle(const slang::ProceduralBlockSymbol &stmt);
-    [[maybe_unused]] void handle(const slang::VariableSymbol &sym);
     [[maybe_unused]] void handle(const slang::NetSymbol &sym);
     [[maybe_unused]] void handle(const slang::InstanceSymbol &symbol);
 
     Graph *graph;
+    std::vector<const slang::ProceduralBlockSymbol*> timed_stmts;
 
     std::string error;
 

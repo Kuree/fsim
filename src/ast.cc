@@ -185,12 +185,11 @@ public:
     std::unordered_set<const slang::NamedValueExpression *> right;
 };
 
+// See LRM 9.2.2.2.1
+// TODO: implement longest prefix (11.5.3)
 std::pair<bool, std::unordered_set<const slang::NamedValueExpression *>>
 extract_combinational_sensitivity(const slang::ProceduralBlockSymbol *stmt) {
     // old-fashioned way of extracting out always block's sensitivity list
-    if (stmt->procedureKind != slang::ProceduralBlockKind::Always) {
-        return {false, {}};
-    }
     auto const &body = stmt->getBody();
     if (body.kind != slang::StatementKind::Timed) {
         return {false, {}};
@@ -238,6 +237,26 @@ extract_combinational_sensitivity(const slang::ProceduralBlockSymbol *stmt) {
     }
 }
 
+class TimingControlVisitor: public slang::ASTVisitor<TimingControlVisitor, true, true> {
+public:
+    bool has_timing_control = false;
+    [[maybe_unused]] void handle(const slang::AssignmentExpression &assignment) {
+        if (assignment.timingControl) has_timing_control = true;
+    }
+    [[maybe_unused]] void handle(const slang::TimingControl &timing) {
+        has_timing_control = true;
+    }
+};
+
+// always blocks with timing control
+// used for infinite loop
+// notice that always_comb doesn't allow delay, see LRM 9.2.2.2.2
+bool has_timing_control(const slang::ProceduralBlockSymbol &stmt) {
+    TimingControlVisitor vis;
+    stmt.visit(vis);
+    return vis.has_timing_control;
+}
+
 // NOLINTNEXTLINE
 [[maybe_unused]] void DependencyAnalysisVisitor::handle(const slang::ProceduralBlockSymbol &stmt) {
     if (stmt.procedureKind == slang::ProceduralBlockKind::AlwaysComb ||
@@ -253,6 +272,9 @@ extract_combinational_sensitivity(const slang::ProceduralBlockSymbol *stmt) {
                     right_list = lst;
                 }
             } else {
+                if (has_timing_control(stmt)) {
+                    timed_stmts.emplace_back(&stmt);
+                }
                 return;
             }
         }
@@ -286,15 +308,6 @@ void add_init_node(const slang::Expression *expr, const slang::Symbol &var,
         auto *n = graph->get_node(node);
         left->edges_from.emplace(n);
         n->edges_to.emplace(left);
-    }
-}
-
-// NOLINTNEXTLINE
-[[maybe_unused]] void DependencyAnalysisVisitor::handle(const slang::VariableSymbol &var) {
-    // notice that we're only interested in the module level variables
-    if (!var.getParentScope()->isProceduralContext() && var.getInitializer()) {
-        // it also has to have an initializer
-        add_init_node(var.getInitializer(), var, graph);
     }
 }
 

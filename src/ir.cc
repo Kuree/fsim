@@ -81,11 +81,14 @@ std::string Module::analyze() {
     error = analyze_ff();
     if (!error.empty()) return error;
 
+    // this is a recursive call to walk through all the module definitions
+    analyze_inst();
+
     return error;
 }
 
 std::string Module::analyze_vars() {
-    VariableDefinitionVisitor v;
+    VariableDefinitionVisitor v(def_);
     def_->visit(v);
     for (auto const *var : v.vars) {
         auto v_ = std::make_unique<Variable>();
@@ -171,6 +174,40 @@ std::string Module::analyze_ff() {
     // notice that we also use always_ff to refer to the old-fashion always block
     extract_procedure_blocks(ff_processes, def_, slang::ProceduralBlockKind::AlwaysFF);
     return {};
+}
+
+class ModuleAnalyzeVisitor : public slang::ASTVisitor<ModuleAnalyzeVisitor, false, false> {
+public:
+    explicit ModuleAnalyzeVisitor(Module *target) : target_(target) {}
+    [[maybe_unused]] void handle(const slang::InstanceSymbol &inst) {
+        if (!error.empty()) return;
+        if (target_->def() == &inst) {
+            visitDefault(inst);
+        } else {
+            // child instance
+            auto def_name = inst.getDefinition().name;
+            if (module_defs_.find(def_name) == module_defs_.end()) {
+                auto child = std::make_shared<Module>(&inst);
+                module_defs_.emplace(def_name, child);
+                // this will call the analysis function recursively
+                error = child->analyze();
+            }
+            auto c = module_defs_.at(def_name);
+            target_->child_instances.emplace(inst.name, c);
+        }
+    }
+
+    std::string error;
+
+private:
+    std::unordered_map<std::string_view, std::shared_ptr<Module>> module_defs_;
+    Module *target_;
+};
+
+std::string Module::analyze_inst() {
+    ModuleAnalyzeVisitor vis(this);
+    def_->visit(vis);
+    return vis.error;
 }
 
 }  // namespace xsim

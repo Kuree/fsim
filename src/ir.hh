@@ -46,6 +46,11 @@ public:
 
     std::string analyze();
 
+    // circular dependencies is not allowed in SV, so shared pointer is fine
+    std::map<std::string, std::shared_ptr<Module>> child_instances;
+
+    [[nodiscard]] const slang::InstanceSymbol *def() const { return def_; }
+
 private:
     const slang::InstanceSymbol *def_;
 
@@ -54,6 +59,8 @@ private:
     std::string analyze_init();
     std::string analyze_ff();
     std::string analyze_final();
+
+    std::string analyze_inst();
 };
 
 }  // namespace xsim

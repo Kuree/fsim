@@ -5,6 +5,7 @@
 #include <iostream>
 
 #include "logic/logic.hh"
+#include "schduler.hh"
 
 namespace xsim::runtime {
 
@@ -30,11 +31,13 @@ void assert_(const T &v, std::string_view name, std::string_view loc,
     }
 }
 
-template <typename ...Args>
-void display(std::string_view format, Args ...args) {
+template <typename... Args>
+void display(std::string_view format, Args... args) {
     // only display the format for now
     std::cout << format << std::endl;
 }
+
+void finish(int code = 0) { throw FinishException(); }
 
 }  // namespace xsim::runtime
 

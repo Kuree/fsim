@@ -50,6 +50,14 @@ public:
     vars.emplace_back(&var);
 }
 
+[[maybe_unused]] void VariableDefinitionVisitor::handle(const slang::InstanceSymbol &inst) {
+    if (target_inst_) {
+        if (&inst == target_inst_) visitDefault(inst);
+    } else {
+        visitDefault(inst);
+    }
+}
+
 DependencyAnalysisVisitor::Node *get_node_(DependencyAnalysisVisitor::Graph *graph,
                                            const slang::Symbol &sym) {
     auto n = std::string(sym.name);
@@ -237,15 +245,13 @@ extract_combinational_sensitivity(const slang::ProceduralBlockSymbol *stmt) {
     }
 }
 
-class TimingControlVisitor: public slang::ASTVisitor<TimingControlVisitor, true, true> {
+class TimingControlVisitor : public slang::ASTVisitor<TimingControlVisitor, true, true> {
 public:
     bool has_timing_control = false;
     [[maybe_unused]] void handle(const slang::AssignmentExpression &assignment) {
         if (assignment.timingControl) has_timing_control = true;
     }
-    [[maybe_unused]] void handle(const slang::TimingControl &timing) {
-        has_timing_control = true;
-    }
+    [[maybe_unused]] void handle(const slang::TimingControl &timing) { has_timing_control = true; }
 };
 
 // always blocks with timing control

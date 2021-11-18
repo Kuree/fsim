@@ -32,12 +32,12 @@ void assert_(const T &v, std::string_view name, std::string_view loc,
 }
 
 template <typename... Args>
-void display(std::string_view format, Args... args) {
+void display(std::string_view format, Args...) {
     // only display the format for now
     std::cout << format << std::endl;
 }
 
-void finish(int code = 0) { throw FinishException(); }
+inline void finish(int code = 0) { throw FinishException(code); }
 
 }  // namespace xsim::runtime
 

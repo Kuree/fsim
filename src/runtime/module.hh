@@ -1,14 +1,20 @@
 #ifndef XSIM_MODULE_HH
 #define XSIM_MODULE_HH
 
+#include <string_view>
+
 namespace xsim::runtime {
 class Scheduler;
 class Module {
 public:
-    virtual void init(Scheduler *scheduler) {}
-    virtual void comb(Scheduler *scheduler) {}
-    virtual void nba(Scheduler *scheduler) {}
-    virtual void final(Scheduler *scheduler) {}
+    Module() = delete;
+    explicit Module(std::string_view module) : module(module) {}
+    virtual void init(Scheduler *) {}
+    virtual void comb(Scheduler *) {}
+    virtual void nba(Scheduler *) {}
+    virtual void final(Scheduler *) {}
+
+    std::string_view module;
 };
 }  // namespace xsim::runtime
 

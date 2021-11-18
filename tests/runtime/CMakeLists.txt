@@ -1,0 +1,1 @@
+add_test(test_init xsim-runtime)

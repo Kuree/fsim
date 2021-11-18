@@ -10,3 +10,6 @@
 [submodule "extern/fmt"]
 	path = extern/fmt
 	url = https://github.com/fmtlib/fmt
+[submodule "extern/marl"]
+	path = extern/marl
+	url = https://github.com/google/marl/

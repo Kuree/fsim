@@ -11,13 +11,28 @@ namespace xsim {
 auto constexpr main_name = "module.cc";
 auto constexpr default_output_name = "xsim.out";
 
-class CXXCodeGen {};
+struct CXXCodeGenOptions {
+    bool use_4state = true;
+    bool add_vpi = false;
+};
+
+class CXXCodeGen {
+public:
+    CXXCodeGen(const Module *top, CXXCodeGenOptions option)
+        : top_(top), option_(option) {}
+
+    void output(const std::string &dir);
+
+private:
+    const Module *top_;
+    CXXCodeGenOptions option_;
+};
 
 struct NinjaCodeGenOptions {
     bool debug_build = false;
     std::string runtime_path;
     std::string clang_path;
-    std::string output_name;
+    std::string binary_name;
 };
 
 class NinjaCodeGen {
@@ -26,7 +41,7 @@ public:
     NinjaCodeGen(const Module *top, NinjaCodeGenOptions option)
         : top_(top), options_(std::move(option)) {}
 
-    void output(const std::string &path);
+    void output(const std::string &dir);
 
 private:
     const Module *top_;

@@ -1,0 +1,16 @@
+set(SLANG_DIST_PATH "${CMAKE_CURRENT_SOURCE_DIR}/extern/slang-dist")
+set(SLANG_LIB_PATH ${SLANG_DIST_PATH}/lib)
+set(SLANG_INCLUDE_PATH "${SLANG_DIST_PATH}/include")
+find_library(LIBSLANG_LIBRARY NAMES slangcompiler HINTS ${SLANG_LIB_PATH})
+find_library(LIBSLANG_CORE_LIBRARY NAMES slangcore HINTS ${SLANG_LIB_PATH})
+find_library(LIBSLANG_PARSER_LIBRARY NAMES slangparser HINTS ${SLANG_LIB_PATH})
+
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_Args(Slang DEFAULT_MSG LIBSLANG_LIBRARY)
+
+mark_as_advanced(LIBSLANG_LIBRARY SLANG_INCLUDE_PATH)
+if (LIBSLANG_LIBRARY)
+    add_library(slangcompiler INTERFACE IMPORTED)
+    set_property(TARGET slangcompiler PROPERTY INTERFACE_LINK_LIBRARIES ${LIBSLANG_PARSER_LIBRARY} ${LIBSLANG_LIBRARY} ${LIBSLANG_CORE_LIBRARY} )
+    set_property(TARGET slangcompiler PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${SLANG_INCLUDE_PATH})
+endif()

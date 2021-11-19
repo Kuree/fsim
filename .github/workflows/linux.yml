@@ -17,6 +17,14 @@ jobs:
     - name: Install ninja
       shell: bash
       run: sudo pip3 install ninja
+    - name: Download pre-built slang
+      shell: bash
+      run: |
+        cd extern
+        mkdir -p slang-dist
+        cd slang-dist
+        wget https://github.com/MikePopoloski/slang/releases/download/v0.8/slang-linux.tar.gz
+        tar xzf slang-linux.tar.gz --strip-components 1
     - name: Run tests ⚙️
       shell: bash
       run: |

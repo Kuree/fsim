@@ -2,10 +2,8 @@
 #include "../../src/runtime/scheduler.hh"
 #include "../../src/runtime/system_task.hh"
 #include "gtest/gtest.h"
-#include "slang/syntax/SyntaxTree.h"
 
 using namespace xsim::runtime;
-using namespace slang;
 
 class InitModuleNoDelay: public Module {
 public:

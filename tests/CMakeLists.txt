@@ -3,7 +3,6 @@ function(add_test target)
     set(extra_lib ${ARGN})
     target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../include
             ${CMAKE_CURRENT_SOURCE_DIR}/../extern/googletest/googletest/include
-            ${CMAKE_CURRENT_SOURCE_DIR}/../extern/slang/include
             ${CMAKE_CURRENT_SOURCE_DIR}/../extern/logic/include)
     target_link_libraries(${target} PRIVATE gtest gtest_main xsim ${extra_lib})
     gtest_discover_tests(${target})

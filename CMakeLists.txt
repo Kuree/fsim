@@ -10,7 +10,12 @@ if (CMAKE_BUILD_TYPE MATCHES "Debug")
     add_compile_options(-DDEBUG)
 endif()
 
+# import cmake find
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
+
 # external library
+# need to handle external slang prebuilt
+find_package(Slang)
 add_subdirectory(extern)
 
 add_subdirectory(src)

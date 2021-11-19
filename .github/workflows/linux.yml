@@ -17,10 +17,16 @@ jobs:
     - name: Install ninja
       shell: bash
       run: sudo pip3 install ninja
+    - name: slang build cache
+      uses: actions/cache@v2
+      with:
+        path: build
+        # se slang commit has as a key. this needs to be manually updated
+        key: 91ad5458f3f03a82246b405d897bdf257fa4b428
     - name: Run tests ⚙️
       shell: bash
       run: |
-        mkdir build
+        mkdir -p build
         cd build
         cmake ..
         make -j2

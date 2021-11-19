@@ -1,10 +1,10 @@
 #ifndef XSIM_SCHEDULER_HH
 #define XSIM_SCHEDULER_HH
 
+#include <atomic>
 #include <mutex>
 #include <queue>
 #include <stdexcept>
-#include <atomic>
 
 #include "marl/event.h"
 #include "marl/scheduler.h"

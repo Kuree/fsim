@@ -234,10 +234,6 @@ void NinjaCodeGen::output(const std::string &dir) {
     std::ofstream stream(ninja_filename, std::ios::trunc);
     // filling out missing information
     // use the output dir as the runtime dir
-    if (options_.runtime_path.empty()) {
-        auto p = std::filesystem::path(dir);
-        options_.runtime_path = p.parent_path();
-    }
     if (options_.clang_path.empty()) {
         // hope for the best?
         options_.clang_path = "clang";
@@ -246,7 +242,7 @@ void NinjaCodeGen::output(const std::string &dir) {
         options_.binary_name = default_output_name;
     }
 
-    std::filesystem::path runtime_dir = options_.runtime_path;
+    std::filesystem::path runtime_dir = std::filesystem::absolute(dir);
     auto include_dir = runtime_dir / "include";
     auto lib_path = runtime_dir / "lib";
     auto runtime_lib_path = lib_path / "libxsim-runtime.so";

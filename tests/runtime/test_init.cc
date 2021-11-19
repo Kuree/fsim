@@ -25,5 +25,8 @@ public:
 TEST(runtime, init_no_delay) {  // NOLINT
     Scheduler scheduler;
     InitModuleNoDelay m;
+    testing::internal::CaptureStdout();
     scheduler.run(&m);
+    std::string output = testing::internal::GetCapturedStdout();
+    EXPECT_NE(output.find("HELLO WORLD"), std::string::npos);
 }

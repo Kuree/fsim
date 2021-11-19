@@ -17,7 +17,6 @@ struct BuildOptions {
     bool debug_build = false;
     bool use_4state = true;
     bool add_vpi = false;
-    std::string runtime_path;
     std::string clang_path;
     std::string binary_name;
     std::string top_name;

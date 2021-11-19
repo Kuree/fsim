@@ -18,19 +18,18 @@ struct CXXCodeGenOptions {
 
 class CXXCodeGen {
 public:
-    CXXCodeGen(const Module *top, CXXCodeGenOptions option)
+    CXXCodeGen(const Module *top, CXXCodeGenOptions &option)
         : top_(top), option_(option) {}
 
     void output(const std::string &dir);
 
 private:
     const Module *top_;
-    CXXCodeGenOptions option_;
+    CXXCodeGenOptions &option_;
 };
 
 struct NinjaCodeGenOptions {
     bool debug_build = false;
-    std::string runtime_path;
     std::string clang_path;
     std::string binary_name;
 };
@@ -38,14 +37,14 @@ struct NinjaCodeGenOptions {
 class NinjaCodeGen {
     // generates native ninja code (bypass cmake)
 public:
-    NinjaCodeGen(const Module *top, NinjaCodeGenOptions option)
-        : top_(top), options_(std::move(option)) {}
+    NinjaCodeGen(const Module *top, NinjaCodeGenOptions &option)
+        : top_(top), options_(option) {}
 
     void output(const std::string &dir);
 
 private:
     const Module *top_;
-    NinjaCodeGenOptions options_;
+    NinjaCodeGenOptions &options_;
 };
 
 }  // namespace xsim

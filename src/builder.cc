@@ -5,8 +5,9 @@
 #include <unordered_set>
 
 #include "codegen.hh"
+#include "fmt/format.h"
 #include "slang/compilation/Compilation.h"
-#include "subprocess/subprocess.hpp"
+#include "subprocess.hpp"
 
 namespace xsim {
 
@@ -96,7 +97,6 @@ void Builder::build(const Module *module) const {
     // generate ninja first
     NinjaCodeGenOptions n_options;
     n_options.debug_build = options_.debug_build;
-    n_options.runtime_path = options_.runtime_path;
     n_options.clang_path = options_.clang_path;
     n_options.binary_name = options_.binary_name;
 
@@ -119,19 +119,27 @@ void Builder::build(const Module *module) const {
     symlink_folders(options_.working_dir);
 
     // call ninja to build the stuff
-    // change the current working directory to the output dir
-    auto previous_path = std::filesystem::current_path();
-    std::filesystem::current_path(options_.working_dir);
-    subprocess::command cmd{"ninja"};
-    cmd.run();
-
-    if (options_.run_after_build) {
-        subprocess::command run_cmd{options_.binary_name};
-        std::nothrow_t t;
-        cmd.run(t);
+    {
+        using namespace subprocess;
+        auto p = call("ninja", cwd{options_.working_dir});
+        if (p != 0) {
+            return;
+        }
+        // symlink the output to the current directory
+        if (std::filesystem::exists(n_options.binary_name)) {
+            std::filesystem::remove(n_options.binary_name);
+        }
+        std::filesystem::path binary_path = options_.working_dir;
+        binary_path = binary_path / n_options.binary_name;
+        std::filesystem::create_symlink(binary_path, n_options.binary_name);
     }
-
-    std::filesystem::current_path(previous_path);
+    if (options_.run_after_build) {
+        using namespace subprocess;
+        auto p = call(fmt::format("./{0}", n_options.binary_name), cwd{options_.working_dir});
+        if (p != 0) {
+            return;
+        }
+    }
 }
 
 void Builder::build(slang::Compilation *unit) const {

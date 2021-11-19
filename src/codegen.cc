@@ -213,6 +213,8 @@ void CXXCodeGen::output(const std::string &dir) {
     output_cc_file(cc_filename, top_);
     auto main_filename = dir_path / main_name;
     output_main_file(main_filename, top_);
+    // will use options later
+    (void)(option_);
 }
 
 void get_defs(const Module *module, std::set<std::string> &result) {

@@ -1,8 +1,8 @@
 #ifndef XSIM_MODULE_HH
 #define XSIM_MODULE_HH
 
-#include <string_view>
 #include <string>
+#include <string_view>
 
 namespace xsim::runtime {
 class Scheduler;

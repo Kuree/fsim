@@ -48,7 +48,8 @@ std::string_view get_indent(int indent_level) {
     return cache.at(indent_level);
 }
 
-void output_header_file(const std::filesystem::path &filename, const Module *mod) {
+void output_header_file(const std::filesystem::path &filename, const Module *mod,
+                        const CXXCodeGenOptions &) {
     // analyze the dependencies to include which headers
     std::ofstream s(filename, std::ios::trunc);
     int indent_level = 0;
@@ -87,7 +88,46 @@ public:
 class CodeGenVisitor : public slang::ASTVisitor<CodeGenVisitor, true, true> {
     // the ultimate visitor
 public:
-    CodeGenVisitor(std::ostream &s, int &indent_level) : s(s), indent_level(indent_level) {}
+    CodeGenVisitor(std::ostream &s, int &indent_level, const CXXCodeGenOptions &options)
+        : s(s), indent_level(indent_level), options(options) {}
+
+    [[maybe_unused]] void handle(const slang::VariableSymbol &var) {
+        // output variable definition
+        auto const &t = var.getDeclaredType()->getType();
+        auto type_name = options.use_4state ? "logic::logic" : "logic::bit";
+        auto range = t.getFixedRange();
+        s << get_indent(indent_level) << type_name << "<" << range.left << ", " << range.right
+          << "> " << var.name << ";" << std::endl;
+    }
+
+    [[maybe_unused]] void handle(const slang::NetSymbol &var) {
+        // output variable definition
+        auto const &t = var.getDeclaredType()->getType();
+        auto type_name = options.use_4state ? "logic::logic" : "logic::bit";
+        auto range = t.getFixedRange();
+        s << get_indent(indent_level) << type_name << "<" << range.left << ", " << range.right
+          << "> " << var.name << ";" << std::endl;
+    }
+
+    [[maybe_unused]] void handle(const slang::VariableDeclStatement &stmt) {
+        s << std::endl << get_indent(indent_level);
+        auto const &v = stmt.symbol;
+        handle(v);
+        s << ";" << std::endl;
+    }
+
+    [[maybe_unused]] void handle(const slang::AssignmentExpression &expr) {
+        auto const &left = expr.left();
+        ExprCodeGenVisitor v(s);
+        left.visit(v);
+        s << " = ";
+        auto const &right = expr.right();
+        right.visit(v);
+    }
+
+    [[maybe_unused]] void handle(const slang::StatementBlockSymbol &) {
+        // we ignore this one for now
+    }
 
     [[maybe_unused]] void handle(const slang::StatementList &list) {
         // entering a scope
@@ -131,14 +171,17 @@ public:
 private:
     std::ostream &s;
     int &indent_level;
+    const CXXCodeGenOptions &options;
 };
 
-void codegen_sym(std::ostream &s, int &indent_level, const slang::Symbol *sym) {
-    CodeGenVisitor v(s, indent_level);
+void codegen_sym(std::ostream &s, int &indent_level, const slang::Symbol *sym,
+                 const CXXCodeGenOptions &options) {
+    CodeGenVisitor v(s, indent_level, options);
     sym->visit(v);
 }
 
-void codegen_init(std::ostream &s, int &indent_level, const Process *process) {
+void codegen_init(std::ostream &s, int &indent_level, const Process *process,
+                  const CXXCodeGenOptions &options) {
     s << get_indent(indent_level) << "{" << std::endl;
     indent_level++;
 
@@ -148,7 +191,7 @@ void codegen_init(std::ostream &s, int &indent_level, const Process *process) {
     indent_level++;
     auto const &stmts = process->stmts;
     for (auto const *stmt : stmts) {
-        codegen_sym(s, indent_level, stmt);
+        codegen_sym(s, indent_level, stmt, options);
     }
 
     s << get_indent(indent_level) << "init_ptr->finished = true;" << std::endl
@@ -161,7 +204,8 @@ void codegen_init(std::ostream &s, int &indent_level, const Process *process) {
     s << get_indent(indent_level) << "}" << std::endl;
 }
 
-void output_cc_file(const std::filesystem::path &filename, const Module *mod) {
+void output_cc_file(const std::filesystem::path &filename, const Module *mod,
+                    const CXXCodeGenOptions &options) {
     std::ofstream s(filename, std::ios::trunc);
     auto hh_filename = get_hh_filename(mod->name);
     s << "#include \"" << hh_filename << "\"" << std::endl;
@@ -176,7 +220,7 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod) {
         indent_level++;
 
         for (auto const &init : mod->init_processes) {
-            codegen_init(s, indent_level, init.get());
+            codegen_init(s, indent_level, init.get(), options);
         }
 
         indent_level--;
@@ -207,12 +251,10 @@ void CXXCodeGen::output(const std::string &dir) {
     std::filesystem::path dir_path = dir;
     auto cc_filename = dir_path / get_cc_filename(top_->name);
     auto hh_filename = dir_path / get_hh_filename(top_->name);
-    output_header_file(hh_filename, top_);
-    output_cc_file(cc_filename, top_);
+    output_header_file(hh_filename, top_, option_);
+    output_cc_file(cc_filename, top_, option_);
     auto main_filename = dir_path / main_name;
     output_main_file(main_filename, top_);
-    // will use options later
-    (void)(option_);
 }
 
 void get_defs(const Module *module, std::set<std::string> &result) {

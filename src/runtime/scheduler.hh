@@ -10,9 +10,6 @@
 #include "marl/scheduler.h"
 
 namespace xsim::runtime {
-class SchedulingPrimitive {
-    uint64_t target_time;
-};
 
 struct InitialProcess {
     uint64_t id = 0;

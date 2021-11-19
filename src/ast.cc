@@ -94,7 +94,7 @@ DependencyAnalysisVisitor::Node *DependencyAnalysisVisitor::Graph::get_node(
             if (new_names_.find(&symbol) == new_names_.end()) {
                 std::string name = fmt::format(".blk{0}", procedural_blk_count_++);
                 new_names_.emplace(&symbol, name);
-                auto &node = nodes.emplace_back(std::move(std::make_unique<Node>(symbol)));
+                auto &node = nodes.emplace_back(std::make_unique<Node>(symbol));
                 node_mapping.emplace(name, node.get());
             }
             return node_mapping.at(new_names_.at(&symbol));
@@ -251,7 +251,7 @@ public:
     [[maybe_unused]] void handle(const slang::AssignmentExpression &assignment) {
         if (assignment.timingControl) has_timing_control = true;
     }
-    [[maybe_unused]] void handle(const slang::TimingControl &timing) { has_timing_control = true; }
+    [[maybe_unused]] void handle(const slang::TimingControl &) { has_timing_control = true; }
 };
 
 // always blocks with timing control

@@ -152,8 +152,8 @@ void extract_procedure_blocks(std::vector<std::unique_ptr<Process>> &processes,
     def->visit(vis);
     processes.reserve(vis.stmts.size());
     for (auto const *p : vis.stmts) {
-        auto &process = processes.emplace_back(
-            std::move(std::make_unique<Process>(slang::ProceduralBlockKind::Initial)));
+        auto &process =
+            processes.emplace_back(std::make_unique<Process>(slang::ProceduralBlockKind::Initial));
         process->stmts.emplace_back(p);
     }
 }

@@ -110,7 +110,7 @@ public:
             auto name = info.subroutine->name;
             // remove the leading $
             auto func_name = fmt::format("xsim::runtime::{0}", name.substr(1));
-            s << func_name << "(";
+            s << func_name << "(this, ";
             auto const &arguments = expr.arguments();
             for (auto i = 0u; i < arguments.size(); i++) {
                 auto const *arg = arguments[i];

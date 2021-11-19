@@ -11,3 +11,6 @@ if (NOT LIBSLANG_LIBRARY)
 else()
     MESSAGE("-- Info: using prebuilt slang binaries")
 endif()
+
+# format lib
+set_property(TARGET fmt PROPERTY POSITION_INDEPENDENT_CODE ON)

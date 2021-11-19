@@ -11,7 +11,7 @@ public:
     void init(Scheduler *scheduler) override {
         auto init_ptr = std::make_shared<InitialProcess>();
         init_ptr->func = [init_ptr]() {
-            display("HELLO WORLD");
+            display(nullptr, "HELLO WORLD");
             // done with this init
             init_ptr->finished = true;
             init_ptr->cond.signal();

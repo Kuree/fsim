@@ -9,6 +9,8 @@
 
 namespace xsim::runtime {
 
+class Module;
+
 void print_assert_error(std::string_view name, std::string_view loc);
 
 template <typename T>
@@ -31,10 +33,13 @@ void assert_(const T &v, std::string_view name, std::string_view loc,
     }
 }
 
+std::string preprocess_display_fmt(const Module *module, std::string_view format);
+
 template <typename... Args>
-void display(std::string_view format, Args...) {
+void display(const Module *module, std::string_view format, Args...) {
     // only display the format for now
-    std::cout << format << std::endl;
+    auto fmt = preprocess_display_fmt(module, format);
+    std::cout << fmt << std::endl;
 }
 
 inline void finish(int code = 0) { throw FinishException(code); }

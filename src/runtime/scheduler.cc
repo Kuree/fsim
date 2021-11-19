@@ -1,4 +1,4 @@
-#include "schduler.hh"
+#include "scheduler.hh"
 
 #include <iostream>
 

@@ -5,7 +5,7 @@
 #include <iostream>
 
 #include "logic/logic.hh"
-#include "schduler.hh"
+#include "scheduler.hh"
 
 namespace xsim::runtime {
 

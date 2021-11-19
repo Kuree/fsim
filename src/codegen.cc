@@ -21,8 +21,7 @@ inline std::string get_hh_filename(const T &name) {
 // need to generate header information about module declaration
 // this includes variable, port, and parameter definition
 
-auto constexpr raw_header_include = R"(#pragma once
-#include "logic/array.hh"
+auto constexpr raw_header_include = R"(#include "logic/array.hh"
 #include "logic/logic.hh"
 #include "logic/struct.hh"
 #include "logic/union.hh"
@@ -35,7 +34,7 @@ class Scheduler;
 }
 
 // for logic we use using literal namespace to make codegen simpler
-using namespace logic::literal;
+using namespace logic::literals;
 
 )";
 
@@ -44,6 +43,7 @@ std::string_view get_indent(int indent_level) {
     if (cache.find(indent_level) == cache.end()) {
         std::stringstream ss;
         for (auto i = 0; i < indent_level; i++) ss << "    ";
+        cache.emplace(indent_level, ss.str());
     }
     return cache.at(indent_level);
 }
@@ -52,15 +52,17 @@ void output_header_file(const std::filesystem::path &filename, const Module *mod
     // analyze the dependencies to include which headers
     std::ofstream s(filename, std::ios::trunc);
     int indent_level = 0;
+    s << "#pragma once" << std::endl;
     s << raw_header_include;
 
-    s << get_indent(indent_level) << "class " << mod->name << ": public Module {" << std::endl;
+    s << get_indent(indent_level) << "class " << mod->name << ": public xsim::runtime::Module {"
+      << std::endl;
     s << get_indent(indent_level) << "public: " << std::endl;
 
     indent_level++;
     // constructor
-    s << get_indent(indent_level) << mod->name << "(): Module(\"" << mod->name << "\") {}"
-      << std::endl;
+    s << get_indent(indent_level) << mod->name << "(): xsim::runtime::Module(\"" << mod->name
+      << "\") {}" << std::endl;
 
     // init function
     if (!mod->init_processes.empty()) {
@@ -76,7 +78,9 @@ void output_header_file(const std::filesystem::path &filename, const Module *mod
 class ExprCodeGenVisitor : public slang::ASTVisitor<ExprCodeGenVisitor, false, true> {
 public:
     explicit ExprCodeGenVisitor(std::ostream &s) : s(s) {}
-    [[maybe_unused]] void handle(const slang::StringLiteral &str) { s << str.getValue(); }
+    [[maybe_unused]] void handle(const slang::StringLiteral &str) {
+        s << '\"' << str.getValue() << '\"';
+    }
     std::ostream &s;
 };
 
@@ -104,7 +108,8 @@ public:
         if (expr.subroutine.index() == 1) {
             auto const &info = std::get<1>(expr.subroutine);
             auto name = info.subroutine->name;
-            s << name << "(";
+            // remove the leading $
+            s << name.substr(1) << "(";
             auto const &arguments = expr.arguments();
             for (auto i = 0u; i < arguments.size(); i++) {
                 auto const *arg = arguments[i];
@@ -136,8 +141,9 @@ void codegen_init(std::ostream &s, int &indent_level, const Process *process) {
     s << get_indent(indent_level) << "{" << std::endl;
     indent_level++;
 
-    s << get_indent(indent_level) << "auto init_ptr = std::make_shared<InitProcess>();" << std::endl
-      << get_indent(indent_level) << "init_ptr->func = [this]() {" << std::endl;
+    s << get_indent(indent_level) << "auto init_ptr = std::make_shared<InitialProcess>();"
+      << std::endl
+      << get_indent(indent_level) << "init_ptr->func = [this, init_ptr]() {" << std::endl;
     indent_level++;
     auto const &stmts = process->stmts;
     for (auto const *stmt : stmts) {
@@ -157,17 +163,18 @@ void codegen_init(std::ostream &s, int &indent_level, const Process *process) {
 void output_cc_file(const std::filesystem::path &filename, const Module *mod) {
     std::ofstream s(filename, std::ios::trunc);
     auto hh_filename = get_hh_filename(mod->name);
-    s << "#include \"" << hh_filename << "\"" << std::endl << std::endl;
+    s << "#include \"" << hh_filename << "\"" << std::endl;
     // include more stuff
-    s << "#include \"scheduler.hh\"" << std::endl;
+    s << "#include \"runtime/scheduler.hh\"" << std::endl;
 
     // we use "using namespace" here to make the code cleaner
-    s << "using namespace xsim::runtime";
+    s << "using namespace xsim::runtime;" << std::endl;
 
     int indent_level = 0;
 
     if (!mod->init_processes.empty()) {
-        s << mod->name << "::init(Scheduler *scheduler) {" << std::endl;
+        s << get_indent(indent_level) << "void " << mod->name << "::init(Scheduler *scheduler) {"
+          << std::endl;
         indent_level++;
 
         for (auto const &init : mod->init_processes) {
@@ -175,6 +182,7 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod) {
         }
 
         indent_level--;
+        s << get_indent(indent_level) << "}";
     }
     // compute init fiber conditional variables. each init process will have one variable,
     // which will be signalled if the init process finishes
@@ -187,10 +195,11 @@ void output_main_file(const std::string &filename, const Module *top) {
 
     // include the scheduler
     s << "#include \"runtime/scheduler.hh\"" << std::endl;
-    // include the
+    // include the top module file
+    s << "#include \"" << top->name << ".hh\"" << std::endl << std::endl;
     s << "int main(int argc, char *argv[]) {" << std::endl;
 
-    s << "    xsim::runtime::Scheduler scheduler" << std::endl
+    s << "    xsim::runtime::Scheduler scheduler;" << std::endl
       << "    " << top->name << " top;" << std::endl
       << "    scheduler.run(&top);" << std::endl
       << "}";
@@ -222,7 +231,7 @@ std::set<std::string> get_defs(const Module *module) {
 void NinjaCodeGen::output(const std::string &dir) {
     std::filesystem::path dir_path = dir;
     auto ninja_filename = dir_path / "build.ninja";
-    std::ofstream stream(dir, std::ios::trunc);
+    std::ofstream stream(ninja_filename, std::ios::trunc);
     // filling out missing information
     // use the output dir as the runtime dir
     if (options_.runtime_path.empty()) {
@@ -239,7 +248,9 @@ void NinjaCodeGen::output(const std::string &dir) {
 
     std::filesystem::path runtime_dir = options_.runtime_path;
     auto include_dir = runtime_dir / "include";
-    stream << "cflags = -I" << include_dir << " ";
+    auto lib_path = runtime_dir / "lib";
+    auto runtime_lib_path = lib_path / "libxsim-runtime.so";
+    stream << "cflags = -I" << include_dir << " -std=c++20 ";
     if (options_.debug_build) {
         stream << "-O0 -g ";
     } else {
@@ -260,11 +271,14 @@ void NinjaCodeGen::output(const std::string &dir) {
         stream << "build " << obj_name << ": cc " << get_cc_filename(name) << std::endl;
         objs.append(obj_name).append(" ");
     }
+    auto main_linkers = fmt::format("-pthread -lstdc++ -Wl,-rpath,{0}", lib_path.string());
     // build the main
     stream << "rule main" << std::endl;
-    stream << "  " << options_.clang_path << "$in " << objs << "$cflags -o $out" << std::endl
+    stream << "  command = " << options_.clang_path << " $in " << runtime_lib_path << " $cflags "
+           << main_linkers << " -o $out" << std::endl
            << std::endl;
-    stream << "build " << options_.binary_name << ": main " << main_name << std::endl;
+    stream << "build " << options_.binary_name << ": main " << main_name << " " << objs
+           << std::endl;
 }
 
 }  // namespace xsim

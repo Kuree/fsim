@@ -13,3 +13,6 @@
 [submodule "extern/marl"]
 	path = extern/marl
 	url = https://github.com/google/marl/
+[submodule "extern/subprocess"]
+	path = extern/subprocess
+	url = https://github.com/rajatjain1997/subprocess

@@ -1,5 +1,5 @@
-#ifndef XSIM_SCHDULER_HH
-#define XSIM_SCHDULER_HH
+#ifndef XSIM_SCHEDULER_HH
+#define XSIM_SCHEDULER_HH
 
 #include <mutex>
 #include <queue>
@@ -52,4 +52,4 @@ public:
 
 }  // namespace xsim::runtime
 
-#endif  // XSIM_SCHDULER_HH
+#endif  // XSIM_SCHEDULER_HH

@@ -34,7 +34,7 @@ public:
 
 class Module {
 public:
-    explicit Module(const slang::InstanceSymbol *def) : def_(def) {}
+    explicit Module(const slang::InstanceSymbol *def) : name(def->name), def_(def) {}
     std::string_view name;
 
     std::map<std::string_view, std::unique_ptr<Variable>> vars;

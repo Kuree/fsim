@@ -6,6 +6,7 @@
 
 #include "codegen.hh"
 #include "slang/compilation/Compilation.h"
+#include "subprocess/subprocess.hpp"
 
 namespace xsim {
 
@@ -36,13 +37,17 @@ void symlink_folders(const std::string &output_dir) {
     auto marl = extern_ / "marl" / "include" / "marl";
 
     std::filesystem::path output_path = output_dir;
-    auto dst_dir = output_path / "include";
-    if (!std::filesystem::exists(dst_dir)) {
-        std::filesystem::create_directories(dst_dir);
+    auto dst_include_dir = output_path / "include";
+    auto runtime_include = dst_include_dir / "runtime";
+    auto logic_include = dst_include_dir / "logic";
+    auto marl_include = dst_include_dir / "marl";
+
+    auto dst_lib_dir = output_path / "lib";
+    for (auto const &d : {dst_include_dir, dst_lib_dir}) {
+        if (!std::filesystem::exists(d)) {
+            std::filesystem::create_directories(d);
+        }
     }
-    auto runtime_include = dst_dir / "runtime";
-    auto logic_include = dst_dir / "logic";
-    auto marl_include = dst_dir / "marl";
 
     std::vector<std::pair<std::filesystem::path, std::filesystem::path>> paths = {
         {runtime, runtime_include}, {logic, logic_include}, {marl, marl_include}};
@@ -50,6 +55,29 @@ void symlink_folders(const std::string &output_dir) {
     for (auto const &[src_path, dst_path] : paths) {
         if (!std::filesystem::exists(dst_path)) {
             std::filesystem::create_directory_symlink(src_path, dst_path);
+        }
+    }
+
+    // need to find the final runtime build as well
+    // for now searching for any folder that contains "build" and look for path
+    // once packaging is working all the search process needs to be enhanced
+    auto runtime_dst_path = dst_lib_dir / "libxsim-runtime.so";
+    if (!std::filesystem::exists(runtime_dst_path)) {
+        bool lib_linked = false;
+        std::filesystem::directory_iterator it(root);
+        for (auto const &p : it) {
+            std::string path_str = p.path();
+            if (path_str.find("build") != std::string::npos) {
+                auto target_path = p.path() / "src" / "runtime" / "libxsim-runtime.so";
+                if (std::filesystem::exists(target_path)) {
+                    std::filesystem::create_symlink(target_path, runtime_dst_path);
+                    lib_linked = true;
+                    break;
+                }
+            }
+        }
+        if (!lib_linked) {
+            throw std::runtime_error("Unable to locate xsim runtime library");
         }
     }
 }
@@ -62,6 +90,9 @@ Builder::Builder(BuildOptions options) : options_(std::move(options)) {
 }
 
 void Builder::build(const Module *module) const {
+    if (!std::filesystem::exists(options_.working_dir)) {
+        std::filesystem::create_directories(options_.working_dir);
+    }
     // generate ninja first
     NinjaCodeGenOptions n_options;
     n_options.debug_build = options_.debug_build;
@@ -88,6 +119,19 @@ void Builder::build(const Module *module) const {
     symlink_folders(options_.working_dir);
 
     // call ninja to build the stuff
+    // change the current working directory to the output dir
+    auto previous_path = std::filesystem::current_path();
+    std::filesystem::current_path(options_.working_dir);
+    subprocess::command cmd{"ninja"};
+    cmd.run();
+
+    if (options_.run_after_build) {
+        subprocess::command run_cmd{options_.binary_name};
+        std::nothrow_t t;
+        cmd.run(t);
+    }
+
+    std::filesystem::current_path(previous_path);
 }
 
 void Builder::build(slang::Compilation *unit) const {

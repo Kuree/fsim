@@ -21,6 +21,7 @@
 #include "slang/util/OS.h"
 #include "slang/util/String.h"
 #include "slang/util/Version.h"
+#include "../src/builder.hh"
 
 using namespace slang;
 
@@ -320,6 +321,10 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
     cmdLine.add("--allow-use-before-declare", allowUseBeforeDeclare,
                 "Don't issue an error for use of names before their declarations.");
 
+    // simulation
+    optional<bool> o0Optimization;
+    cmdLine.add("-O0", o0Optimization, "Turn on -O0 compiler flag");
+
     // File list
     optional<bool> singleUnit;
     std::vector<std::string> sourceFiles;
@@ -463,7 +468,15 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
 
         anyErrors |= !compiler.run();
 
-        (void)(anyErrors);
+        if (!anyErrors) {
+            // compile simulation
+            xsim::BuildOptions b_opt;
+            if (o0Optimization) {
+                b_opt.debug_build = true;
+            }
+            xsim::Builder builder(b_opt);
+            builder.build(&compilation);
+        }
 
     } catch (const std::exception& e) {
         OS::printE("internal compiler error: {}\n", e.what());

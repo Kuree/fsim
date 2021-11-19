@@ -1,5 +1,5 @@
-#include "../../src/runtime/schduler.hh"
 #include "../../src/runtime/module.hh"
+#include "../../src/runtime/scheduler.hh"
 #include "../../src/runtime/system_task.hh"
 #include "gtest/gtest.h"
 #include "slang/syntax/SyntaxTree.h"

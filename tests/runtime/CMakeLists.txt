@@ -1,1 +1,1 @@
-add_test(test_init xsim-runtime)
+add_test(test_scheduler xsim-runtime)

@@ -1,6 +1,7 @@
 #include "scheduler.hh"
 
 #include <iostream>
+#include <utility>
 
 #include "module.hh"
 
@@ -8,6 +9,9 @@ namespace xsim::runtime {
 
 // statically determined the number of cores to use based on number of event-based processes?
 constexpr uint64_t num_marl_cores = 2;
+
+ScheduledTimeslot::ScheduledTimeslot(uint64_t time, marl::Event &cond)
+    : time(time), cond(cond) {}
 
 Scheduler::Scheduler() : marl_scheduler_({num_marl_cores}) {
     // bind to the main thread
@@ -31,6 +35,21 @@ void Scheduler::run(Module *top) {
             for (auto &init : init_processes_) {
                 init->cond.wait();
             }
+            // active
+            // nba
+
+            // schedule for the next time slot
+            while (!event_queue_.empty()) {
+                auto next_slot_time = event_queue_.top()->time;
+                sim_time = next_slot_time;
+                // we could have multiple events scheduled at the same time slot
+                // release all of them at once
+                while (!event_queue_.empty() && event_queue_.top()->time == next_slot_time) {
+                    auto event = event_queue_.top();
+                    event_queue_.pop();
+                    event->cond.signal();
+                }
+            }
         }
     } catch (const FinishException &ex) {
         std::cout << "Finish called at " << sim_time << " width status " << ex.code << std::endl;
@@ -47,6 +66,11 @@ void Scheduler::schedule_init(const std::shared_ptr<InitialProcess> &init) {
         // then wait for the correct time or condition (using different event variable)
         // the main process still waits for the same condition variable
     });
+}
+
+void Scheduler::schedule_delay(ScheduledTimeslot *event) {
+    std::lock_guard guard(event_queue_lock_);
+    event_queue_.emplace(event);
 }
 
 Scheduler::~Scheduler() {

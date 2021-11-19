@@ -20,20 +20,40 @@ struct InitialProcess {
 
 class Module;
 
+class ScheduledTimeslot {
+public:
+    // we statically allocate the event cond
+    explicit ScheduledTimeslot(uint64_t time, marl::Event &cond);
+
+    uint64_t time = 0;
+    marl::Event &cond;
+
+    bool inline static compare(const ScheduledTimeslot *l, const ScheduledTimeslot *r) {
+        return l->time < r->time;
+    }
+};
+
 class Scheduler {
 public:
     Scheduler();
-    void run(Module* top);
+    void run(Module *top);
 
     uint64_t sim_time = 0;
 
-    void schedule_init(const std::shared_ptr<InitialProcess>& init);
+    void schedule_init(const std::shared_ptr<InitialProcess> &init);
+    void schedule_delay(ScheduledTimeslot *event);
 
     ~Scheduler();
 
 private:
     // if performance becomes a concern, use this concurrent queue instead
     // https://github.com/cameron314/concurrentqueue
+    // had to use raw pointers here since mutex is not copyable
+    // we will statically allocate time slot inside each module/class
+    std::priority_queue<ScheduledTimeslot *, std::vector<ScheduledTimeslot *>,
+                        decltype(&ScheduledTimeslot::compare)>
+        event_queue_;
+    std::mutex event_queue_lock_;
 
     std::vector<std::shared_ptr<InitialProcess>> init_processes_;
     marl::Scheduler marl_scheduler_;

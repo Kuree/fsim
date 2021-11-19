@@ -25,3 +25,4 @@ jobs:
       env:
         CC: clang-12
         CXX: clang++-12
+        XSIM_CXX: clang++-12

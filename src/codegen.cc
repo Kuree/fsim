@@ -236,7 +236,12 @@ void NinjaCodeGen::output(const std::string &dir) {
     // use the output dir as the runtime dir
     if (options_.clang_path.empty()) {
         // hope for the best?
-        options_.clang_path = "clang";
+        auto const *cxx = std::getenv("XSIM_CXX");
+        if (cxx) {
+            options_.clang_path = cxx;
+        } else {
+            options_.clang_path = "clang";
+        }
     }
     if (options_.binary_name.empty()) {
         options_.binary_name = default_output_name;

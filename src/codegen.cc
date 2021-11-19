@@ -109,7 +109,8 @@ public:
             auto const &info = std::get<1>(expr.subroutine);
             auto name = info.subroutine->name;
             // remove the leading $
-            s << name.substr(1) << "(";
+            auto func_name = fmt::format("xsim::runtime::{0}", name.substr(1));
+            s << func_name << "(";
             auto const &arguments = expr.arguments();
             for (auto i = 0u; i < arguments.size(); i++) {
                 auto const *arg = arguments[i];
@@ -141,8 +142,8 @@ void codegen_init(std::ostream &s, int &indent_level, const Process *process) {
     s << get_indent(indent_level) << "{" << std::endl;
     indent_level++;
 
-    s << get_indent(indent_level) << "auto init_ptr = std::make_shared<InitialProcess>();"
-      << std::endl
+    s << get_indent(indent_level)
+      << "auto init_ptr = std::make_shared<xsim::runtime::InitialProcess>();" << std::endl
       << get_indent(indent_level) << "init_ptr->func = [this, init_ptr]() {" << std::endl;
     indent_level++;
     auto const &stmts = process->stmts;
@@ -167,14 +168,11 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod) {
     // include more stuff
     s << "#include \"runtime/scheduler.hh\"" << std::endl;
 
-    // we use "using namespace" here to make the code cleaner
-    s << "using namespace xsim::runtime;" << std::endl;
-
     int indent_level = 0;
 
     if (!mod->init_processes.empty()) {
-        s << get_indent(indent_level) << "void " << mod->name << "::init(Scheduler *scheduler) {"
-          << std::endl;
+        s << get_indent(indent_level) << "void " << mod->name
+          << "::init(xsim::runtime::Scheduler *scheduler) {" << std::endl;
         indent_level++;
 
         for (auto const &init : mod->init_processes) {

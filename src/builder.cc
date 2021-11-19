@@ -134,6 +134,7 @@ void Builder::build(const Module *module) const {
         std::filesystem::create_symlink(binary_path, n_options.binary_name);
     }
     if (options_.run_after_build) {
+        std::cout << std::endl;
         using namespace subprocess;
         auto p = call(fmt::format("./{0}", n_options.binary_name), cwd{options_.working_dir});
         if (p != 0) {

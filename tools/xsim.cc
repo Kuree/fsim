@@ -322,8 +322,10 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
                 "Don't issue an error for use of names before their declarations.");
 
     // simulation
-    optional<bool> o0Optimization;
-    cmdLine.add("-O0", o0Optimization, "Turn on -O0 compiler flag");
+    optional<uint32_t> optimizationLevel;
+    optional<bool> runAfterCompilation;
+    cmdLine.add("-O", optimizationLevel, "Optimization level");
+    cmdLine.add("-R,--run", runAfterCompilation, "Run after compilation");
 
     // File list
     optional<bool> singleUnit;
@@ -471,8 +473,11 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
         if (!anyErrors) {
             // compile simulation
             xsim::BuildOptions b_opt;
-            if (o0Optimization) {
-                b_opt.debug_build = true;
+            if (optimizationLevel) {
+                b_opt.debug_build = (*optimizationLevel) == 0;
+            }
+            if (runAfterCompilation) {
+                b_opt.run_after_build = true;
             }
             xsim::Builder builder(b_opt);
             builder.build(&compilation);

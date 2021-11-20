@@ -58,6 +58,7 @@ public:
     [[maybe_unused]] void handle(const slang::StringLiteral &str) {
         s << '\"' << str.getValue() << '\"';
     }
+
     [[maybe_unused]] void handle(const slang::IntegerLiteral &i) {
         auto v = i.getValue();
         auto uint_opt = v.as<int>();
@@ -66,6 +67,9 @@ public:
         // use constexpr
         s << "_logic";
     }
+
+    [[maybe_unused]] void handle(const slang::NamedValueExpression &n) { s << n.symbol.name; }
+
     std::ostream &s;
 };
 

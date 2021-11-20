@@ -13,7 +13,7 @@ logic [3:0] a, b;
 logic c;
 initial begin
     logic d;
-    $display("PASS");
+    $display("PASS", a, b, c);
 end
 endmodule
 )");
@@ -26,5 +26,6 @@ endmodule
     testing::internal::CaptureStdout();
     builder.build(&compilation);
     std::string output = testing::internal::GetCapturedStdout();
+    // TODO: enhance this test case once display is working
     EXPECT_NE(output.find("PASS"), std::string::npos);
 }

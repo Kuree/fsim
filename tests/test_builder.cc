@@ -25,3 +25,26 @@ endmodule
     std::string output = testing::internal::GetCapturedStdout();
     EXPECT_NE(output.find("HELLO WORLD"), std::string::npos);
 }
+
+TEST(builder, declaration) {    // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+module m;
+logic [3:0] a, b;
+logic c;
+initial begin
+    logic d;
+    $display("PASS");
+end
+endmodule
+)");
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    BuildOptions options;
+    options.debug_build = true;
+    options.run_after_build = true;
+    Builder builder(options);
+    testing::internal::CaptureStdout();
+    builder.build(&compilation);
+    std::string output = testing::internal::GetCapturedStdout();
+    EXPECT_NE(output.find("PASS"), std::string::npos);
+}

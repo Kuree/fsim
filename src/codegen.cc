@@ -3,11 +3,15 @@
 #include <filesystem>
 #include <fstream>
 #include <set>
+#include <stack>
 
 #include "fmt/format.h"
 #include "slang/binding/SystemSubroutine.h"
 
 namespace xsim {
+
+auto constexpr xsim_delay_event = "xsim_delay_event";
+auto constexpr xsim_next_time = "xsim_next_time";
 
 template <typename T>
 inline std::string get_cc_filename(const T &name) {
@@ -48,44 +52,26 @@ std::string_view get_indent(int indent_level) {
     return cache.at(indent_level);
 }
 
-void output_header_file(const std::filesystem::path &filename, const Module *mod,
-                        const CXXCodeGenOptions &) {
-    // analyze the dependencies to include which headers
-    std::ofstream s(filename, std::ios::trunc);
-    int indent_level = 0;
-    s << "#pragma once" << std::endl;
-    s << raw_header_include;
-
-    s << get_indent(indent_level) << "class " << mod->name << ": public xsim::runtime::Module {"
-      << std::endl;
-    s << get_indent(indent_level) << "public: " << std::endl;
-
-    indent_level++;
-    // constructor
-    s << get_indent(indent_level) << mod->name << "(): xsim::runtime::Module(\"" << mod->name
-      << "\") {}" << std::endl;
-
-    // init function
-    if (!mod->init_processes.empty()) {
-        s << get_indent(indent_level) << "void init(xsim::runtime::Scheduler *scheduler) override;"
-          << std::endl;
-    }
-
-    indent_level--;
-
-    s << get_indent(indent_level) << "};";
-}
-
 class ExprCodeGenVisitor : public slang::ASTVisitor<ExprCodeGenVisitor, false, true> {
 public:
     explicit ExprCodeGenVisitor(std::ostream &s) : s(s) {}
     [[maybe_unused]] void handle(const slang::StringLiteral &str) {
         s << '\"' << str.getValue() << '\"';
     }
+    [[maybe_unused]] void handle(const slang::IntegerLiteral &i) {
+        auto v = i.getValue();
+        auto uint_opt = v.as<int>();
+        int value = uint_opt ? *uint_opt : 0;
+        s << value;
+        // use constexpr
+        s << "_logic";
+    }
     std::ostream &s;
 };
 
-class CodeGenVisitor : public slang::ASTVisitor<CodeGenVisitor, true, true> {
+template <bool visit_stmt = true, bool visit_expr = true>
+class CodeGenVisitor
+    : public slang::ASTVisitor<CodeGenVisitor<visit_stmt, visit_expr>, visit_stmt, visit_expr> {
     // the ultimate visitor
 public:
     CodeGenVisitor(std::ostream &s, int &indent_level, const CXXCodeGenOptions &options)
@@ -110,10 +96,26 @@ public:
     }
 
     [[maybe_unused]] void handle(const slang::VariableDeclStatement &stmt) {
-        s << std::endl << get_indent(indent_level);
+        s << std::endl;
         auto const &v = stmt.symbol;
         handle(v);
-        s << ";" << std::endl;
+    }
+
+    [[maybe_unused]] void handle(const slang::TimedStatement &stmt) {
+        auto const &timing = stmt.timing;
+        if (timing.kind != slang::TimingControlKind::Delay) {
+            throw std::runtime_error("Only delay timing control supported");
+        }
+        auto const &delay = timing.as<slang::DelayControl>();
+        s << get_indent(indent_level) << xsim_next_time << ".time = scheduler->sim_time + (";
+        ExprCodeGenVisitor v(s);
+        v.visit(delay.expr);
+        s << ").to_uint64();" << std::endl;
+        s << get_indent(indent_level) << "scheduler->schedule_delay(&" << xsim_next_time << ");"
+          << std::endl;
+        s << get_indent(indent_level) << "init_ptr->cond.clear();" << std::endl;
+        s << get_indent(indent_level) << xsim_delay_event << ".wait();" << std::endl;
+        this->template visitDefault(stmt.stmt);
     }
 
     [[maybe_unused]] void handle(const slang::AssignmentExpression &expr) {
@@ -133,14 +135,14 @@ public:
         // entering a scope
         s << get_indent(indent_level) << "{";
         indent_level++;
-        visitDefault(list);
+        this->template visitDefault(list);
         indent_level--;
         s << get_indent(indent_level) << "}" << std::endl;
     }
 
     [[maybe_unused]] void handle(const slang::ExpressionStatement &stmt) {
         s << std::endl << get_indent(indent_level);
-        visitDefault(stmt);
+        this->template visitDefault(stmt);
         s << ";" << std::endl;
     }
 
@@ -185,9 +187,18 @@ void codegen_init(std::ostream &s, int &indent_level, const Process *process,
     s << get_indent(indent_level) << "{" << std::endl;
     indent_level++;
 
+    // TODO:
+    //     need to compute the number of delay controls needed
+    //     for now we only create one and use C++ shadowing to deal with it
+    s << get_indent(indent_level) << "auto " << xsim_delay_event
+      << " = marl::Event(marl::Event::Mode::Manual);" << std::endl;
+    s << get_indent(indent_level) << "auto " << xsim_next_time
+      << " = xsim::runtime::ScheduledTimeslot(0, " << xsim_delay_event << ");" << std::endl;
+
     s << get_indent(indent_level)
       << "auto init_ptr = std::make_shared<xsim::runtime::InitialProcess>();" << std::endl
-      << get_indent(indent_level) << "init_ptr->func = [this, init_ptr]() {" << std::endl;
+      << get_indent(indent_level) << "init_ptr->func = [this, init_ptr, " << xsim_next_time << ", "
+      << xsim_delay_event << "]() {" << std::endl;
     indent_level++;
     auto const &stmts = process->stmts;
     for (auto const *stmt : stmts) {
@@ -202,6 +213,40 @@ void codegen_init(std::ostream &s, int &indent_level, const Process *process,
 
     indent_level--;
     s << get_indent(indent_level) << "}" << std::endl;
+}
+
+void output_header_file(const std::filesystem::path &filename, const Module *mod,
+                        const CXXCodeGenOptions &options) {
+    // analyze the dependencies to include which headers
+    std::ofstream s(filename, std::ios::trunc);
+    int indent_level = 0;
+    s << "#pragma once" << std::endl;
+    s << raw_header_include;
+
+    s << get_indent(indent_level) << "class " << mod->name << ": public xsim::runtime::Module {"
+      << std::endl;
+    s << get_indent(indent_level) << "public: " << std::endl;
+
+    indent_level++;
+    // constructor
+    s << get_indent(indent_level) << mod->name << "(): xsim::runtime::Module(\"" << mod->name
+      << "\") {}" << std::endl;
+
+    // all variables are public
+    {
+        CodeGenVisitor<false, false> v(s, indent_level, options);
+        mod->def()->visit(v);
+    }
+
+    // init function
+    if (!mod->init_processes.empty()) {
+        s << get_indent(indent_level) << "void init(xsim::runtime::Scheduler *scheduler) override;"
+          << std::endl;
+    }
+
+    indent_level--;
+
+    s << get_indent(indent_level) << "};";
 }
 
 void output_cc_file(const std::filesystem::path &filename, const Module *mod,

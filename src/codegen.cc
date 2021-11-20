@@ -156,9 +156,10 @@ public:
             throw std::runtime_error("Only delay timing control supported");
         }
         auto const &delay = timing.as<slang::DelayControl>();
-        s << get_indent(indent_level) << xsim_next_time << ".time = scheduler->sim_time + (";
+        s << std::endl
+          << get_indent(indent_level) << xsim_next_time << ".time = scheduler->sim_time + (";
         ExprCodeGenVisitor v(s);
-        v.visit(delay.expr);
+        delay.expr.visit(v);
         s << ").to_uint64();" << std::endl;
         s << get_indent(indent_level) << "scheduler->schedule_delay(&" << xsim_next_time << ");"
           << std::endl;
@@ -260,8 +261,8 @@ void codegen_init(std::ostream &s, int &indent_level, const Process *process,
 
     s << get_indent(indent_level)
       << "auto init_ptr = std::make_shared<xsim::runtime::InitialProcess>();" << std::endl
-      << get_indent(indent_level) << "init_ptr->func = [this, init_ptr, " << xsim_next_time << ", "
-      << xsim_delay_event << "]() {" << std::endl;
+      << get_indent(indent_level) << "init_ptr->func = [this, init_ptr, " << '&' << xsim_next_time
+      << ", " << '&' << xsim_delay_event << ", scheduler]() {" << std::endl;
     indent_level++;
     s << get_indent(indent_level);
 

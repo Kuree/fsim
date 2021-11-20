@@ -42,7 +42,10 @@ void display(const Module *module, std::string_view format, Args...) {
     std::cout << fmt << std::endl;
 }
 
-inline void finish(int code = 0) { throw FinishException(code); }
+template <typename T>
+inline void finish(const Module *, T code = 0) {
+    throw FinishException(code.to_uint64());
+}
 
 }  // namespace xsim::runtime
 

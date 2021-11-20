@@ -12,5 +12,5 @@ TEST(systask, display_m) {  // NOLINT
     testing::internal::CaptureStdout();
     display(&m2, "%m %d");
     std::string output = testing::internal::GetCapturedStdout();
-    EXPECT_EQ(output, "test2.test4 %d");
+    EXPECT_EQ(output, "test2.test4 %d\n");
 }

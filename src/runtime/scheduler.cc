@@ -10,8 +10,7 @@ namespace xsim::runtime {
 // statically determined the number of cores to use based on number of event-based processes?
 constexpr uint64_t num_marl_cores = 2;
 
-ScheduledTimeslot::ScheduledTimeslot(uint64_t time, marl::Event &cond)
-    : time(time), cond(cond) {}
+ScheduledTimeslot::ScheduledTimeslot(uint64_t time, marl::Event &cond) : time(time), cond(cond) {}
 
 Scheduler::Scheduler() : marl_scheduler_({num_marl_cores}) {
     // bind to the main thread

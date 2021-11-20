@@ -11,5 +11,6 @@ endfunction()
 add_test(test_ast)
 add_test(test_ir)
 add_test(test_builder)
+add_test(test_codegen)
 
 add_subdirectory(runtime)

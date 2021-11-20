@@ -6,11 +6,14 @@
 using namespace xsim;
 using namespace slang;
 
-TEST(builder, single_module) {  // NOLINT
+TEST(codegen, declaration) {    // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module m;
+logic [3:0] a, b;
+logic c;
 initial begin
-    $display("HELLO WORLD");
+    logic d;
+    $display("PASS");
 end
 endmodule
 )");
@@ -23,5 +26,5 @@ endmodule
     testing::internal::CaptureStdout();
     builder.build(&compilation);
     std::string output = testing::internal::GetCapturedStdout();
-    EXPECT_NE(output.find("HELLO WORLD"), std::string::npos);
+    EXPECT_NE(output.find("PASS"), std::string::npos);
 }

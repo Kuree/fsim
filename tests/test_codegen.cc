@@ -29,3 +29,30 @@ endmodule
     // TODO: enhance this test case once display is working
     EXPECT_NE(output.find("PASS"), std::string::npos);
 }
+
+TEST(codegen, if_stmt) {    // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+module m;
+logic [3:0] a;
+initial begin
+    a = 3;
+    if (a == 3) begin
+        $display("PASS");
+    end else begin
+        $display("FAIL");
+    end
+end
+endmodule
+)");
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    BuildOptions options;
+    options.debug_build = true;
+    options.run_after_build = true;
+    Builder builder(options);
+    testing::internal::CaptureStdout();
+    builder.build(&compilation);
+    std::string output = testing::internal::GetCapturedStdout();
+    // TODO: enhance this test case once display is working
+    EXPECT_NE(output.find("PASS"), std::string::npos);
+}

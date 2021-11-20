@@ -70,6 +70,51 @@ public:
 
     [[maybe_unused]] void handle(const slang::NamedValueExpression &n) { s << n.symbol.name; }
 
+    [[maybe_unused]] void handle(const slang::ConversionExpression &c) { c.operand().visit(*this); }
+
+    [[maybe_unused]] void handle(const slang::BinaryExpression &expr) {
+        // TODO: implement sizing, which is the most bizarre thing compared to C/C++
+        auto const &left = expr.left();
+        s << "(";
+        left.visit(*this);
+        bool closing_p = false;
+        switch (expr.op) {
+            case slang::BinaryOperator::Add:
+                s << " + ";
+                break;
+            case slang::BinaryOperator::ArithmeticShiftLeft:
+                s << ".ashl(";
+                closing_p = true;
+                break;
+            case slang::BinaryOperator::ArithmeticShiftRight:
+                s << ".ashr(";
+                closing_p = true;
+                break;
+            case slang::BinaryOperator::BinaryAnd:
+                s << " & ";
+                break;
+            case slang::BinaryOperator::BinaryOr:
+                s << " | ";
+                break;
+            case slang::BinaryOperator::BinaryXor:
+                s << " ^ ";
+                break;
+            case slang::BinaryOperator::Equality:
+                s << " == ";
+                break;
+            case slang::BinaryOperator::Inequality:
+                s << " != ";
+                break;
+            default:
+                throw std::runtime_error(
+                    fmt::format("Unsupported operator {0}", slang::toString(expr.op)));
+        }
+        auto const &right = expr.right();
+        right.visit(*this);
+        if (closing_p) s << ")";
+        s << ")";
+    }
+
     std::ostream &s;
 };
 
@@ -137,7 +182,7 @@ public:
 
     [[maybe_unused]] void handle(const slang::StatementList &list) {
         // entering a scope
-        s << get_indent(indent_level) << "{";
+        s << "{";
         indent_level++;
         this->template visitDefault(list);
         indent_level--;
@@ -148,6 +193,20 @@ public:
         s << std::endl << get_indent(indent_level);
         this->template visitDefault(stmt);
         s << ";" << std::endl;
+    }
+
+    [[maybe_unused]] void handle(const slang::ConditionalStatement &stmt) {
+        s << get_indent(indent_level);
+        auto const &cond = stmt.cond;
+        s << "if (";
+        ExprCodeGenVisitor v(s);
+        cond.visit(v);
+        s << ")";
+        stmt.ifTrue.visit(*this);
+        if (stmt.ifFalse) {
+            s << get_indent(indent_level) << "else ";
+            stmt.ifFalse->visit(*this);
+        }
     }
 
     [[maybe_unused]] void handle(const slang::CallExpression &expr) {
@@ -204,6 +263,8 @@ void codegen_init(std::ostream &s, int &indent_level, const Process *process,
       << get_indent(indent_level) << "init_ptr->func = [this, init_ptr, " << xsim_next_time << ", "
       << xsim_delay_event << "]() {" << std::endl;
     indent_level++;
+    s << get_indent(indent_level);
+
     auto const &stmts = process->stmts;
     for (auto const *stmt : stmts) {
         codegen_sym(s, indent_level, stmt, options);

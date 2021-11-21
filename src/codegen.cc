@@ -287,6 +287,33 @@ void codegen_init(std::ostream &s, int &indent_level, const Process *process,
     s << get_indent(indent_level) << "}" << std::endl;
 }
 
+void codegen_final(std::ostream &s, int &indent_level, const Process *process,
+                   const CXXCodeGenOptions &options) {
+    // TODO. merge process codegen since they same lots of code
+    s << get_indent(indent_level) << "{" << std::endl;
+    indent_level++;
+
+    s << get_indent(indent_level) << "auto final_ptr = scheduler->create_final_process();"
+      << std::endl
+      << get_indent(indent_level) << "final_ptr->func = [this, final_ptr, scheduler]() {"
+      << std::endl;
+    indent_level++;
+    s << get_indent(indent_level);
+
+    auto const &stmts = process->stmts;
+    for (auto const *stmt : stmts) {
+        codegen_sym(s, indent_level, stmt, options);
+    }
+
+    indent_level--;
+    s << get_indent(indent_level) << "};" << std::endl;
+    s << get_indent(indent_level) << "xsim::runtime::Scheduler::schedule_final(final_ptr);"
+      << std::endl;
+
+    indent_level--;
+    s << get_indent(indent_level) << "}" << std::endl;
+}
+
 void output_header_file(const std::filesystem::path &filename, const Module *mod,
                         const CXXCodeGenOptions &options) {
     // analyze the dependencies to include which headers
@@ -316,6 +343,11 @@ void output_header_file(const std::filesystem::path &filename, const Module *mod
           << std::endl;
     }
 
+    if (!mod->final_processes.empty()) {
+        s << get_indent(indent_level) << "void final(xsim::runtime::Scheduler *scheduler) override;"
+          << std::endl;
+    }
+
     indent_level--;
 
     s << get_indent(indent_level) << "};";
@@ -331,6 +363,7 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
 
     int indent_level = 0;
 
+    // initial block
     if (!mod->init_processes.empty()) {
         s << get_indent(indent_level) << "void " << mod->name
           << "::init(xsim::runtime::Scheduler *scheduler) {" << std::endl;
@@ -343,8 +376,20 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
         indent_level--;
         s << get_indent(indent_level) << "}";
     }
-    // compute init fiber conditional variables. each init process will have one variable,
-    // which will be signalled if the init process finishes
+
+    // final block
+    if (!mod->final_processes.empty()) {
+        s << get_indent(indent_level) << "void " << mod->name
+          << "::final(xsim::runtime::Scheduler *scheduler) {" << std::endl;
+        indent_level++;
+
+        for (auto const &final : mod->final_processes) {
+            codegen_final(s, indent_level, final.get(), options);
+        }
+
+        indent_level--;
+        s << get_indent(indent_level) << "}";
+    }
 }
 
 void output_main_file(const std::string &filename, const Module *top) {

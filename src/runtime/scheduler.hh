@@ -25,6 +25,8 @@ struct InitialProcess : public Process {};
 
 struct ForkProcess : public Process {};
 
+struct FinalProcess : public Process {};
+
 class Module;
 
 class ScheduledTimeslot {
@@ -50,8 +52,10 @@ public:
     uint64_t sim_time = 0;
 
     InitialProcess *create_init_process();
+    FinalProcess *create_final_process();
 
     static void schedule_init(InitialProcess *init);
+    static void schedule_final(FinalProcess *final);
     void schedule_delay(const ScheduledTimeslot &event);
     void schedule_finish(int code);
 
@@ -66,11 +70,12 @@ private:
     std::mutex event_queue_lock_;
 
     std::vector<std::unique_ptr<InitialProcess>> init_processes_;
+    std::vector<std::unique_ptr<FinalProcess>> final_processes_;
     marl::Scheduler marl_scheduler_;
 
     // finish info
     std::atomic<bool> finish_flag = false;
-    FinishInfo finish_;
+    FinishInfo finish_ = {};
 };
 }  // namespace xsim::runtime
 

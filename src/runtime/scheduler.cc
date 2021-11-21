@@ -29,6 +29,7 @@ void printout_finish(int code, uint64_t time) {
 void Scheduler::run(Module *top) {
     // schedule init for every module
     top->init(this);
+    top->final(this);
     bool finished = false;
 
     // either wait for the finish or wait for the complete from init
@@ -69,12 +70,24 @@ void Scheduler::run(Module *top) {
     if (finish_flag && !finished) {
         printout_finish(finish_.code, sim_time);
     }
+
+    // execute final
+    for (auto &final : final_processes_) {
+        schedule_final(final.get());
+    }
 }
 
 InitialProcess *Scheduler::create_init_process() {
     auto ptr = std::make_unique<InitialProcess>();
     ptr->id = init_processes_.size();
     auto &p = init_processes_.emplace_back(std::move(ptr));
+    return p.get();
+}
+
+FinalProcess *Scheduler::create_final_process() {
+    auto ptr = std::make_unique<FinalProcess>();
+    ptr->id = final_processes_.size();
+    auto &p = final_processes_.emplace_back(std::move(ptr));
     return p.get();
 }
 
@@ -86,6 +99,12 @@ void Scheduler::schedule_init(InitialProcess *process) {
         // then wait for the correct time or condition (using different event variable)
         // the main process still waits for the same condition variable
     });
+}
+
+void Scheduler::schedule_final(FinalProcess *final) {
+    // we don't suspect that the final process is going to take a long time
+    // in single threaded mode
+    final->func();
 }
 
 void Scheduler::schedule_delay(const ScheduledTimeslot &event) {

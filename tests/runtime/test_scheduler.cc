@@ -77,3 +77,24 @@ TEST(runtime, finish) { // NOLINT
     FinishModule m;
     scheduler.run(&m);
 }
+
+class FinalModule: public Module {
+public:
+    FinalModule() : Module("final_test") {}
+    void final(Scheduler *scheduler) override {
+        auto final_ptr = scheduler->create_final_process();
+        final_ptr->func = [this]() {
+            display(this, "PASS");
+        };
+        Scheduler::schedule_final(final_ptr);
+    }
+};
+
+TEST(runtime, final) { // NOLINT
+    Scheduler scheduler;
+    FinalModule m;
+    testing::internal::CaptureStdout();
+    scheduler.run(&m);
+    std::string output = testing::internal::GetCapturedStdout();
+    EXPECT_NE(output.find("PASS"), std::string::npos);
+}

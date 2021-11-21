@@ -9,8 +9,6 @@
 #include "slang/binding/SystemSubroutine.h"
 
 namespace xsim {
-
-auto constexpr xsim_delay_event = "xsim_delay_event";
 auto constexpr xsim_next_time = "xsim_next_time";
 
 template <typename T>
@@ -155,16 +153,27 @@ public:
         if (timing.kind != slang::TimingControlKind::Delay) {
             throw std::runtime_error("Only delay timing control supported");
         }
+        s << std::endl;
+        // we first release the current condition holds
+        s << get_indent(indent_level) << "init_ptr->cond.signal();" << std::endl;
         auto const &delay = timing.as<slang::DelayControl>();
-        s << std::endl
-          << get_indent(indent_level) << xsim_next_time << ".time = scheduler->sim_time + (";
+        // start a new scope to avoid naming conflicts
+        s << get_indent(indent_level) << "{" << std::endl;
+        indent_level++;
+
+        s << get_indent(indent_level) << "auto " << xsim_next_time
+          << " = xsim::runtime::ScheduledTimeslot(scheduler->sim_time + (";
         ExprCodeGenVisitor v(s);
         delay.expr.visit(v);
-        s << ").to_uint64();" << std::endl;
-        s << get_indent(indent_level) << "scheduler->schedule_delay(&" << xsim_next_time << ");"
+        s << ").to_uint64(), init_ptr);" << std::endl;
+        s << get_indent(indent_level) << "scheduler->schedule_delay(" << xsim_next_time << ");"
           << std::endl;
         s << get_indent(indent_level) << "init_ptr->cond.clear();" << std::endl;
-        s << get_indent(indent_level) << xsim_delay_event << ".wait();" << std::endl;
+        s << get_indent(indent_level) << "init_ptr->delay.wait();" << std::endl;
+
+        indent_level--;
+        s << get_indent(indent_level) << "}" << std::endl;
+
         this->template visitDefault(stmt.stmt);
     }
 
@@ -251,18 +260,10 @@ void codegen_init(std::ostream &s, int &indent_level, const Process *process,
     s << get_indent(indent_level) << "{" << std::endl;
     indent_level++;
 
-    // TODO:
-    //     need to compute the number of delay controls needed
-    //     for now we only create one and use C++ shadowing to deal with it
-    s << get_indent(indent_level) << "auto " << xsim_delay_event
-      << " = marl::Event(marl::Event::Mode::Manual);" << std::endl;
-    s << get_indent(indent_level) << "auto " << xsim_next_time
-      << " = xsim::runtime::ScheduledTimeslot(0, " << xsim_delay_event << ");" << std::endl;
-
     s << get_indent(indent_level)
       << "auto init_ptr = std::make_shared<xsim::runtime::InitialProcess>();" << std::endl
-      << get_indent(indent_level) << "init_ptr->func = [this, init_ptr, " << '&' << xsim_next_time
-      << ", " << '&' << xsim_delay_event << ", scheduler]() {" << std::endl;
+      << get_indent(indent_level) << "init_ptr->func = [this, init_ptr, scheduler]() {"
+      << std::endl;
     indent_level++;
     s << get_indent(indent_level);
 

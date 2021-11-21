@@ -32,18 +32,16 @@ TEST(runtime, init_no_delay) {  // NOLINT
 class InitModuleDelay : public Module {
 public:
     InitModuleDelay() : Module("init_delay_test") {}
-    marl::Event delay_cond = marl::Event(marl::Event::Mode::Manual);
-    ScheduledTimeslot next_time = ScheduledTimeslot(0, delay_cond);
     void init(Scheduler *scheduler) override {
         auto init_ptr = std::make_shared<InitialProcess>();
         init_ptr->func = [init_ptr, scheduler, this]() {
             // #2 delay
             // switch to a new env variable
             init_ptr->cond.signal();
-            next_time.time = scheduler->sim_time + 2;
-            scheduler->schedule_delay(&next_time);
+            auto next_time = ScheduledTimeslot(scheduler->sim_time + 2, init_ptr);
+            scheduler->schedule_delay(next_time);
             init_ptr->cond.clear();
-            delay_cond.wait();
+            init_ptr->delay.wait();
             // done with this init
             init_ptr->finished = true;
             init_ptr->cond.signal();
@@ -57,4 +55,24 @@ TEST(runtime, init_delay) {  // NOLINT
     InitModuleDelay m;
     scheduler.run(&m);
     EXPECT_EQ(scheduler.sim_time, 2);
+}
+
+
+class FinishModule : public Module {
+public:
+    FinishModule() : Module("finish_test") {}
+    void init(Scheduler *scheduler) override {
+        auto init_ptr = std::make_shared<InitialProcess>();
+        init_ptr->func = [init_ptr, this]() {
+            finish(this, 0);
+        };
+        scheduler->schedule_init(init_ptr);
+    }
+};
+
+
+TEST(runtime, finish) { // NOLINT
+    Scheduler scheduler;
+    FinishModule m;
+    scheduler.run(&m);
 }

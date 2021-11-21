@@ -44,7 +44,11 @@ void display(const Module *module, std::string_view format, Args...) {
 
 template <typename T>
 inline void finish(const Module *, T code = 0) {
-    throw FinishException(code.to_uint64());
+    if constexpr (std::is_arithmetic_v<T>) {
+        throw FinishException(code);
+    } else {
+        throw FinishException(code.to_uint64());
+    }
 }
 
 }  // namespace xsim::runtime

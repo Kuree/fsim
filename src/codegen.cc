@@ -174,7 +174,7 @@ public:
         indent_level--;
         s << get_indent(indent_level) << "}" << std::endl;
 
-        this->template visitDefault(stmt.stmt);
+        //stmt.stmt.visit(*this);
     }
 
     [[maybe_unused]] void handle(const slang::AssignmentExpression &expr) {
@@ -222,18 +222,22 @@ public:
     [[maybe_unused]] void handle(const slang::CallExpression &expr) {
         if (expr.subroutine.index() == 1) {
             auto const &info = std::get<1>(expr.subroutine);
-            auto name = info.subroutine->name;
             // remove the leading $
-            auto func_name = fmt::format("xsim::runtime::{0}", name.substr(1));
-            s << func_name << "(this, ";
+            auto name = info.subroutine->name.substr(1);
+            auto func_name = fmt::format("xsim::runtime::{0}", name);
+            s << func_name << "(";
+            // depends on the context, we may or may not insert additional arguments
+            if (name == "finish") {
+                s << "scheduler";
+            } else {
+                s << "this";
+            }
+
             auto const &arguments = expr.arguments();
-            for (auto i = 0u; i < arguments.size(); i++) {
-                auto const *arg = arguments[i];
+            for (auto const &arg : arguments) {
+                s << ", ";
                 ExprCodeGenVisitor v(s);
                 arg->visit(v);
-                if (i != (arguments.size() - 1)) {
-                    s << ", ";
-                }
             }
             s << ")";
         } else {

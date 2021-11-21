@@ -27,32 +27,33 @@ void Scheduler::run(Module *top) {
     top->init(this);
 
     // either wait for the finish or wait for the complete from init
-    try {
-        while (true) {
-            if (!has_init_left(init_processes_)) {
-                break;
-            }
-            for (auto &init : init_processes_) {
-                init->cond.wait();
-            }
-            // active
-            // nba
+    while (true) {
+        if (!has_init_left(init_processes_)) {
+            break;
+        }
+        for (auto &init : init_processes_) {
+            init->cond.wait();
+        }
+        // active
+        // nba
 
-            // schedule for the next time slot
-            while (!event_queue_.empty()) {
-                auto next_slot_time = event_queue_.top().time;
-                sim_time = next_slot_time;
-                // we could have multiple events scheduled at the same time slot
-                // release all of them at once
-                while (!event_queue_.empty() && event_queue_.top().time == next_slot_time) {
-                    auto event = event_queue_.top();
-                    event_queue_.pop();
-                    event.process->delay.signal();
-                }
+        // schedule for the next time slot
+        while (!event_queue_.empty()) {
+            auto next_slot_time = event_queue_.top().time;
+            sim_time = next_slot_time;
+            // we could have multiple events scheduled at the same time slot
+            // release all of them at once
+            while (!event_queue_.empty() && event_queue_.top().time == next_slot_time) {
+                auto event = event_queue_.top();
+                event_queue_.pop();
+                event.process->delay.signal();
             }
         }
-    } catch (const FinishException &ex) {
-        std::cout << "Finish called at " << sim_time << " width status " << ex.code << std::endl;
+
+        if (finish_) {
+            std::cout << "$finish(" << *finish_ << ") called at " << sim_time << std::endl;
+            break;
+        }
     }
 }
 

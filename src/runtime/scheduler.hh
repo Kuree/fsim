@@ -3,6 +3,7 @@
 
 #include <atomic>
 #include <mutex>
+#include <optional>
 #include <queue>
 #include <stdexcept>
 
@@ -46,6 +47,7 @@ public:
 
     void schedule_init(const std::shared_ptr<InitialProcess> &init);
     void schedule_delay(const ScheduledTimeslot &event);
+    void schedule_finish(int code) { finish_ = code; }
 
     ~Scheduler();
 
@@ -59,16 +61,10 @@ private:
 
     std::vector<std::shared_ptr<InitialProcess>> init_processes_;
     marl::Scheduler marl_scheduler_;
+
+    // finish info
+    std::optional<int> finish_;
 };
-
-class FinishException : std::exception {
-    // used to indicate the finish
-public:
-    explicit FinishException(int code) : code(code) {}
-
-    int code;
-};
-
 }  // namespace xsim::runtime
 
 #endif  // XSIM_SCHEDULER_HH

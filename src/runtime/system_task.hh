@@ -10,6 +10,7 @@
 namespace xsim::runtime {
 
 class Module;
+class Scheduler;
 
 void print_assert_error(std::string_view name, std::string_view loc);
 
@@ -43,12 +44,14 @@ void display(const Module *module, std::string_view format, Args...) {
 }
 
 template <typename T>
-inline void finish(const Module *, T code = 0) {
+inline void finish(Scheduler *scheduler, T code = 0) {
+    int finish_code;
     if constexpr (std::is_arithmetic_v<T>) {
-        throw FinishException(code);
+        finish_code = code;
     } else {
-        throw FinishException(code.to_uint64());
+        finish_code = code.to_uint64();
     }
+    scheduler->schedule_finish(finish_code);
 }
 
 }  // namespace xsim::runtime

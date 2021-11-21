@@ -63,8 +63,9 @@ public:
     FinishModule() : Module("finish_test") {}
     void init(Scheduler *scheduler) override {
         auto init_ptr = std::make_shared<InitialProcess>();
-        init_ptr->func = [init_ptr, this]() {
-            finish(this, 0);
+        init_ptr->func = [init_ptr, scheduler]() {
+            finish(scheduler, 0);
+            init_ptr->cond.signal();
         };
         scheduler->schedule_init(init_ptr);
     }

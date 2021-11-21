@@ -75,6 +75,6 @@ endmodule
     testing::internal::CaptureStdout();
     builder.build(&compilation);
     std::string output = testing::internal::GetCapturedStdout();
-    // TODO: enhance this test case once display is working
+    EXPECT_NE(output.find("$finish(1)"), std::string::npos);
     EXPECT_NE(output.find("PASS"), std::string::npos);
 }

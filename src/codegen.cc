@@ -264,8 +264,8 @@ void codegen_init(std::ostream &s, int &indent_level, const Process *process,
     s << get_indent(indent_level) << "{" << std::endl;
     indent_level++;
 
-    s << get_indent(indent_level)
-      << "auto init_ptr = scheduler->create_init_process();" << std::endl
+    s << get_indent(indent_level) << "auto init_ptr = scheduler->create_init_process();"
+      << std::endl
       << get_indent(indent_level) << "init_ptr->func = [this, init_ptr, scheduler]() {"
       << std::endl;
     indent_level++;
@@ -280,7 +280,8 @@ void codegen_init(std::ostream &s, int &indent_level, const Process *process,
       << get_indent(indent_level) << "init_ptr->cond.signal();" << std::endl;
     indent_level--;
     s << get_indent(indent_level) << "};" << std::endl;
-    s << get_indent(indent_level) << "xsim::runtime::Scheduler::schedule_init(init_ptr);" << std::endl;
+    s << get_indent(indent_level) << "xsim::runtime::Scheduler::schedule_init(init_ptr);"
+      << std::endl;
 
     indent_level--;
     s << get_indent(indent_level) << "}" << std::endl;
@@ -369,7 +370,7 @@ void CXXCodeGen::output(const std::string &dir) {
     auto hh_filename = dir_path / get_hh_filename(top_->name);
     output_header_file(hh_filename, top_, option_);
     output_cc_file(cc_filename, top_, option_);
-    auto main_filename = dir_path / main_name;
+    auto main_filename = dir_path / fmt::format("{0}.cc", main_name);
     output_main_file(main_filename, top_);
 }
 
@@ -425,6 +426,8 @@ void NinjaCodeGen::output(const std::string &dir) {
     // output for each module definition
     auto defs = get_defs(top_);
     std::string objs;
+    // add main object as well
+    defs.emplace(main_name);
     for (auto const &name : defs) {
         auto obj_name = fmt::format("{0}.o", name);
         stream << "build " << obj_name << ": cc " << get_cc_filename(name) << std::endl;
@@ -436,8 +439,7 @@ void NinjaCodeGen::output(const std::string &dir) {
     stream << "  command = " << options_.clang_path << " $in " << runtime_lib_path << " $cflags "
            << main_linkers << " -o $out" << std::endl
            << std::endl;
-    stream << "build " << options_.binary_name << ": main " << main_name << " " << objs
-           << std::endl;
+    stream << "build " << options_.binary_name << ": main " << objs << std::endl;
 }
 
 }  // namespace xsim

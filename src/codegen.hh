@@ -8,7 +8,7 @@ namespace xsim {
 
 // module is an illegal name in SV. using it will guarantee that
 // there is no conflicts
-auto constexpr main_name = "module.cc";
+auto constexpr main_name = "module";
 auto constexpr default_output_name = "xsim.out";
 
 struct CXXCodeGenOptions {

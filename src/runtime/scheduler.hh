@@ -30,12 +30,16 @@ class Module;
 class ScheduledTimeslot {
 public:
     // we statically allocate the event cond
-    explicit ScheduledTimeslot(uint64_t time, std::shared_ptr<Process> process);
+    explicit ScheduledTimeslot(uint64_t time, Process *process);
 
     uint64_t time = 0;
-    std::shared_ptr<Process> process;
+    Process *process;
 
     bool operator<(const ScheduledTimeslot &other) const { return time < other.time; }
+};
+
+struct FinishInfo {
+    int code;
 };
 
 class Scheduler {
@@ -45,9 +49,11 @@ public:
 
     uint64_t sim_time = 0;
 
-    void schedule_init(const std::shared_ptr<InitialProcess> &init);
+    InitialProcess *create_init_process();
+
+    static void schedule_init(InitialProcess *init);
     void schedule_delay(const ScheduledTimeslot &event);
-    void schedule_finish(int code) { finish_ = code; }
+    void schedule_finish(int code);
 
     ~Scheduler();
 
@@ -59,11 +65,12 @@ private:
     std::priority_queue<ScheduledTimeslot> event_queue_;
     std::mutex event_queue_lock_;
 
-    std::vector<std::shared_ptr<InitialProcess>> init_processes_;
+    std::vector<std::unique_ptr<InitialProcess>> init_processes_;
     marl::Scheduler marl_scheduler_;
 
     // finish info
-    std::optional<int> finish_;
+    std::atomic<bool> finish_flag = false;
+    FinishInfo finish_;
 };
 }  // namespace xsim::runtime
 

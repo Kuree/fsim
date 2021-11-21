@@ -174,7 +174,7 @@ public:
         indent_level--;
         s << get_indent(indent_level) << "}" << std::endl;
 
-        //stmt.stmt.visit(*this);
+        // stmt.stmt.visit(*this);
     }
 
     [[maybe_unused]] void handle(const slang::AssignmentExpression &expr) {
@@ -265,7 +265,7 @@ void codegen_init(std::ostream &s, int &indent_level, const Process *process,
     indent_level++;
 
     s << get_indent(indent_level)
-      << "auto init_ptr = std::make_shared<xsim::runtime::InitialProcess>();" << std::endl
+      << "auto init_ptr = scheduler->create_init_process();" << std::endl
       << get_indent(indent_level) << "init_ptr->func = [this, init_ptr, scheduler]() {"
       << std::endl;
     indent_level++;
@@ -280,7 +280,7 @@ void codegen_init(std::ostream &s, int &indent_level, const Process *process,
       << get_indent(indent_level) << "init_ptr->cond.signal();" << std::endl;
     indent_level--;
     s << get_indent(indent_level) << "};" << std::endl;
-    s << get_indent(indent_level) << "scheduler->schedule_init(init_ptr);" << std::endl;
+    s << get_indent(indent_level) << "xsim::runtime::Scheduler::schedule_init(init_ptr);" << std::endl;
 
     indent_level--;
     s << get_indent(indent_level) << "}" << std::endl;

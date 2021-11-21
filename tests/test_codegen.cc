@@ -76,5 +76,5 @@ endmodule
     builder.build(&compilation);
     std::string output = testing::internal::GetCapturedStdout();
     EXPECT_NE(output.find("$finish(1)"), std::string::npos);
-    //EXPECT_NE(output.find("PASS"), std::string::npos);
+    EXPECT_NE(output.find("PASS"), std::string::npos);
 }

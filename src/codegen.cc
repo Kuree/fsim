@@ -174,7 +174,7 @@ public:
         indent_level--;
         s << get_indent(indent_level) << "}" << std::endl;
 
-        // stmt.stmt.visit(*this);
+        stmt.stmt.visit(*this);
     }
 
     [[maybe_unused]] void handle(const slang::AssignmentExpression &expr) {

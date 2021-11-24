@@ -155,7 +155,7 @@ public:
         }
         s << std::endl;
         // we first release the current condition holds
-        s << get_indent(indent_level) << "init_ptr->cond.signal();" << std::endl;
+
         auto const &delay = timing.as<slang::DelayControl>();
         // start a new scope to avoid naming conflicts
         s << get_indent(indent_level) << "{" << std::endl;
@@ -168,7 +168,9 @@ public:
         s << ").to_uint64(), init_ptr);" << std::endl;
         s << get_indent(indent_level) << "scheduler->schedule_delay(" << xsim_next_time << ");"
           << std::endl;
-        s << get_indent(indent_level) << "init_ptr->cond.clear();" << std::endl;
+
+        // after we are done with adding schedules, release the current condition holds
+        s << get_indent(indent_level) << "init_ptr->cond.signal();" << std::endl;
         s << get_indent(indent_level) << "init_ptr->delay.wait();" << std::endl;
 
         indent_level--;

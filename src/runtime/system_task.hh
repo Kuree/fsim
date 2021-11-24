@@ -35,9 +35,38 @@ void assert_(const T &v, std::string_view name, std::string_view loc,
 }
 
 std::string preprocess_display_fmt(const Module *module, std::string_view format);
+std::pair<std::string_view, uint64_t> preprocess_display_fmt(std::string_view format);
+
+// induction case
+template <typename T, typename... Args>
+uint64_t display_(const Module *m, std::string_view format, T arg, Args... args) {
+    auto start_pos = display_(m, format, arg);
+    return display(m, format.substr(start_pos), args...);
+}
+
+// base case
+template <typename T>
+uint64_t display_(const Module *, std::string_view format, const T &arg) {
+    auto [fmt, start_pos] = preprocess_display_fmt(format);
+    if (!fmt.empty()) {
+        if constexpr (std::is_same_v<T, const char *>) {
+            std::cout << arg;
+        } else {
+            std::cout << arg.str(fmt);
+        }
+    }
+    return start_pos;
+}
 
 template <typename... Args>
-void display(const Module *module, std::string_view format, Args...) {
+void display(const Module *module, std::string_view format, Args... args) {
+    // only display the format for now
+    auto fmt = preprocess_display_fmt(module, format);
+    display_(module, fmt, args...);
+    std::cout << std::endl;
+}
+
+void display(const Module *module, std::string_view format) {
     // only display the format for now
     auto fmt = preprocess_display_fmt(module, format);
     std::cout << fmt << std::endl;

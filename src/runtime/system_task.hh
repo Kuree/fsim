@@ -66,11 +66,7 @@ void display(const Module *module, std::string_view format, Args... args) {
     std::cout << std::endl;
 }
 
-void display(const Module *module, std::string_view format) {
-    // only display the format for now
-    auto fmt = preprocess_display_fmt(module, format);
-    std::cout << fmt << std::endl;
-}
+void display(const Module *module, std::string_view format);
 
 template <typename T>
 inline void finish(Scheduler *scheduler, T code = 0) {

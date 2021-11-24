@@ -55,4 +55,10 @@ std::pair<std::string_view, uint64_t> preprocess_display_fmt(std::string_view fo
     }
 }
 
+void display(const Module *module, std::string_view format) {
+    // only display the format for now
+    auto fmt = preprocess_display_fmt(module, format);
+    std::cout << fmt << std::endl;
+}
+
 }  // namespace xsim::runtime

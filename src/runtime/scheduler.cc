@@ -35,6 +35,7 @@ void Scheduler::run(Module *top) {
     // either wait for the finish or wait for the complete from init
     while (true) {
         for (auto &init : init_processes_) {
+            if (init->finished) continue;
             init->cond.wait();
         }
 

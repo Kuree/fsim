@@ -15,10 +15,10 @@ namespace xsim::runtime {
 struct Process {
     uint64_t id = 0;
     std::atomic<bool> finished = false;
-    marl::Event cond = marl::Event(marl::Event::Mode::Manual);
+    marl::Event cond = marl::Event(marl::Event::Mode::Auto);
     std::function<void()> func;
 
-    marl::Event delay = marl::Event(marl::Event::Mode::Manual);
+    marl::Event delay = marl::Event(marl::Event::Mode::Auto);
 };
 
 struct InitialProcess : public Process {};

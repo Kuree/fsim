@@ -37,10 +37,9 @@ public:
         init_ptr->func = [init_ptr, scheduler, this]() {
             // #2 delay
             // switch to a new env variable
-            init_ptr->cond.signal();
             auto next_time = ScheduledTimeslot(scheduler->sim_time + 2, init_ptr);
             scheduler->schedule_delay(next_time);
-            init_ptr->cond.clear();
+            init_ptr->cond.signal();
             init_ptr->delay.wait();
             // done with this init
             init_ptr->finished = true;

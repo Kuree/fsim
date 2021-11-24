@@ -130,8 +130,18 @@ std::string Module::analyze_comb() {
         if (sym.kind == slang::SymbolKind::ProceduralBlock) {
             // need to flush whatever in the pipe
             if (!process->stmts.empty()) {
+                // we're creating implicit comb blocks to create
+                process->kind = CombProcess::CombKind::Implicit;
                 comb_processes.emplace_back(std::move(process));
                 process = std::make_unique<CombProcess>();
+            }
+            // depends on the type, we need to set the comb block carefully
+            auto const &p_block = sym.as<slang::ProceduralBlockSymbol>();
+            if (p_block.procedureKind == slang::ProceduralBlockKind::AlwaysLatch) {
+                process->kind = CombProcess::CombKind::Latch;
+            } else if (p_block.procedureKind == slang::ProceduralBlockKind::Always) {
+                // need to figure out if it's implicit or explicit
+                process->kind = CombProcess::CombKind::Implicit;
             }
             process->stmts.emplace_back(&sym);
             comb_processes.emplace_back(std::move(process));
@@ -139,10 +149,25 @@ std::string Module::analyze_comb() {
         } else {
             process->stmts.emplace_back(&sym);
         }
+        for (auto const *node : n->edges_from) {
+            auto const &from_sym = node->symbol;
+            auto sym_name = from_sym.name;
+            if (!sym_name.empty()) {
+                process->sensitive_list.emplace_back(&from_sym);
+            }
+        }
     }
     if (!process->stmts.empty()) {
         comb_processes.emplace_back(std::move(process));
     }
+
+    // also need to optimize for general purpose block
+    for (auto const *sym : v.general_always_stmts) {
+        auto p = std::make_unique<CombProcess>(CombProcess::CombKind::GeneralPurpose);
+        p->stmts.emplace_back(sym);
+        comb_processes.emplace_back(std::move(p));
+    }
+
     return {};
 }
 

@@ -88,7 +88,7 @@ public:
     [[maybe_unused]] void handle(const slang::InstanceSymbol &symbol);
 
     Graph *graph;
-    std::vector<const slang::ProceduralBlockSymbol *> timed_stmts;
+    std::vector<const slang::Symbol *> general_always_stmts;
 
     std::string error;
 

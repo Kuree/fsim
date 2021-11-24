@@ -238,6 +238,6 @@ endmodule
     auto const *m = defs.modules.at("m");
     DependencyAnalysisVisitor vis;
     m->visit(vis);
-    EXPECT_EQ(vis.timed_stmts.size(), 1);
+    EXPECT_EQ(vis.general_always_stmts.size(), 1);
     EXPECT_TRUE(vis.graph->nodes.empty());
 }

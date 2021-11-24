@@ -23,13 +23,22 @@ public:
 
 class CombProcess : public Process {
 public:
+    enum class CombKind {
+        GeneralPurpose,  // LRM 9.2.2.1
+        AlwaysComb,      // LRM 9.2.2.2
+        Implicit,        // LRM 9.2.2.2.2
+        Explicit,
+        Latch  // LRM 9.2.2.3, The always_latch construct is identical to the always_comb construct
+               // in terms of simulation
+    };
     std::vector<const slang::Symbol *> stmts;
 
-    explicit CombProcess() : Process(slang::ProceduralBlockKind::AlwaysComb) {}
+    explicit CombProcess(CombKind kind = CombKind::AlwaysComb)
+        : Process(slang::ProceduralBlockKind::AlwaysComb), kind(kind) {}
 
-    // dependencies. need to create it for the computation graph
-    std::vector<const CombProcess*> edges_to;
-    std::vector<const CombProcess*> edges_from;
+    std::vector<const slang::Symbol *> sensitive_list;
+
+    CombKind kind;
 };
 
 class Module {
@@ -39,7 +48,6 @@ public:
 
     std::map<std::string_view, std::unique_ptr<Variable>> vars;
     std::vector<std::unique_ptr<CombProcess>> comb_processes;
-    std::vector<std::unique_ptr<CombProcess>> comb_timing_process;
     std::vector<std::unique_ptr<Process>> ff_processes;
     std::vector<std::unique_ptr<Process>> init_processes;
     std::vector<std::unique_ptr<Process>> final_processes;

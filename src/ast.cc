@@ -135,11 +135,12 @@ DependencyAnalysisVisitor::DependencyAnalysisVisitor(const slang::Symbol *target
     // always block
     auto *new_node = graph->get_node(stmt);
     for (auto const *r : right_vars) {
+        // we don't care about variable declared in procedural
+        if (r->symbol.getParentScope()->isProceduralContext()) continue;
         for (auto const *l : left_vars) {
+            if (l->symbol.getParentScope()->isProceduralContext()) continue;
             if (r == l) {
-                std::string buf;
-                r->symbol.getHierarchicalPath(buf);
-                error = fmt::format("Combination loop detected for {0}", buf);
+                continue;
             } else {
                 auto *r_node = graph->get_node(r);
                 auto *l_node = graph->get_node(l);
@@ -278,8 +279,10 @@ bool has_timing_control(const slang::ProceduralBlockSymbol &stmt) {
                     right_list = lst;
                 }
             } else {
+                // TODO:
+                //  report as an error if no timing control found
                 if (has_timing_control(stmt)) {
-                    timed_stmts.emplace_back(&stmt);
+                    general_always_stmts.emplace_back(&stmt);
                 }
                 return;
             }

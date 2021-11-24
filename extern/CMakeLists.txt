@@ -1,6 +1,7 @@
 add_subdirectory(googletest)
 add_subdirectory(fmt)
 add_subdirectory(marl)
+add_subdirectory(logic)
 
 # if we detects slang-dist is included in the extern folder,
 # use that instead

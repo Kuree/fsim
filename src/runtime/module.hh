@@ -23,6 +23,8 @@ public:
     static auto constexpr size = logic::util::abs_diff(msb, lsb) + 1;
     // we intentionally hide the underling assign operator function
     // maybe try the type
+    // TODO: change this into a virtual function and rely on slang's conversion operator
+    //  to automatically convert types. thus disabling logic::logic's ability to change types
     template <int op_msb, int op_lsb, bool op_signed_>
     logic::logic<size - 1, 0, signed_> &operator=(
         const logic::logic<op_msb, op_lsb, op_signed_> &value) {

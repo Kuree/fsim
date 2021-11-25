@@ -1,6 +1,7 @@
 #include "ir.hh"
 
 #include <stack>
+#include <unordered_set>
 
 #include "ast.hh"
 #include "fmt/format.h"
@@ -108,6 +109,52 @@ bool is_assignment(const slang::Symbol *symbol) {
     return true;
 }
 
+// tracking changes in sensitivity list
+class SensitivityListTracker {
+public:
+    void add_node(const DependencyAnalysisVisitor::Node *node) {
+        auto const &edges_to = node->edges_to;
+        auto const &edges_from = node->edges_from;
+
+        for (auto const *n : edges_from) {
+            auto const &sym = n->symbol;
+            if (sym.kind == slang::SymbolKind::Variable) {
+                auto const *ptr = &sym;
+                if (provides.find(ptr) != provides.end()) {
+                    // we're good
+                    continue;
+                } else {
+                    nodes.emplace(ptr);
+                }
+            }
+        }
+
+        for (auto const *n : edges_to) {
+            provides.emplace(&n->symbol);
+        }
+    }
+
+    [[nodiscard]] std::vector<const slang::Symbol *> get_list() const {
+        std::vector<const slang::Symbol *> result;
+        result.reserve(nodes.size());
+        // we don't allow self-triggering here
+        //  if a variable is used for accumulation for instance
+        //  a single process run is enough anyway
+        for (auto const *n : nodes) {
+            if (provides.find(n) == provides.end()) {
+                result.emplace_back(n);
+            }
+        }
+        std::sort(result.begin(), result.end(),
+                  [](auto const *a, auto const *b) { return a->name < b->name; });
+        return result;
+    }
+
+private:
+    std::unordered_set<const slang::Symbol *> nodes;
+    std::unordered_set<const slang::Symbol *> provides;
+};
+
 std::string Module::analyze_comb() {
     std::string error;
     DependencyAnalysisVisitor v(def_);
@@ -122,6 +169,7 @@ std::string Module::analyze_comb() {
     // we treat initial assignment and continuous assignments as combinational
     // block (or always_latch)
     auto process = std::make_unique<CombProcess>();
+    SensitivityListTracker tracker;
     for (auto const *n : order) {
         auto const &sym = n->symbol;
         // ignore nodes without initializer since we will create the variables/logics in a different
@@ -132,8 +180,11 @@ std::string Module::analyze_comb() {
             if (!process->stmts.empty()) {
                 // we're creating implicit comb blocks to create
                 process->kind = CombProcess::CombKind::Implicit;
+                tracker.add_node(n);
+                process->sensitive_list = tracker.get_list();
                 comb_processes.emplace_back(std::move(process));
                 process = std::make_unique<CombProcess>();
+                tracker = {};
             }
             // depends on the type, we need to set the comb block carefully
             auto const &p_block = sym.as<slang::ProceduralBlockSymbol>();
@@ -143,21 +194,20 @@ std::string Module::analyze_comb() {
                 // need to figure out if it's implicit or explicit
                 process->kind = CombProcess::CombKind::Implicit;
             }
+            tracker.add_node(n);
             process->stmts.emplace_back(&sym);
+            process->sensitive_list = tracker.get_list();
             comb_processes.emplace_back(std::move(process));
             process = std::make_unique<CombProcess>();
+            tracker = {};
         } else {
+            tracker.add_node(n);
             process->stmts.emplace_back(&sym);
-        }
-        for (auto const *node : n->edges_from) {
-            auto const &from_sym = node->symbol;
-            auto sym_name = from_sym.name;
-            if (!sym_name.empty()) {
-                process->sensitive_list.emplace_back(&from_sym);
-            }
         }
     }
     if (!process->stmts.empty()) {
+        process->sensitive_list = tracker.get_list();
+        process->kind = CombProcess::CombKind::Implicit;
         comb_processes.emplace_back(std::move(process));
     }
 

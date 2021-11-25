@@ -29,12 +29,12 @@ struct ForkProcess : public Process {};
 
 struct CombProcess : public Process {
 public:
-    explicit CombProcess(const Module *module) : module_(module) {}
+    explicit CombProcess(Module *module) : module_(module) {}
     // calling this can potentially change the interval values
     [[nodiscard]] virtual bool input_changed() = 0;
 
 protected:
-    const Module *module_;
+    Module *module_;
 };
 
 struct FFProcess : public Process {};

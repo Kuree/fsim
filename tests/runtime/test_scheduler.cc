@@ -2,7 +2,7 @@
 #include "../../src/runtime/scheduler.hh"
 #include "../../src/runtime/system_task.hh"
 #include "gtest/gtest.h"
-#include "logic/logic.hh"
+#include "../../src/runtime/macro.hh"
 
 using namespace xsim::runtime;
 using namespace logic::literals;
@@ -116,26 +116,17 @@ public:
      * endmodule
      */
 
-    logic::logic<3, 0> a;
+    logic_t<3, 0> a;
     logic::logic<3, 0> b;
 
     class CombProcess1 : public CombProcess {
     public:
-        explicit CombProcess1(const CombModuleOneBlock *m) : CombProcess(m) {}
-        logic::logic<3, 0> a;
+        explicit CombProcess1(CombModuleOneBlock *m) : CombProcess(m) {}
         bool input_changed() override {
-            auto *module = reinterpret_cast<const CombModuleOneBlock *>(this->module_);
-            if (!module->a.match(this->a)) {
-                a_changed_ = true;
-                this->a = module->a;
-            } else {
-                a_changed_ = false;
-            }
-            return a_changed_;
+            bool res = false;
+            XSIM_CHECK_CHANGED(module_, a, res, CombModuleOneBlock);
+            return res;
         }
-
-    private:
-        bool a_changed_ = true;
     };
 
     void init(Scheduler *scheduler) override {
@@ -159,7 +150,7 @@ public:
         auto process = std::make_unique<CombProcess1>(this);
         auto *always = scheduler->create_comb_process(std::move(process));
         always->func = [scheduler, this] {
-            b = a;
+            b = a;  // NOLINT
         };
         comb_processes_.emplace_back(always);
     }

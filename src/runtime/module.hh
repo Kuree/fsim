@@ -15,6 +15,31 @@ class DAG;
 namespace xsim::runtime {
 class Scheduler;
 class CombProcess;
+
+template <int msb, int lsb = msb, bool signed_ = false>
+class logic_t : public logic::logic<msb, lsb, signed_> {
+public:
+    // t for tracking
+    static auto constexpr size = logic::util::abs_diff(msb, lsb) + 1;
+    // we intentionally hide the underling assign operator function
+    // maybe try the type
+    template <int op_msb, int op_lsb, bool op_signed_>
+    logic::logic<size - 1, 0, signed_> &operator=(
+        const logic::logic<op_msb, op_lsb, op_signed_> &value) {
+        if (this->match(value)) {
+            changed = false;
+        } else {
+            logic::logic<msb, lsb, signed_>::operator=(value);
+            changed = true;
+        }
+        return *this;
+    }
+
+    // discard the state when it's assigned to
+    // clang-tidy will complain, but it's worth it
+    bool changed = true;
+};
+
 class Module {
 public:
     Module() = delete;

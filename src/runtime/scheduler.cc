@@ -36,6 +36,7 @@ void Scheduler::run(Module *top) {
     // either wait for the finish or wait for the complete from init
     while (true) {
         for (auto &init : init_processes_) {
+            // process finished. don't care anymore
             if (init->finished) continue;
             init->cond.wait();
         }
@@ -50,7 +51,7 @@ void Scheduler::run(Module *top) {
 
         // detect finish. notice that we need a second one below in case we finish it before
         // finish is detected
-        if (finish_flag) {
+        if (finish_flag_) {
             printout_finish(finish_.code, sim_time);
             finished = true;
             break;
@@ -70,7 +71,7 @@ void Scheduler::run(Module *top) {
         }
     }
 
-    if (finish_flag && !finished) {
+    if (finish_flag_ && !finished) {
         printout_finish(finish_.code, sim_time);
     }
 
@@ -123,7 +124,7 @@ void Scheduler::schedule_delay(const ScheduledTimeslot &event) {
 
 void Scheduler::schedule_finish(int code) {
     finish_.code = code;
-    finish_flag = true;
+    finish_flag_ = true;
 }
 
 Scheduler::~Scheduler() {

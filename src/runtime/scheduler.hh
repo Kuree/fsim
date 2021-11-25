@@ -72,6 +72,8 @@ public:
     void schedule_delay(const ScheduledTimeslot &event);
     void schedule_finish(int code);
 
+    [[nodiscard]] bool finished() const { return finish_flag_.load(); }
+
     ~Scheduler();
 
 private:
@@ -88,7 +90,7 @@ private:
     marl::Scheduler marl_scheduler_;
 
     // finish info
-    std::atomic<bool> finish_flag = false;
+    std::atomic<bool> finish_flag_ = false;
     FinishInfo finish_ = {};
 };
 }  // namespace xsim::runtime

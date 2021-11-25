@@ -12,6 +12,8 @@
 
 namespace xsim::runtime {
 
+class Module;
+
 struct Process {
     uint64_t id = 0;
     std::atomic<bool> finished = false;
@@ -25,9 +27,19 @@ struct InitialProcess : public Process {};
 
 struct ForkProcess : public Process {};
 
-struct FinalProcess : public Process {};
+struct CombProcess : public Process {
+public:
+    explicit CombProcess(const Module *module) : module_(module) {}
+    // calling this can potentially change the interval values
+    [[nodiscard]] virtual bool input_changed() = 0;
 
-class Module;
+protected:
+    const Module *module_;
+};
+
+struct FFProcess : public Process {};
+
+struct FinalProcess : public Process {};
 
 class ScheduledTimeslot {
 public:
@@ -53,6 +65,7 @@ public:
 
     InitialProcess *create_init_process();
     FinalProcess *create_final_process();
+    CombProcess *create_comb_process(std::unique_ptr<CombProcess> process);
 
     static void schedule_init(InitialProcess *init);
     static void schedule_final(FinalProcess *final);
@@ -71,6 +84,7 @@ private:
 
     std::vector<std::unique_ptr<InitialProcess>> init_processes_;
     std::vector<std::unique_ptr<FinalProcess>> final_processes_;
+    std::vector<std::unique_ptr<CombProcess>> comb_processes_;
     marl::Scheduler marl_scheduler_;
 
     // finish info

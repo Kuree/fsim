@@ -30,6 +30,7 @@ void Scheduler::run(Module *top) {
     // schedule init for every module
     top->init(this);
     top->final(this);
+    top->comb(this);
     bool finished = false;
 
     // either wait for the finish or wait for the complete from init
@@ -44,6 +45,7 @@ void Scheduler::run(Module *top) {
         }
 
         // active
+        top->active();
         // nba
 
         // detect finish. notice that we need a second one below in case we finish it before
@@ -90,6 +92,12 @@ FinalProcess *Scheduler::create_final_process() {
     ptr->id = final_processes_.size();
     auto &p = final_processes_.emplace_back(std::move(ptr));
     return p.get();
+}
+
+CombProcess *Scheduler::create_comb_process(std::unique_ptr<CombProcess> process) {
+    // scheduler will keep this comb process alive
+    auto &ptr = comb_processes_.emplace_back(std::move(process));
+    return ptr.get();
 }
 
 void Scheduler::schedule_init(InitialProcess *process) {

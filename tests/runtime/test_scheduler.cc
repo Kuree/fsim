@@ -2,6 +2,7 @@
 #include "../../src/runtime/scheduler.hh"
 #include "../../src/runtime/system_task.hh"
 #include "gtest/gtest.h"
+#include "logic/logic.hh"
 
 using namespace xsim::runtime;
 
@@ -56,7 +57,6 @@ TEST(runtime, init_delay) {  // NOLINT
     EXPECT_EQ(scheduler.sim_time, 2);
 }
 
-
 class FinishModule : public Module {
 public:
     FinishModule() : Module("finish_test") {}
@@ -70,30 +70,102 @@ public:
     }
 };
 
-
-TEST(runtime, finish) { // NOLINT
+TEST(runtime, finish) {  // NOLINT
     Scheduler scheduler;
     FinishModule m;
     scheduler.run(&m);
 }
 
-class FinalModule: public Module {
+class FinalModule : public Module {
 public:
     FinalModule() : Module("final_test") {}
     void final(Scheduler *scheduler) override {
         auto final_ptr = scheduler->create_final_process();
-        final_ptr->func = [this]() {
-            display(this, "PASS");
-        };
+        final_ptr->func = [this]() { display(this, "PASS"); };
         Scheduler::schedule_final(final_ptr);
     }
 };
 
-TEST(runtime, final) { // NOLINT
+TEST(runtime, final) {  // NOLINT
     Scheduler scheduler;
     FinalModule m;
     testing::internal::CaptureStdout();
     scheduler.run(&m);
     std::string output = testing::internal::GetCapturedStdout();
     EXPECT_NE(output.find("PASS"), std::string::npos);
+}
+
+class CombModuleOneBlock : public Module {
+public:
+    CombModuleOneBlock() : Module("comb_one_block") {}
+
+    /*
+     * module top;
+     * logic [3:0] a, b;
+     *
+     * initial begin
+     *     a = 4;
+     *     #5;
+     *     $display("b is %0d", b);
+     * end
+     *
+     * always_comb begin
+     *     b = a;
+     * end
+     * endmodule
+     */
+
+    logic::logic<3, 0> a;
+    logic::logic<3, 0> b;
+
+    class CombProcess1 : public CombProcess {
+    public:
+        explicit CombProcess1(const CombModuleOneBlock *m) : CombProcess(m) {}
+        logic::logic<3, 0> a;
+        bool input_changed() override {
+            auto *module = reinterpret_cast<const CombModuleOneBlock *>(this->module_);
+            if (module->a != this->a) {
+                a_changed_ = true;
+                this->a = module->a;
+            } else {
+                a_changed_ = false;
+            }
+            return a_changed_;
+        }
+
+    private:
+        bool a_changed_ = true;
+    };
+
+    void init(Scheduler *scheduler) override {
+        auto init_ptr = scheduler->create_init_process();
+        init_ptr->func = [init_ptr, scheduler, this]() {
+            // #2 delay
+            // switch to a new env variable
+            auto next_time = ScheduledTimeslot(scheduler->sim_time + 5, init_ptr);
+            scheduler->schedule_delay(next_time);
+            init_ptr->cond.signal();
+            init_ptr->delay.wait();
+            // print out b value
+            display(this, "b is %0d", b);
+            // done with this init
+            init_ptr->finished = true;
+            init_ptr->cond.signal();
+        };
+        Scheduler::schedule_init(init_ptr);
+    }
+
+    void comb(Scheduler *scheduler) override {
+        auto process = std::make_unique<CombProcess1>(this);
+        auto *always = scheduler->create_comb_process(std::move(process));
+        always->func = [scheduler, this] {
+            b = a;
+        };
+    }
+};
+
+TEST(runtime, comb_one_block) {  // NOLINT
+    Scheduler scheduler;
+    CombModuleOneBlock m;
+    scheduler.run(&m);
 }

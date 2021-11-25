@@ -39,8 +39,12 @@ std::pair<std::string_view, uint64_t> preprocess_display_fmt(std::string_view fo
         } else if (pos < (format.size() - 1) && format[pos + 1] == '%') {
             // false positive, move to the next one
             format = format.substr(2);
+            // output the one we just consumed
+            std::cout << "%%";
             continue;
         }
+        // consume the non-format string
+        std::cout << format.substr(0, pos);
         // find string format
         format = format.substr(pos + 1);
         auto end = format.find_first_not_of("0123456789");
@@ -49,7 +53,7 @@ std::pair<std::string_view, uint64_t> preprocess_display_fmt(std::string_view fo
             // we return the entire thing!
             return std::make_pair("", total_size);
         } else {
-            auto fmt = format.substr(0, +1);
+            auto fmt = format.substr(0, end + 1);
             return std::make_pair(fmt, total_size - end);
         }
     }

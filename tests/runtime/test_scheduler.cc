@@ -5,6 +5,7 @@
 #include "logic/logic.hh"
 
 using namespace xsim::runtime;
+using namespace logic::literals;
 
 class InitModuleNoDelay : public Module {
 public:
@@ -124,7 +125,7 @@ public:
         logic::logic<3, 0> a;
         bool input_changed() override {
             auto *module = reinterpret_cast<const CombModuleOneBlock *>(this->module_);
-            if (module->a != this->a) {
+            if (!module->a.match(this->a)) {
                 a_changed_ = true;
                 this->a = module->a;
             } else {
@@ -140,8 +141,7 @@ public:
     void init(Scheduler *scheduler) override {
         auto init_ptr = scheduler->create_init_process();
         init_ptr->func = [init_ptr, scheduler, this]() {
-            // #2 delay
-            // switch to a new env variable
+            a = 4_logic;
             auto next_time = ScheduledTimeslot(scheduler->sim_time + 5, init_ptr);
             scheduler->schedule_delay(next_time);
             init_ptr->cond.signal();
@@ -161,11 +161,15 @@ public:
         always->func = [scheduler, this] {
             b = a;
         };
+        comb_processes_.emplace_back(always);
     }
 };
 
 TEST(runtime, comb_one_block) {  // NOLINT
     Scheduler scheduler;
     CombModuleOneBlock m;
+    testing::internal::CaptureStdout();
     scheduler.run(&m);
+    std::string output = testing::internal::GetCapturedStdout();
+    EXPECT_EQ(output, "b is 4\n");
 }

@@ -37,8 +37,10 @@ public:
     // active region
     void active();
 
-private:
+protected:
     std::vector<CombProcess *> comb_processes_;
+
+private:
     std::shared_ptr<marl::DAG<void>> comb_dag_;
 };
 }  // namespace xsim::runtime

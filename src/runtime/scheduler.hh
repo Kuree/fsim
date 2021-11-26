@@ -88,6 +88,8 @@ private:
     // finish info
     std::atomic<bool> finish_flag_ = false;
     FinishInfo finish_ = {};
+
+    std::atomic<uint64_t> id_count_ = 0;
 };
 }  // namespace xsim::runtime
 

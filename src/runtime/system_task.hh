@@ -41,7 +41,7 @@ std::pair<std::string_view, uint64_t> preprocess_display_fmt(std::string_view fo
 template <typename T, typename... Args>
 uint64_t display_(const Module *m, std::string_view format, T arg, Args... args) {
     auto start_pos = display_(m, format, arg);
-    return display(m, format.substr(start_pos), args...);
+    return display_(m, format.substr(start_pos), args...);
 }
 
 // base case
@@ -50,6 +50,8 @@ uint64_t display_(const Module *, std::string_view format, const T &arg) {
     auto [fmt, start_pos] = preprocess_display_fmt(format);
     if (!fmt.empty()) {
         if constexpr (std::is_same_v<T, const char *>) {
+            std::cout << arg;
+        } else if constexpr (std::is_arithmetic_v<T>) {
             std::cout << arg;
         } else {
             std::cout << arg.str(fmt);

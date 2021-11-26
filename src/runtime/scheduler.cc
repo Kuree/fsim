@@ -43,7 +43,7 @@ void Scheduler::run(Module *top) {
             init->running = false;
         }
 
-        if (!has_init_left(init_processes_)) {
+        if (!has_init_left(init_processes_) && event_queue_.empty()) {
             break;
         }
 
@@ -92,14 +92,14 @@ void Scheduler::run(Module *top) {
 
 InitialProcess *Scheduler::create_init_process() {
     auto ptr = std::make_unique<InitialProcess>();
-    ptr->id = init_processes_.size();
+    ptr->id = id_count_.fetch_add(1);
     auto &p = init_processes_.emplace_back(std::move(ptr));
     return p.get();
 }
 
 FinalProcess *Scheduler::create_final_process() {
     auto ptr = std::make_unique<FinalProcess>();
-    ptr->id = final_processes_.size();
+    ptr->id = id_count_.fetch_add(1);
     auto &p = final_processes_.emplace_back(std::move(ptr));
     return p.get();
 }
@@ -107,6 +107,7 @@ FinalProcess *Scheduler::create_final_process() {
 CombProcess *Scheduler::create_comb_process() {
     // scheduler will keep this comb process alive
     auto ptr = std::make_unique<CombProcess>();
+    ptr->id = id_count_.fetch_add(1);
     auto &p = comb_processes_.emplace_back(std::move(ptr));
     return p.get();
 }

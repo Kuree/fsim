@@ -281,6 +281,7 @@ public:
         };
         always->func = [scheduler, this, always] {
             c = a;  // NOLINT
+            printf("c = %0ld @ %ld\n", c.to_uint64(), scheduler->sim_time);
 
             auto next_time = ScheduledTimeslot(scheduler->sim_time + 5, always);
             scheduler->schedule_delay(next_time);
@@ -290,6 +291,9 @@ public:
             always->delay.wait();
 
             c = b + 1_logic;
+
+            printf("c = %0ld @ %ld\n", c.to_uint64(), scheduler->sim_time);
+
         };
         comb_processes_.emplace_back(always);
     }
@@ -298,8 +302,7 @@ public:
 TEST(runtime, comb_multi_trigger) {  // NOLINT
     Scheduler scheduler;
     CombModuleMultipleTrigger m;
-    testing::internal::CaptureStdout();
+    //testing::internal::CaptureStdout();
     scheduler.run(&m);
-    std::string output = testing::internal::GetCapturedStdout();
-    printf("%s\n", output.c_str());
+    //std::string output = testing::internal::GetCapturedStdout();
 }

@@ -28,10 +28,15 @@ public:
     void run() {
         for (auto *p : processes_) {
             // if it's not running, it means it's waiting
-            if (!p->running) continue;
+            if (!p->running) {
+                continue;
+            }
+
             marl::schedule([p]() {
+                p->finished = false;
                 p->func();
                 p->cond.signal();
+                p->finished = true;
             });
             p->cond.wait();
         }
@@ -44,7 +49,19 @@ private:
 void Module::active() {
     if (!comb_graph_) {
         comb_graph_ = std::make_shared<CombinationalGraph>(comb_processes_);
+        // every process is finished by default
+        for (auto *p : comb_processes_) {
+            p->finished = true;
+        }
     }
+
+    // try to finish what's still there
+    for (auto *p : comb_processes_) {
+        if (!p->finished && p->running) {
+            p->cond.wait();
+        }
+    }
+
     while (!stabilized(comb_processes_)) {
         comb_graph_->run();
     }

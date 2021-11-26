@@ -1,7 +1,6 @@
 #include "module.hh"
 
 #include "fmt/format.h"
-#include "marl/dag.h"
 #include "scheduler.hh"
 
 namespace xsim::runtime {
@@ -18,29 +17,36 @@ std::string Module::hierarchy_name() const {
 
 bool stabilized(const std::vector<CombProcess *> &processes) {
     return std::all_of(processes.begin(), processes.end(),
-                       [](auto *p) { return !p->input_changed(); });
+                       [](auto *p) { return !p->input_changed() || !p->running; });
 }
 
-void Module::active() {
-    if (!comb_dag_) {
-        // construct the dag
-        auto builder = marl::DAGBuilder<void>();
-        // we just need a linear graph
-        auto node = builder.root();
-        for (auto *p : comb_processes_) {
-            // if the node is currently running, we need to skip
-            auto func = [p]() {
-                if (!p->running)
-                    return;
-                else
-                    p->func();
-            };
-            node = node.then(func);
+class CombinationalGraph {
+public:
+    explicit CombinationalGraph(const std::vector<CombProcess *> &processes)
+        : processes_(processes) {}
+
+    void run() {
+        for (auto *p : processes_) {
+            // if it's not running, it means it's waiting
+            if (!p->running) continue;
+            marl::schedule([p]() {
+                p->func();
+                p->cond.signal();
+            });
+            p->cond.wait();
         }
-        comb_dag_ = std::move(builder.build());
+    }
+
+private:
+    const std::vector<CombProcess *> &processes_;
+};
+
+void Module::active() {
+    if (!comb_graph_) {
+        comb_graph_ = std::make_shared<CombinationalGraph>(comb_processes_);
     }
     while (!stabilized(comb_processes_)) {
-        comb_dag_->run();
+        comb_graph_->run();
     }
 }
 

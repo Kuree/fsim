@@ -6,15 +6,10 @@
 #include <string_view>
 
 #include "logic/logic.hh"
-
-namespace marl {
-template <typename T>
-class DAG;
-}
-
 namespace xsim::runtime {
 class Scheduler;
 class CombProcess;
+class CombinationalGraph;
 
 template <int msb, int lsb = msb, bool signed_ = false>
 class logic_t : public logic::logic<msb, lsb, signed_> {
@@ -68,7 +63,7 @@ protected:
     std::vector<CombProcess *> comb_processes_;
 
 private:
-    std::shared_ptr<marl::DAG<void>> comb_dag_;
+    std::shared_ptr<CombinationalGraph> comb_graph_;
 };
 }  // namespace xsim::runtime
 

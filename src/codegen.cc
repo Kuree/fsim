@@ -169,7 +169,7 @@ public:
         s << get_indent(indent_level) << "scheduler->schedule_delay(" << xsim_next_time << ");"
           << std::endl;
 
-        // after we are done with adding schedules, release the current condition holds
+        // after we are done with adding schedules, release the current condition
         s << get_indent(indent_level) << "init_ptr->cond.signal();" << std::endl;
         s << get_indent(indent_level) << "init_ptr->delay.wait();" << std::endl;
 

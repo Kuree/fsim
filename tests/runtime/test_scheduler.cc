@@ -1,8 +1,10 @@
+#include <chrono>
+
+#include "../../src/runtime/macro.hh"
 #include "../../src/runtime/module.hh"
 #include "../../src/runtime/scheduler.hh"
 #include "../../src/runtime/system_task.hh"
 #include "gtest/gtest.h"
-#include "../../src/runtime/macro.hh"
 
 using namespace xsim::runtime;
 using namespace logic::literals;
@@ -56,6 +58,56 @@ TEST(runtime, init_delay) {  // NOLINT
     InitModuleDelay m;
     scheduler.run(&m);
     EXPECT_EQ(scheduler.sim_time, 2);
+}
+
+class MultiInitModuleDelay : public Module {
+public:
+    MultiInitModuleDelay() : Module("multi_init_delay_test") {}
+    bool sequence = false;
+    void init(Scheduler *scheduler) override {
+        {
+            auto init_ptr = scheduler->create_init_process();
+            init_ptr->func = [init_ptr, scheduler, this]() {
+                // #5 delay
+                auto next_time = ScheduledTimeslot(scheduler->sim_time + 5, init_ptr);
+                scheduler->schedule_delay(next_time);
+                // have to signal not running before unlock the main thread
+                init_ptr->cond.signal();
+                init_ptr->delay.wait();
+                EXPECT_TRUE(sequence);
+                // done with this init
+                init_ptr->cond.signal();
+                init_ptr->finished = true;
+            };
+            Scheduler::schedule_init(init_ptr);
+        }
+        {
+            auto init_ptr = scheduler->create_init_process();
+            init_ptr->func = [init_ptr, scheduler, this]() {
+                // #2 delay
+                auto next_time = ScheduledTimeslot(scheduler->sim_time + 2, init_ptr);
+                scheduler->schedule_delay(next_time);
+                // have to signal not running before unlock the main thread
+                init_ptr->cond.signal();
+                init_ptr->delay.wait();
+                sequence = true;
+                // done with this init
+                init_ptr->cond.signal();
+                init_ptr->finished = true;
+            };
+            Scheduler::schedule_init(init_ptr);
+        }
+    }
+};
+
+TEST(runtime, multi_init_delay) {  // NOLINT
+    // multiple times to ensure the ordering
+    for (auto i = 0; i < 100; i++) {
+        Scheduler scheduler;
+        MultiInitModuleDelay m;
+        scheduler.run(&m);
+        EXPECT_EQ(scheduler.sim_time, 5);
+    }
 }
 
 class FinishModule : public Module {
@@ -135,6 +187,8 @@ public:
             a = 4_logic;
             auto next_time = ScheduledTimeslot(scheduler->sim_time + 5, init_ptr);
             scheduler->schedule_delay(next_time);
+            // have to signal not running before unlock the main thread
+            init_ptr->running = false;
             init_ptr->cond.signal();
             init_ptr->delay.wait();
             // print out b value

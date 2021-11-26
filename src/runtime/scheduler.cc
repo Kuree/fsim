@@ -38,7 +38,9 @@ void Scheduler::run(Module *top) {
         for (auto &init : init_processes_) {
             // process finished. don't care anymore
             if (init->finished) continue;
+            if (!init->running) continue;
             init->cond.wait();
+            init->running = false;
         }
 
         if (!has_init_left(init_processes_)) {
@@ -58,15 +60,22 @@ void Scheduler::run(Module *top) {
         }
 
         // schedule for the next time slot
-        while (!event_queue_.empty()) {
-            auto next_slot_time = event_queue_.top().time;
-            sim_time = next_slot_time;
-            // we could have multiple events scheduled at the same time slot
-            // release all of them at once
-            while (!event_queue_.empty() && event_queue_.top().time == next_slot_time) {
-                auto event = event_queue_.top();
-                event_queue_.pop();
-                event.process->delay.signal();
+        {
+            // need to lock it since the moment we unlock a process, it may try to
+            // schedule more events immediately
+            std::lock_guard guard(event_queue_lock_);
+            if (!event_queue_.empty()) {
+                auto next_slot_time = event_queue_.top().time;
+                // jump to the next
+                sim_time = next_slot_time;
+                // we could have multiple events scheduled at the same time slot
+                // release all of them at once
+                while (!event_queue_.empty() && event_queue_.top().time == next_slot_time) {
+                    auto event = event_queue_.top();
+                    event.process->running = true;
+                    event_queue_.pop();
+                    event.process->delay.signal();
+                }
             }
         }
     }

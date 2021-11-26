@@ -17,6 +17,9 @@ class Module;
 struct Process {
     uint64_t id = 0;
     std::atomic<bool> finished = false;
+    // by default a process is always running. it is only false
+    // when it is waiting for some time slot in the future
+    std::atomic<bool> running = true;
     marl::Event cond = marl::Event(marl::Event::Mode::Auto);
     std::function<void()> func;
 
@@ -49,7 +52,7 @@ public:
     uint64_t time = 0;
     Process *process;
 
-    bool operator<(const ScheduledTimeslot &other) const { return time < other.time; }
+    bool operator<(const ScheduledTimeslot &other) const { return time > other.time; }
 };
 
 struct FinishInfo {

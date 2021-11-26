@@ -79,6 +79,31 @@ endmodule
     EXPECT_NE(output.find("PASS"), std::string::npos);
 }
 
+TEST(codegen, multi_init) { // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+module m;
+initial begin
+    #42 $display("PASS");
+    $finish(1);
+end
+
+initial begin
+    #5 $display("TESTING");
+end
+endmodule
+)");
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    BuildOptions options;
+    options.debug_build = true;
+    options.run_after_build = true;
+    Builder builder(options);
+    testing::internal::CaptureStdout();
+    builder.build(&compilation);
+    std::string output = testing::internal::GetCapturedStdout();
+    EXPECT_NE(output.find("TESTING\nPASS\n$finish(1) called at 42"), std::string::npos);
+}
+
 TEST(codegen, final) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module m;

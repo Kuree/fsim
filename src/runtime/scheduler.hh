@@ -32,12 +32,7 @@ struct ForkProcess : public Process {};
 
 struct CombProcess : public Process {
 public:
-    explicit CombProcess(Module *module) : module_(module) {}
-    // calling this can potentially change the interval values
-    [[nodiscard]] virtual bool input_changed() = 0;
-
-protected:
-    Module *module_;
+    std::function<bool()> input_changed = []() { return false; };
 };
 
 struct FFProcess : public Process {};

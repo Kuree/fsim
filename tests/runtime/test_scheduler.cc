@@ -171,16 +171,6 @@ public:
     logic_t<3, 0> a;
     logic::logic<3, 0> b;
 
-    class CombProcess1 : public CombProcess {
-    public:
-        explicit CombProcess1(CombModuleOneBlock *m) : CombProcess(m) {}
-        bool input_changed() override {
-            bool res = false;
-            XSIM_CHECK_CHANGED(module_, a, res, CombModuleOneBlock);
-            return res;
-        }
-    };
-
     void init(Scheduler *scheduler) override {
         auto init_ptr = scheduler->create_init_process();
         init_ptr->func = [init_ptr, scheduler, this]() {
@@ -201,7 +191,12 @@ public:
     }
 
     void comb(Scheduler *scheduler) override {
-        auto process = std::make_unique<CombProcess1>(this);
+        auto process = std::make_unique<CombProcess>();
+        process->input_changed = [this]() {
+            bool res = false;
+            XSIM_CHECK_CHANGED(this, a, res, CombModuleOneBlock);
+            return res;
+        };
         auto *always = scheduler->create_comb_process(std::move(process));
         always->func = [scheduler, this] {
             b = a;  // NOLINT

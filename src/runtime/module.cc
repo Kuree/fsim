@@ -28,7 +28,14 @@ void Module::active() {
         // we just need a linear graph
         auto node = builder.root();
         for (auto *p : comb_processes_) {
-            node = node.then(p->func);
+            // if the node is currently running, we need to skip
+            auto func = [p]() {
+                if (!p->running)
+                    return;
+                else
+                    p->func();
+            };
+            node = node.then(func);
         }
         comb_dag_ = std::move(builder.build());
     }

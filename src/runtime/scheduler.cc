@@ -104,10 +104,11 @@ FinalProcess *Scheduler::create_final_process() {
     return p.get();
 }
 
-CombProcess *Scheduler::create_comb_process(std::unique_ptr<CombProcess> process) {
+CombProcess *Scheduler::create_comb_process() {
     // scheduler will keep this comb process alive
-    auto &ptr = comb_processes_.emplace_back(std::move(process));
-    return ptr.get();
+    auto ptr = std::make_unique<CombProcess>();
+    auto &p = comb_processes_.emplace_back(std::move(ptr));
+    return p.get();
 }
 
 void Scheduler::schedule_init(InitialProcess *process) {

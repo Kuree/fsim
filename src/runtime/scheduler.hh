@@ -35,8 +35,6 @@ public:
     std::function<bool()> input_changed = []() { return false; };
 };
 
-struct FFProcess : public Process {};
-
 struct FinalProcess : public Process {};
 
 class ScheduledTimeslot {
@@ -63,7 +61,7 @@ public:
 
     InitialProcess *create_init_process();
     FinalProcess *create_final_process();
-    CombProcess *create_comb_process(std::unique_ptr<CombProcess> process);
+    CombProcess *create_comb_process();
 
     static void schedule_init(InitialProcess *init);
     static void schedule_final(FinalProcess *final);

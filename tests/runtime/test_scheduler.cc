@@ -191,13 +191,12 @@ public:
     }
 
     void comb(Scheduler *scheduler) override {
-        auto process = std::make_unique<CombProcess>();
-        process->input_changed = [this]() {
+        auto *always = scheduler->create_comb_process();
+        always->input_changed = [this]() {
             bool res = false;
-            XSIM_CHECK_CHANGED(this, a, res, CombModuleOneBlock);
+            XSIM_CHECK_CHANGED(this, a, res);
             return res;
         };
-        auto *always = scheduler->create_comb_process(std::move(process));
         always->func = [scheduler, this] {
             b = a;  // NOLINT
         };
@@ -212,4 +211,95 @@ TEST(runtime, comb_one_block) {  // NOLINT
     scheduler.run(&m);
     std::string output = testing::internal::GetCapturedStdout();
     EXPECT_EQ(output, "b is 4\n");
+}
+
+class CombModuleMultipleTrigger : public Module {
+public:
+    CombModuleMultipleTrigger() : Module("comb_multiple_trigger") {}
+
+/*
+ * module top;
+ *
+ * logic [3:0] a, b, c;
+ *
+ * always @(*) begin
+ *     c = a;
+ *     #5
+ *     c = b + 1;
+ * end
+ *
+ * initial begin
+ *     for (int i = 0; i < 4; i++) begin
+ *         a = i;
+ *         #2 b = i;
+ *         #2;
+ *     end
+ * end
+ * endmodule
+ */
+
+    logic_t<3, 0> a;
+    logic_t<3, 0> b;
+    logic::logic<3, 0> c;
+
+    void init(Scheduler *scheduler) override {
+        auto init_ptr = scheduler->create_init_process();
+        init_ptr->func = [init_ptr, scheduler, this]() {
+            for (auto i = 0u; i < 4; i++) {
+                a = logic::logic<3, 0>(i);
+
+                auto next_time = ScheduledTimeslot(scheduler->sim_time + 2, init_ptr);
+                scheduler->schedule_delay(next_time);
+                // have to signal not running before unlock the main thread
+                init_ptr->running = false;
+                init_ptr->cond.signal();
+                init_ptr->delay.wait();
+
+                b = logic::logic<3, 0>(i);
+
+                next_time = ScheduledTimeslot(scheduler->sim_time + 2, init_ptr);
+                scheduler->schedule_delay(next_time);
+                // have to signal not running before unlock the main thread
+                init_ptr->running = false;
+                init_ptr->cond.signal();
+                init_ptr->delay.wait();
+            }
+            // done with this init
+            init_ptr->finished = true;
+            init_ptr->cond.signal();
+        };
+        Scheduler::schedule_init(init_ptr);
+    }
+
+    void comb(Scheduler *scheduler) override {
+        auto *always = scheduler->create_comb_process();
+        always->input_changed = [this]() {
+            bool res = false;
+            XSIM_CHECK_CHANGED(this, a, res);
+            XSIM_CHECK_CHANGED(this, b, res);
+            return res;
+        };
+        always->func = [scheduler, this, always] {
+            c = a;  // NOLINT
+
+            auto next_time = ScheduledTimeslot(scheduler->sim_time + 5, always);
+            scheduler->schedule_delay(next_time);
+            // have to signal not running before unlock the main thread
+            always->running = false;
+            always->cond.signal();
+            always->delay.wait();
+
+            c = b + 1_logic;
+        };
+        comb_processes_.emplace_back(always);
+    }
+};
+
+TEST(runtime, comb_multi_trigger) {  // NOLINT
+    Scheduler scheduler;
+    CombModuleMultipleTrigger m;
+    testing::internal::CaptureStdout();
+    scheduler.run(&m);
+    std::string output = testing::internal::GetCapturedStdout();
+    printf("%s\n", output.c_str());
 }

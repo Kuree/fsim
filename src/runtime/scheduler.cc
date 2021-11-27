@@ -3,6 +3,7 @@
 #include <iostream>
 #include <utility>
 
+#include "fmt/format.h"
 #include "module.hh"
 
 namespace xsim::runtime {
@@ -28,6 +29,7 @@ void printout_finish(int code, uint64_t time) {
 
 void Scheduler::run(Module *top) {
     // schedule init for every module
+    top_ = top;
     top->init(this);
     top->final(this);
     top->comb(this);
@@ -35,21 +37,24 @@ void Scheduler::run(Module *top) {
 
     // either wait for the finish or wait for the complete from init
     while (true) {
-        for (auto &init : init_processes_) {
-            // process finished. don't care anymore
-            if (init->finished) continue;
-            if (!init->running) continue;
-            init->cond.wait();
-            init->running = false;
-        }
+        do {
+            // printf("eval init\n");
+            for (auto &init : init_processes_) {
+                // process finished. don't care anymore
+                if (init->finished) continue;
+                if (!init->running) continue;
+                init->cond.wait();
+                init->running = false;
+            }
+            // active
+            // printf("eval active\n");
+            top->active();
+            // nba
+        } while (!loop_stabilized());
 
-        if (!has_init_left(init_processes_) && event_queue_.empty()) {
+        if (terminate()) {
             break;
         }
-
-        // active
-        top->active();
-        // nba
 
         // detect finish. notice that we need a second one below in case we finish it before
         // finish is detected
@@ -59,22 +64,28 @@ void Scheduler::run(Module *top) {
             break;
         }
 
+        std::atomic_thread_fence(std::memory_order_seq_cst);
         // schedule for the next time slot
         {
             // need to lock it since the moment we unlock a process, it may try to
             // schedule more events immediately
             std::lock_guard guard(event_queue_lock_);
             if (!event_queue_.empty()) {
+                // printf("moving to next time slot\n");
                 auto next_slot_time = event_queue_.top().time;
                 // jump to the next
                 sim_time = next_slot_time;
-                // we could have multiple events scheduled at the same time slot
-                // release all of them at once
+                // printf("jump time to %ld\n", sim_time);
+                //  for (auto const &e: event_queue_) printf("t: %ld ", e.time);
+                //  printf("\n");
+                //  we could have multiple events scheduled at the same time slot
+                //  release all of them at once
                 while (!event_queue_.empty() && event_queue_.top().time == next_slot_time) {
-                    auto event = event_queue_.top();
+                    auto const &event = event_queue_.top();
+                    std::atomic_thread_fence(std::memory_order_seq_cst);
+                    event.process->delay.signal();
                     event.process->running = true;
                     event_queue_.pop();
-                    event.process->delay.signal();
                 }
             }
         }
@@ -93,6 +104,7 @@ void Scheduler::run(Module *top) {
 InitialProcess *Scheduler::create_init_process() {
     auto ptr = std::make_unique<InitialProcess>();
     ptr->id = id_count_.fetch_add(1);
+    ptr->scheduler = this;
     auto &p = init_processes_.emplace_back(std::move(ptr));
     return p.get();
 }
@@ -100,6 +112,7 @@ InitialProcess *Scheduler::create_init_process() {
 FinalProcess *Scheduler::create_final_process() {
     auto ptr = std::make_unique<FinalProcess>();
     ptr->id = id_count_.fetch_add(1);
+    ptr->scheduler = this;
     auto &p = final_processes_.emplace_back(std::move(ptr));
     return p.get();
 }
@@ -108,6 +121,7 @@ CombProcess *Scheduler::create_comb_process() {
     // scheduler will keep this comb process alive
     auto ptr = std::make_unique<CombProcess>();
     ptr->id = id_count_.fetch_add(1);
+    ptr->scheduler = this;
     auto &p = comb_processes_.emplace_back(std::move(ptr));
     return p.get();
 }
@@ -130,6 +144,7 @@ void Scheduler::schedule_final(FinalProcess *final) {
 
 void Scheduler::schedule_delay(const ScheduledTimeslot &event) {
     std::lock_guard guard(event_queue_lock_);
+    // fmt::print("schedule an event at {0}\n", event.time);
     event_queue_.emplace(event);
 }
 
@@ -140,6 +155,16 @@ void Scheduler::schedule_finish(int code) {
 
 Scheduler::~Scheduler() {
     marl_scheduler_.unbind();  // NOLINT
+}
+
+bool Scheduler::loop_stabilized() const {
+    auto r = top_->stabilized();
+    if (!r) return false;
+    return true;
+}
+
+bool Scheduler::terminate() const {
+    return !has_init_left(init_processes_) && top_->stabilized() && event_queue_.empty();
 }
 
 }  // namespace xsim::runtime

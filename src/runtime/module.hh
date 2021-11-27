@@ -58,12 +58,14 @@ public:
 
     // active region
     void active();
+    [[nodiscard]] bool stabilized() const;
 
 protected:
     std::vector<CombProcess *> comb_processes_;
 
 private:
     std::shared_ptr<CombinationalGraph> comb_graph_;
+    bool stabilized_();
 };
 }  // namespace xsim::runtime
 

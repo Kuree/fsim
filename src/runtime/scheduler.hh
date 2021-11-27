@@ -13,6 +13,7 @@
 namespace xsim::runtime {
 
 class Module;
+class Scheduler;
 
 struct Process {
     uint64_t id = 0;
@@ -24,6 +25,7 @@ struct Process {
     std::function<void()> func;
 
     marl::Event delay = marl::Event(marl::Event::Mode::Auto);
+    Scheduler *scheduler = nullptr;
 };
 
 struct InitialProcess : public Process {};
@@ -33,6 +35,8 @@ struct ForkProcess : public Process {};
 struct CombProcess : public Process {
 public:
     std::function<bool()> input_changed = []() { return false; };
+
+    std::function<void()> cancel_changed = []() {};
 };
 
 struct FinalProcess : public Process {};
@@ -40,7 +44,7 @@ struct FinalProcess : public Process {};
 class ScheduledTimeslot {
 public:
     // we statically allocate the event cond
-    explicit ScheduledTimeslot(uint64_t time, Process *process);
+    ScheduledTimeslot(uint64_t time, Process *process);
 
     uint64_t time = 0;
     Process *process;
@@ -90,6 +94,11 @@ private:
     FinishInfo finish_ = {};
 
     std::atomic<uint64_t> id_count_ = 0;
+
+    [[nodiscard]] bool loop_stabilized() const;
+    [[nodiscard]] bool terminate() const;
+
+    Module *top_ = nullptr;
 };
 }  // namespace xsim::runtime
 

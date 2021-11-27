@@ -275,7 +275,7 @@ public:
         };
         always->func = [scheduler, this, always] {
             c = a;  // NOLINT
-            printf("c = %0ld @ %ld\n", c.to_uint64(), scheduler->sim_time);
+            display(this, "c = %0d @ %d", c, scheduler->sim_time);
 
             auto next_time = ScheduledTimeslot(scheduler->sim_time + 5, always);
             scheduler->schedule_delay(next_time);
@@ -285,7 +285,7 @@ public:
 
             c = b + 1_logic;
 
-            printf("c = %0ld @ %ld\n", c.to_uint64(), scheduler->sim_time);
+            display(this, "c = %0d @ %d", c, scheduler->sim_time);
         };
         always->cancel_changed = [this]() {
             a.changed = false;

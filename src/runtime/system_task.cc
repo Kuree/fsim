@@ -35,6 +35,7 @@ std::pair<std::string_view, uint64_t> preprocess_display_fmt(std::string_view fo
         auto pos = format.find_first_of('%');
         if (pos == std::string::npos) {
             // no % symbol
+            std::cout << format;
             return std::make_pair("", total_size);
         } else if (pos < (format.size() - 1) && format[pos + 1] == '%') {
             // false positive, move to the next one
@@ -54,7 +55,7 @@ std::pair<std::string_view, uint64_t> preprocess_display_fmt(std::string_view fo
             return std::make_pair("", total_size);
         } else {
             auto fmt = format.substr(0, end + 1);
-            return std::make_pair(fmt, total_size - end);
+            return std::make_pair(fmt, total_size - format.size() + end + 1);
         }
     }
 }

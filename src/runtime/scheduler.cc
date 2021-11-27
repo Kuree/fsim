@@ -3,7 +3,6 @@
 #include <iostream>
 #include <utility>
 
-#include "fmt/format.h"
 #include "module.hh"
 
 namespace xsim::runtime {
@@ -38,7 +37,6 @@ void Scheduler::run(Module *top) {
     // either wait for the finish or wait for the complete from init
     while (true) {
         do {
-            // printf("eval init\n");
             for (auto &init : init_processes_) {
                 // process finished. don't care anymore
                 if (init->finished) continue;
@@ -47,7 +45,6 @@ void Scheduler::run(Module *top) {
                 init->running = false;
             }
             // active
-            // printf("eval active\n");
             top->active();
             // nba
         } while (!loop_stabilized());
@@ -71,13 +68,9 @@ void Scheduler::run(Module *top) {
             // schedule more events immediately
             std::lock_guard guard(event_queue_lock_);
             if (!event_queue_.empty()) {
-                // printf("moving to next time slot\n");
                 auto next_slot_time = event_queue_.top().time;
                 // jump to the next
                 sim_time = next_slot_time;
-                // printf("jump time to %ld\n", sim_time);
-                //  for (auto const &e: event_queue_) printf("t: %ld ", e.time);
-                //  printf("\n");
                 //  we could have multiple events scheduled at the same time slot
                 //  release all of them at once
                 while (!event_queue_.empty() && event_queue_.top().time == next_slot_time) {
@@ -144,7 +137,6 @@ void Scheduler::schedule_final(FinalProcess *final) {
 
 void Scheduler::schedule_delay(const ScheduledTimeslot &event) {
     std::lock_guard guard(event_queue_lock_);
-    // fmt::print("schedule an event at {0}\n", event.time);
     event_queue_.emplace(event);
 }
 

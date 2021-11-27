@@ -178,39 +178,37 @@ public:
             auto next_time = ScheduledTimeslot(scheduler->sim_time + 5, init_ptr);
             scheduler->schedule_delay(next_time);
             // have to signal not running before unlock the main thread
-            init_ptr->running = false;
             init_ptr->cond.signal();
             init_ptr->delay.wait();
             // print out b value
             display(this, "b is %0d", b);
             // done with this init
-            init_ptr->finished = true;
             init_ptr->cond.signal();
+            init_ptr->finished = true;
         };
         Scheduler::schedule_init(init_ptr);
     }
 
     void comb(Scheduler *scheduler) override {
         auto *always = scheduler->create_comb_process();
-        always->input_changed = [this]() {
-            bool res = false;
-            XSIM_CHECK_CHANGED(this, a, res);
-            return res;
-        };
+        always->input_changed = [this]() { return a.changed; };
         always->func = [scheduler, this, always] {
             b = a;  // NOLINT
         };
+        always->cancel_changed = [this]() { a.changed = false; };
         comb_processes_.emplace_back(always);
     }
 };
 
 TEST(runtime, comb_one_block) {  // NOLINT
-    Scheduler scheduler;
-    CombModuleOneBlock m;
-    testing::internal::CaptureStdout();
-    scheduler.run(&m);
-    std::string output = testing::internal::GetCapturedStdout();
-    EXPECT_EQ(output, "b is 4\n");
+    for (auto i = 0; i < 100; i++) {
+        Scheduler scheduler;
+        CombModuleOneBlock m;
+        testing::internal::CaptureStdout();
+        scheduler.run(&m);
+        std::string output = testing::internal::GetCapturedStdout();
+        EXPECT_EQ(output, "b is 4\n");
+    }
 }
 
 class CombModuleMultipleTrigger : public Module {
@@ -248,8 +246,6 @@ public:
             for (auto i = 0u; i < 4; i++) {
                 a = logic::logic<3, 0>(i);
                 auto next_time = ScheduledTimeslot(scheduler->sim_time + 2, init_ptr);
-                // printf("schedule first a change @ %ld -> %ld\n", scheduler->sim_time,
-                //        next_time.time);
                 scheduler->schedule_delay(next_time);
                 // have to signal not running before unlock the main thread
                 std::atomic_thread_fence(std::memory_order_seq_cst);
@@ -260,8 +256,6 @@ public:
                 b = logic::logic<3, 0>(i);
 
                 next_time = ScheduledTimeslot(scheduler->sim_time + 2, init_ptr);
-                // printf("schedule second a change @ %ld -> %ld\n", scheduler->sim_time,
-                //        next_time.time);
                 scheduler->schedule_delay(next_time);
                 init_ptr->cond.signal();
                 init_ptr->delay.wait();
@@ -277,7 +271,6 @@ public:
         auto *always = scheduler->create_comb_process();
         always->input_changed = [this]() {
             bool res = this->a.changed || this->b.changed;
-            // printf("input changed: %d\n", res);
             return res;
         };
         always->func = [scheduler, this, always] {

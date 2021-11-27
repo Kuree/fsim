@@ -27,8 +27,6 @@ public:
                 continue;
             }
 
-            // printf("schedule comb @ %ld finished %d running %d\n", p->scheduler->sim_time,
-            // p->finished.load(), p->running.load());
             marl::schedule([p]() {
                 p->finished = false;
                 p->running = true;
@@ -41,8 +39,9 @@ public:
             p->running = false;
         }
 
+        // after every process have been run, we cancel the changes
+        // maybe adjust this in the future once we have instances?
         for (auto *p : processes_) {
-            // printf("cancel changed @ %ld\n", p->scheduler->sim_time);
             p->cancel_changed();
         }
     }
@@ -65,20 +64,17 @@ void Module::active() {
         if (!p->finished && p->running) {
             p->cond.wait();
             p->running = false;
-            p->finished = true;
-            // printf("finishing prev comb @ %ld\n", p->scheduler->sim_time);
         }
     }
 
-    while (!stabilized_()) {
+    while (!input_changed()) {
         comb_graph_->run();
     }
 }
 
-bool Module::stabilized_() {
+bool Module::input_changed() {
     auto r = std::all_of(comb_processes_.begin(), comb_processes_.end(),
                          [](auto *p) { return !p->input_changed(); });
-    // printf("comb stabilized %d @ %ld\n", r, comb_processes_[0]->scheduler->sim_time);
     return r;
 }
 

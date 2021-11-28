@@ -65,7 +65,7 @@ protected:
 
 private:
     std::shared_ptr<CombinationalGraph> comb_graph_;
-    bool input_changed();
+    bool sensitivity_stable();
 };
 }  // namespace xsim::runtime
 

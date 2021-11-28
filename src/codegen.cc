@@ -426,7 +426,7 @@ void codegen_always(std::ostream &s, int &indent_level, const CombProcess *proce
         indent_level++;
         s << get_indent(indent_level) << "bool res = false";
         for (auto *var : process->sensitive_list) {
-            s << " || " << var->name;
+            s << " || " << var->name << ".changed";
         }
         s << ";" << std::endl << get_indent(indent_level) << "return res;" << std::endl;
         indent_level--;

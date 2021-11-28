@@ -67,12 +67,12 @@ void Module::active() {
         }
     }
 
-    while (!input_changed()) {
+    while (!sensitivity_stable()) {
         comb_graph_->run();
     }
 }
 
-bool Module::input_changed() {
+bool Module::sensitivity_stable() {
     auto r = std::all_of(comb_processes_.begin(), comb_processes_.end(),
                          [](auto *p) { return !p->input_changed(); });
     return r;

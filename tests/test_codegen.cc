@@ -137,11 +137,11 @@ assign c = b + 2;
 initial begin
     b = 1;
     #1;
-    $display("a=%0d b=%0d", a, b);
+    $display("a=%0d c=%0d", a, c);
     #1;
     b = 2;
     #1;
-    $display("a=%0d b=%0d", a, b);
+    $display("a=%0d c=%0d", a, c);
 end
 endmodule
 )");
@@ -155,5 +155,6 @@ endmodule
     testing::internal::CaptureStdout();
     builder.build(&compilation);
     std::string output = testing::internal::GetCapturedStdout();
-    printf("%s\n", output.c_str());
+    EXPECT_NE(output.find("a=2 c=3"), std::string::npos);
+    EXPECT_NE(output.find("a=3 c=4"), std::string::npos);
 }

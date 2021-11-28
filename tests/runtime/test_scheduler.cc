@@ -15,8 +15,7 @@ public:
         init_ptr->func = [init_ptr]() {
             display(nullptr, "HELLO WORLD");
             // done with this init
-            init_ptr->finished = true;
-            init_ptr->cond.signal();
+            END_PROCESS(init_ptr);
         };
         Scheduler::schedule_init(init_ptr);
     }
@@ -41,8 +40,7 @@ public:
             // switch to a new env variable
             SCHEDULE_DELAY(init_ptr, 2, scheduler);
             // done with this init
-            init_ptr->finished = true;
-            init_ptr->cond.signal();
+            END_PROCESS(init_ptr);
         };
         Scheduler::schedule_init(init_ptr);
     }
@@ -67,8 +65,7 @@ public:
                 SCHEDULE_DELAY(init_ptr, 5, scheduler);
                 EXPECT_TRUE(sequence);
                 // done with this init
-                init_ptr->cond.signal();
-                init_ptr->finished = true;
+                END_PROCESS(init_ptr);
             };
             Scheduler::schedule_init(init_ptr);
         }
@@ -79,8 +76,7 @@ public:
                 SCHEDULE_DELAY(init_ptr, 2, scheduler);
                 sequence = true;
                 // done with this init
-                init_ptr->cond.signal();
-                init_ptr->finished = true;
+                END_PROCESS(init_ptr);
             };
             Scheduler::schedule_init(init_ptr);
         }
@@ -104,7 +100,7 @@ public:
         auto init_ptr = scheduler->create_init_process();
         init_ptr->func = [init_ptr, scheduler]() {
             finish(scheduler, 0);
-            init_ptr->cond.signal();
+            END_PROCESS(init_ptr);
         };
         Scheduler::schedule_init(init_ptr);
     }
@@ -166,8 +162,7 @@ public:
             // print out b value
             display(this, "b is %0d", b);
             // done with this init
-            init_ptr->cond.signal();
-            init_ptr->finished = true;
+            END_PROCESS(init_ptr);
         };
         Scheduler::schedule_init(init_ptr);
     }
@@ -235,8 +230,7 @@ public:
                 SCHEDULE_DELAY(init_ptr, 2, scheduler);
             }
             // done with this init
-            init_ptr->cond.signal();
-            init_ptr->finished = true;
+            END_PROCESS(init_ptr);
         };
         Scheduler::schedule_init(init_ptr);
     }
@@ -272,7 +266,6 @@ TEST(runtime, comb_multi_trigger) {  // NOLINT
         testing::internal::CaptureStdout();
         scheduler.run(&m);
         std::string output = testing::internal::GetCapturedStdout();
-        // printf("%s", output.c_str());
         EXPECT_NE(output.find("c = 4 @ 17"), std::string::npos);
     }
 }

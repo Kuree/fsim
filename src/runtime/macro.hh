@@ -10,4 +10,9 @@
         process->delay.wait();                                                         \
     } while (0)
 
+#define END_PROCESS(process)      \
+    do {                          \
+        process->cond.signal();   \
+        process->finished = true; \
+    } while (0)
 #endif  // XSIM_MACRO_HH

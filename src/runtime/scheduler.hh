@@ -7,6 +7,7 @@
 #include <queue>
 #include <stdexcept>
 
+#include "logic/logic.hh"
 #include "marl/event.h"
 #include "marl/scheduler.h"
 

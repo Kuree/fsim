@@ -1,5 +1,3 @@
-#include <chrono>
-
 #include "../../src/runtime/macro.hh"
 #include "../../src/runtime/module.hh"
 #include "../../src/runtime/scheduler.hh"
@@ -38,13 +36,10 @@ public:
     InitModuleDelay() : Module("init_delay_test") {}
     void init(Scheduler *scheduler) override {
         auto init_ptr = scheduler->create_init_process();
-        init_ptr->func = [init_ptr, scheduler, this]() {
+        init_ptr->func = [init_ptr, scheduler]() {
             // #2 delay
             // switch to a new env variable
-            auto next_time = ScheduledTimeslot(scheduler->sim_time + 2, init_ptr);
-            scheduler->schedule_delay(next_time);
-            init_ptr->cond.signal();
-            init_ptr->delay.wait();
+            SCHEDULE_DELAY(init_ptr, 2, scheduler);
             // done with this init
             init_ptr->finished = true;
             init_ptr->cond.signal();
@@ -69,11 +64,7 @@ public:
             auto init_ptr = scheduler->create_init_process();
             init_ptr->func = [init_ptr, scheduler, this]() {
                 // #5 delay
-                auto next_time = ScheduledTimeslot(scheduler->sim_time + 5, init_ptr);
-                scheduler->schedule_delay(next_time);
-                // have to signal not running before unlock the main thread
-                init_ptr->cond.signal();
-                init_ptr->delay.wait();
+                SCHEDULE_DELAY(init_ptr, 5, scheduler);
                 EXPECT_TRUE(sequence);
                 // done with this init
                 init_ptr->cond.signal();
@@ -85,11 +76,7 @@ public:
             auto init_ptr = scheduler->create_init_process();
             init_ptr->func = [init_ptr, scheduler, this]() {
                 // #2 delay
-                auto next_time = ScheduledTimeslot(scheduler->sim_time + 2, init_ptr);
-                scheduler->schedule_delay(next_time);
-                // have to signal not running before unlock the main thread
-                init_ptr->cond.signal();
-                init_ptr->delay.wait();
+                SCHEDULE_DELAY(init_ptr, 2, scheduler);
                 sequence = true;
                 // done with this init
                 init_ptr->cond.signal();
@@ -175,11 +162,7 @@ public:
         auto init_ptr = scheduler->create_init_process();
         init_ptr->func = [init_ptr, scheduler, this]() {
             a = 4_logic;
-            auto next_time = ScheduledTimeslot(scheduler->sim_time + 5, init_ptr);
-            scheduler->schedule_delay(next_time);
-            // have to signal not running before unlock the main thread
-            init_ptr->cond.signal();
-            init_ptr->delay.wait();
+            SCHEDULE_DELAY(init_ptr, 5, scheduler);
             // print out b value
             display(this, "b is %0d", b);
             // done with this init
@@ -192,7 +175,7 @@ public:
     void comb(Scheduler *scheduler) override {
         auto *always = scheduler->create_comb_process();
         always->input_changed = [this]() { return a.changed; };
-        always->func = [scheduler, this, always] {
+        always->func = [this] {
             b = a;  // NOLINT
         };
         always->cancel_changed = [this]() { a.changed = false; };
@@ -245,20 +228,11 @@ public:
         init_ptr->func = [init_ptr, scheduler, this]() {
             for (auto i = 0u; i < 4; i++) {
                 a = logic::logic<3, 0>(i);
-                auto next_time = ScheduledTimeslot(scheduler->sim_time + 2, init_ptr);
-                scheduler->schedule_delay(next_time);
-                // have to signal not running before unlock the main thread
-                std::atomic_thread_fence(std::memory_order_seq_cst);
-                std::atomic_thread_fence(std::memory_order_seq_cst);
-                init_ptr->cond.signal();
-                init_ptr->delay.wait();
+                SCHEDULE_DELAY(init_ptr, 2, scheduler);
 
                 b = logic::logic<3, 0>(i);
 
-                next_time = ScheduledTimeslot(scheduler->sim_time + 2, init_ptr);
-                scheduler->schedule_delay(next_time);
-                init_ptr->cond.signal();
-                init_ptr->delay.wait();
+                SCHEDULE_DELAY(init_ptr, 2, scheduler);
             }
             // done with this init
             init_ptr->cond.signal();
@@ -277,11 +251,7 @@ public:
             c = a;  // NOLINT
             display(this, "c = %0d @ %d", c, scheduler->sim_time);
 
-            auto next_time = ScheduledTimeslot(scheduler->sim_time + 5, always);
-            scheduler->schedule_delay(next_time);
-            // have to signal not running before unlock the main thread
-            always->cond.signal();
-            always->delay.wait();
+            SCHEDULE_DELAY(always, 5, scheduler);
 
             c = b + 1_logic;
 

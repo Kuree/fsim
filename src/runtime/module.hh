@@ -11,6 +11,8 @@ class Scheduler;
 class CombProcess;
 class CombinationalGraph;
 
+void schedule_callbacks(const std::vector<std::function<void()>> &funcs);
+
 template <int msb, int lsb = msb, bool signed_ = false>
 class logic_t : public logic::logic<msb, lsb, signed_> {
 public:
@@ -22,19 +24,36 @@ public:
     //  to automatically convert types. thus disabling logic::logic's ability to change types
     template <int op_msb, int op_lsb, bool op_signed_>
     logic::logic<size - 1, 0, signed_> &operator=(
-        const logic::logic<op_msb, op_lsb, op_signed_> &value) {
-        if (this->match(value)) {
+        const logic::logic<op_msb, op_lsb, op_signed_> &v) {
+        if (this->match(v)) {
             changed = false;
         } else {
-            logic::logic<msb, lsb, signed_>::operator=(value);
+            // value has to be changed first
+            logic::logic<msb, lsb, signed_>::operator=(v);
             changed = true;
+
+            // dealing with edge triggering events
+            if constexpr (size == 1) {
+                // only allowed for size 1 signals
+                if (!posedge.empty() && v == logic::logic<msb, lsb, signed_>::one_() &&
+                    (*this) != logic::logic<msb, lsb, signed_>::one_()) {
+                    schedule_callbacks(posedge);
+                } else if (!negedge.empty() && v == logic::logic<msb, lsb, signed_>::zero_() &&
+                           (*this) != logic::logic<msb, lsb, signed_>::zero_()) {
+                    schedule_callbacks(negedge);
+                }
+            }
         }
+
         return *this;
     }
 
     // discard the state when it's assigned to
     // clang-tidy will complain, but it's worth it
     bool changed = true;
+
+    std::vector<std::function<void()>> posedge;
+    std::vector<std::function<void()>> negedge;
 };
 
 class Module {
@@ -45,7 +64,7 @@ public:
         : def_name(def_name), inst_name(inst_name) {}
     virtual void init(Scheduler *) {}
     virtual void comb(Scheduler *) {}
-    virtual void always_comb(Scheduler *) {}
+    virtual void ff(Scheduler *) {}
     virtual void nba(Scheduler *) {}
     virtual void final(Scheduler *) {}
 

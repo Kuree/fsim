@@ -29,6 +29,7 @@ auto constexpr raw_header_include = R"(#include "logic/array.hh"
 #include "logic/union.hh"
 #include "runtime/module.hh"
 #include "runtime/system_task.hh"
+#include "runtime/macro.hh"
 
 // forward declaration
 namespace xsim::runtime {
@@ -278,8 +279,7 @@ void codegen_init(std::ostream &s, int &indent_level, const Process *process,
         codegen_sym(s, indent_level, stmt, options);
     }
 
-    s << get_indent(indent_level) << "init_ptr->finished = true;" << std::endl
-      << get_indent(indent_level) << "init_ptr->cond.signal();" << std::endl;
+    s << get_indent(indent_level) << fmt::format("END_PROCESS({0});", "init_ptr") << std::endl;
     indent_level--;
     s << get_indent(indent_level) << "};" << std::endl;
     s << get_indent(indent_level) << "xsim::runtime::Scheduler::schedule_init(init_ptr);"

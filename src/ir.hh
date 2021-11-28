@@ -31,7 +31,6 @@ public:
         Latch  // LRM 9.2.2.3, The always_latch construct is identical to the always_comb construct
                // in terms of simulation
     };
-    std::vector<const slang::Symbol *> stmts;
 
     explicit CombProcess(CombKind kind = CombKind::AlwaysComb)
         : Process(slang::ProceduralBlockKind::AlwaysComb), kind(kind) {}
@@ -41,6 +40,12 @@ public:
     CombKind kind;
 };
 
+class FFProcess : public Process {
+public:
+    FFProcess() : Process(slang::ProceduralBlockKind::AlwaysFF) {}
+    std::vector<std::pair<slang::EdgeKind, const slang::ValueSymbol *>> edges;
+};
+
 class Module {
 public:
     explicit Module(const slang::InstanceSymbol *def) : name(def->name), def_(def) {}
@@ -48,7 +53,7 @@ public:
 
     std::map<std::string_view, std::unique_ptr<Variable>> vars;
     std::vector<std::unique_ptr<CombProcess>> comb_processes;
-    std::vector<std::unique_ptr<Process>> ff_processes;
+    std::vector<std::unique_ptr<FFProcess>> ff_processes;
     std::vector<std::unique_ptr<Process>> init_processes;
     std::vector<std::unique_ptr<Process>> final_processes;
 

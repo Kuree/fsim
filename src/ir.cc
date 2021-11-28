@@ -227,8 +227,7 @@ void extract_procedure_blocks(std::vector<std::unique_ptr<Process>> &processes,
     def->visit(vis);
     processes.reserve(vis.stmts.size());
     for (auto const *p : vis.stmts) {
-        auto &process =
-            processes.emplace_back(std::make_unique<Process>(slang::ProceduralBlockKind::Initial));
+        auto &process = processes.emplace_back(std::make_unique<Process>(kind));
         process->stmts.emplace_back(p);
     }
 }
@@ -247,7 +246,76 @@ std::string Module::analyze_final() {
 
 std::string Module::analyze_ff() {
     // notice that we also use always_ff to refer to the old-fashion always block
-    extract_procedure_blocks(ff_processes, def_, slang::ProceduralBlockKind::AlwaysFF);
+    std::vector<const slang::ProceduralBlockSymbol *> stmts;
+    {
+        ProcedureBlockVisitor vis(def_, slang::ProceduralBlockKind::AlwaysFF);
+        def_->visit(vis);
+        stmts.reserve(stmts.size() + vis.stmts.size());
+        for (auto const *p : vis.stmts) {
+            stmts.emplace_back(p);
+        }
+    }
+
+    {
+        // old-fashioned always
+        ProcedureBlockVisitor vis(def_, slang::ProceduralBlockKind::Always);
+        def_->visit(vis);
+        stmts.reserve(stmts.size() + vis.stmts.size());
+        for (auto const *p : vis.stmts) {
+            stmts.emplace_back(p);
+        }
+    }
+
+    // look into each block to see if there is any match
+    for (auto const *stmt : stmts) {
+        auto const &body = stmt->getBody();
+        if (body.kind != slang::StatementKind::Timed) {
+            continue;
+        }
+
+        auto const &timed_body = body.as<slang::TimedStatement>();
+        auto const &timing_control = timed_body.timing;
+
+        std::vector<std::pair<slang::EdgeKind, const slang::ValueSymbol *>> edges;
+
+        if (timing_control.kind == slang::TimingControlKind::SignalEvent) {
+            auto const &single_event = timing_control.as<slang::SignalEventControl>();
+            if (single_event.edge != slang::EdgeKind::None) {
+                // we only deal with named expression
+                if (single_event.expr.kind != slang::ExpressionKind::NamedValue) {
+                    return "Only named value supported in the always_ff block";
+                }
+                auto const &named = single_event.expr.as<slang::NamedValueExpression>();
+                edges.emplace_back(std::make_pair(single_event.edge, &named.symbol));
+            } else if (single_event.edge == slang::EdgeKind::BothEdges) {
+                return "Both edges not supported";
+            }
+        } else {
+            auto const &event_list = timing_control.as<slang::EventListControl>();
+            for (auto const &event : event_list.events) {
+                if (event->kind == slang::TimingControlKind::SignalEvent) {
+                    auto const &single_event = event->as<slang::SignalEventControl>();
+                    if (single_event.edge != slang::EdgeKind::None) {
+                        // we only deal with named expression
+                        if (single_event.expr.kind != slang::ExpressionKind::NamedValue) {
+                            return "Only named value supported in the always_ff block";
+                        }
+                        auto const &named = single_event.expr.as<slang::NamedValueExpression>();
+                        edges.emplace_back(std::make_pair(single_event.edge, &named.symbol));
+                    } else if (single_event.edge == slang::EdgeKind::BothEdges) {
+                        return "Both edges not supported";
+                    }
+                }
+            }
+        }
+
+        if (!edges.empty()) {
+            auto &process = ff_processes.emplace_back(std::make_unique<FFProcess>());
+            process->edges = edges;
+            process->stmts.emplace_back(stmt);
+        }
+    }
+
     return {};
 }
 

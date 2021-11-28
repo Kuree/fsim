@@ -41,3 +41,34 @@ endmodule
     EXPECT_EQ(m.comb_processes[1]->sensitive_list.size(), 1);
     EXPECT_EQ(m.comb_processes[1]->sensitive_list[0]->name, "b");
 }
+
+TEST(ir, module_always_ff) {  // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+module m;
+logic a, b, c;
+always_ff @(posedge c) begin
+end
+always @(posedge a, negedge b) begin
+end
+always @(posedge a, negedge a) begin
+end
+endmodule
+)");
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    ModuleDefinitionVisitor vis;
+    compilation.getRoot().visit(vis);
+    auto *def = vis.modules.at("m");
+    Module m(def);
+    auto error = m.analyze();
+    EXPECT_TRUE(error.empty());
+
+    EXPECT_EQ(m.ff_processes.size(), 3);
+    EXPECT_EQ(m.ff_processes[0]->edges.size(), 1);
+    EXPECT_EQ(m.ff_processes[0]->edges[0].first, slang::EdgeKind::PosEdge);
+    EXPECT_EQ(m.ff_processes[1]->edges.size(), 2);
+    EXPECT_EQ(m.ff_processes[1]->edges[0].second->name, "a");
+    EXPECT_EQ(m.ff_processes[2]->edges.size(), 2);
+    EXPECT_EQ(m.ff_processes[2]->edges[1].first, slang::EdgeKind::NegEdge);
+    EXPECT_EQ(m.ff_processes[2]->edges[0].second->name, "a");
+}

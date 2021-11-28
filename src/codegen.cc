@@ -4,12 +4,14 @@
 #include <fstream>
 #include <set>
 #include <stack>
+#include <unordered_set>
 
 #include "fmt/format.h"
 #include "slang/binding/SystemSubroutine.h"
 
 namespace xsim {
 auto constexpr xsim_next_time = "xsim_next_time";
+auto constexpr xsim_schedule_delay = "SCHEDULE_DELAY";
 
 template <typename T>
 inline std::string get_cc_filename(const T &name) {
@@ -27,9 +29,9 @@ auto constexpr raw_header_include = R"(#include "logic/array.hh"
 #include "logic/logic.hh"
 #include "logic/struct.hh"
 #include "logic/union.hh"
+#include "runtime/macro.hh"
 #include "runtime/module.hh"
 #include "runtime/system_task.hh"
-#include "runtime/macro.hh"
 
 // forward declaration
 namespace xsim::runtime {
@@ -40,6 +42,58 @@ class Scheduler;
 using namespace logic::literals;
 
 )";
+
+class CodeGenModuleInformation {
+public:
+    // used to hold different information while passing between different visitors
+
+    std::string get_new_name(const std::string &prefix, bool track_new_name = true) {
+        std::string suffix;
+        uint64_t count = 0;
+        while (true) {
+            auto result = fmt::format("{0}{1}", prefix, suffix);
+            if (used_names_.find(result) == used_names_.end()) {
+                if (track_new_name) {
+                    used_names_.emplace(result);
+                }
+                return result;
+            }
+            suffix = std::to_string(count++);
+        }
+    }
+
+    [[maybe_unused]] inline void add_used_names(std::string_view name) {
+        used_names_.emplace(std::string(name));
+    }
+
+    std::string enter_process() {
+        auto name = get_new_name("process");
+        process_names_.emplace(name);
+        return name;
+    }
+
+    std::string current_process_name() const { return process_names_.top(); }
+    const std::string &scheduler_name() {
+        if (scheduler_name_.empty()) {
+            scheduler_name_ = get_new_name("scheduler");
+        }
+        return scheduler_name_;
+    }
+
+    [[nodiscard]] bool var_tracked(std::string_view name) const {
+        return tracked_vars_.find(name) != tracked_vars_.end();
+    }
+    void add_tracked_name(std::string_view name) { tracked_vars_.emplace(name); }
+
+    void exit_process() { process_names_.pop(); }
+
+private:
+    std::stack<std::string> process_names_;
+    std::unordered_set<std::string> used_names_;
+    std::unordered_set<std::string_view> tracked_vars_;
+
+    std::string scheduler_name_;
+};
 
 std::string_view get_indent(int indent_level) {
     static std::unordered_map<int, std::string> cache;
@@ -122,25 +176,29 @@ class CodeGenVisitor
     : public slang::ASTVisitor<CodeGenVisitor<visit_stmt, visit_expr>, visit_stmt, visit_expr> {
     // the ultimate visitor
 public:
-    CodeGenVisitor(std::ostream &s, int &indent_level, const CXXCodeGenOptions &options)
-        : s(s), indent_level(indent_level), options(options) {}
+    CodeGenVisitor(std::ostream &s, int &indent_level, const CXXCodeGenOptions &options,
+                   CodeGenModuleInformation &module_info)
+        : s(s), indent_level(indent_level), options(options), module_info(module_info) {}
 
     [[maybe_unused]] void handle(const slang::VariableSymbol &var) {
         // output variable definition
         auto const &t = var.getDeclaredType()->getType();
-        auto type_name = options.use_4state ? "logic::logic" : "logic::bit";
+        auto type_name = get_var_type(var.name);
         auto range = t.getFixedRange();
         s << get_indent(indent_level) << type_name << "<" << range.left << ", " << range.right
           << "> " << var.name << ";" << std::endl;
+        // add it to tracked names
+        module_info.add_used_names(var.name);
     }
 
     [[maybe_unused]] void handle(const slang::NetSymbol &var) {
         // output variable definition
         auto const &t = var.getDeclaredType()->getType();
-        auto type_name = options.use_4state ? "logic::logic" : "logic::bit";
+        auto type_name = get_var_type(var.name);
         auto range = t.getFixedRange();
         s << get_indent(indent_level) << type_name << "<" << range.left << ", " << range.right
           << "> " << var.name << ";" << std::endl;
+        module_info.add_used_names(var.name);
     }
 
     [[maybe_unused]] void handle(const slang::VariableDeclStatement &stmt) {
@@ -158,24 +216,14 @@ public:
         // we first release the current condition holds
 
         auto const &delay = timing.as<slang::DelayControl>();
-        // start a new scope to avoid naming conflicts
-        s << get_indent(indent_level) << "{" << std::endl;
-        indent_level++;
 
-        s << get_indent(indent_level) << "auto " << xsim_next_time
-          << " = xsim::runtime::ScheduledTimeslot(scheduler->sim_time + (";
+        s << get_indent(indent_level)
+          << fmt::format("{0}({1}, (", xsim_schedule_delay, module_info.current_process_name());
         ExprCodeGenVisitor v(s);
         delay.expr.visit(v);
-        s << ").to_uint64(), init_ptr);" << std::endl;
-        s << get_indent(indent_level) << "scheduler->schedule_delay(" << xsim_next_time << ");"
+        s << fmt::format(").to_uint64(), {0}, {1});", module_info.scheduler_name(),
+                         module_info.get_new_name(xsim_next_time, false))
           << std::endl;
-
-        // after we are done with adding schedules, release the current condition
-        s << get_indent(indent_level) << "init_ptr->cond.signal();" << std::endl;
-        s << get_indent(indent_level) << "init_ptr->delay.wait();" << std::endl;
-
-        indent_level--;
-        s << get_indent(indent_level) << "}" << std::endl;
 
         stmt.stmt.visit(*this);
     }
@@ -231,7 +279,7 @@ public:
             s << func_name << "(";
             // depends on the context, we may or may not insert additional arguments
             if (name == "finish") {
-                s << "scheduler";
+                s << module_info.scheduler_name();
             } else {
                 s << "this";
             }
@@ -254,70 +302,87 @@ private:
     std::ostream &s;
     int &indent_level;
     const CXXCodeGenOptions &options;
+    CodeGenModuleInformation &module_info;
+
+    [[nodiscard]] std::string_view get_var_type(std::string_view name) const {
+        if (options.use_4state) {
+            return module_info.var_tracked(name) ? "logic_t" : "logic::logic";
+        } else {
+            return module_info.var_tracked(name) ? "bit_t" : "logic::bit";
+        }
+    }
 };
 
 void codegen_sym(std::ostream &s, int &indent_level, const slang::Symbol *sym,
-                 const CXXCodeGenOptions &options) {
-    CodeGenVisitor v(s, indent_level, options);
+                 const CXXCodeGenOptions &options, CodeGenModuleInformation &info) {
+    CodeGenVisitor v(s, indent_level, options, info);
     sym->visit(v);
 }
 
 void codegen_init(std::ostream &s, int &indent_level, const Process *process,
-                  const CXXCodeGenOptions &options) {
+                  const CXXCodeGenOptions &options, CodeGenModuleInformation &info) {
     s << get_indent(indent_level) << "{" << std::endl;
     indent_level++;
 
-    s << get_indent(indent_level) << "auto init_ptr = scheduler->create_init_process();"
+    auto const &ptr_name = info.enter_process();
+    s << get_indent(indent_level)
+      << fmt::format("auto {0} = {1}->create_init_process();", ptr_name, info.scheduler_name())
       << std::endl
-      << get_indent(indent_level) << "init_ptr->func = [this, init_ptr, scheduler]() {"
+      << get_indent(indent_level)
+      << fmt::format("{0}->func = [this, {0}, {1}]() {{", ptr_name, info.scheduler_name())
       << std::endl;
     indent_level++;
     s << get_indent(indent_level);
 
     auto const &stmts = process->stmts;
     for (auto const *stmt : stmts) {
-        codegen_sym(s, indent_level, stmt, options);
+        codegen_sym(s, indent_level, stmt, options, info);
     }
 
-    s << get_indent(indent_level) << fmt::format("END_PROCESS({0});", "init_ptr") << std::endl;
+    s << get_indent(indent_level) << fmt::format("END_PROCESS({0});", ptr_name) << std::endl;
     indent_level--;
     s << get_indent(indent_level) << "};" << std::endl;
-    s << get_indent(indent_level) << "xsim::runtime::Scheduler::schedule_init(init_ptr);"
-      << std::endl;
+    s << get_indent(indent_level)
+      << fmt::format("xsim::runtime::Scheduler::schedule_init({0});", ptr_name) << std::endl;
 
     indent_level--;
+    info.exit_process();
     s << get_indent(indent_level) << "}" << std::endl;
 }
 
 void codegen_final(std::ostream &s, int &indent_level, const Process *process,
-                   const CXXCodeGenOptions &options) {
+                   const CXXCodeGenOptions &options, CodeGenModuleInformation &info) {
     // TODO. merge process codegen since they same lots of code
     s << get_indent(indent_level) << "{" << std::endl;
     indent_level++;
 
-    s << get_indent(indent_level) << "auto final_ptr = scheduler->create_final_process();"
+    auto const &ptr_name = info.enter_process();
+    s << get_indent(indent_level)
+      << fmt::format("auto {0} = {1}->create_final_process();", ptr_name, info.scheduler_name())
       << std::endl
-      << get_indent(indent_level) << "final_ptr->func = [this, final_ptr, scheduler]() {"
+      << get_indent(indent_level)
+      << fmt::format("{0}->func = [this, {0}, {1}]() {{", ptr_name, info.scheduler_name())
       << std::endl;
     indent_level++;
+    info.exit_process();
     s << get_indent(indent_level);
 
     auto const &stmts = process->stmts;
     for (auto const *stmt : stmts) {
-        codegen_sym(s, indent_level, stmt, options);
+        codegen_sym(s, indent_level, stmt, options, info);
     }
 
     indent_level--;
     s << get_indent(indent_level) << "};" << std::endl;
-    s << get_indent(indent_level) << "xsim::runtime::Scheduler::schedule_final(final_ptr);"
-      << std::endl;
+    s << get_indent(indent_level)
+      << fmt::format("xsim::runtime::Scheduler::schedule_final({0});", ptr_name) << std::endl;
 
     indent_level--;
     s << get_indent(indent_level) << "}" << std::endl;
 }
 
 void output_header_file(const std::filesystem::path &filename, const Module *mod,
-                        const CXXCodeGenOptions &options) {
+                        const CXXCodeGenOptions &options, CodeGenModuleInformation &info) {
     // analyze the dependencies to include which headers
     std::ofstream s(filename, std::ios::trunc);
     int indent_level = 0;
@@ -335,18 +400,18 @@ void output_header_file(const std::filesystem::path &filename, const Module *mod
 
     // all variables are public
     {
-        CodeGenVisitor<false, false> v(s, indent_level, options);
+        CodeGenVisitor<false, false> v(s, indent_level, options, info);
         mod->def()->visit(v);
     }
 
     // init function
     if (!mod->init_processes.empty()) {
-        s << get_indent(indent_level) << "void init(xsim::runtime::Scheduler *scheduler) override;"
+        s << get_indent(indent_level) << "void init(xsim::runtime::Scheduler *) override;"
           << std::endl;
     }
 
     if (!mod->final_processes.empty()) {
-        s << get_indent(indent_level) << "void final(xsim::runtime::Scheduler *scheduler) override;"
+        s << get_indent(indent_level) << "void final(xsim::runtime::Scheduler *) override;"
           << std::endl;
     }
 
@@ -356,7 +421,7 @@ void output_header_file(const std::filesystem::path &filename, const Module *mod
 }
 
 void output_cc_file(const std::filesystem::path &filename, const Module *mod,
-                    const CXXCodeGenOptions &options) {
+                    const CXXCodeGenOptions &options, CodeGenModuleInformation &info) {
     std::ofstream s(filename, std::ios::trunc);
     auto hh_filename = get_hh_filename(mod->name);
     s << "#include \"" << hh_filename << "\"" << std::endl;
@@ -367,12 +432,12 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
 
     // initial block
     if (!mod->init_processes.empty()) {
-        s << get_indent(indent_level) << "void " << mod->name
-          << "::init(xsim::runtime::Scheduler *scheduler) {" << std::endl;
+        s << get_indent(indent_level) << "void " << mod->name << "::init(xsim::runtime::Scheduler *"
+          << info.scheduler_name() << ") {" << std::endl;
         indent_level++;
 
         for (auto const &init : mod->init_processes) {
-            codegen_init(s, indent_level, init.get(), options);
+            codegen_init(s, indent_level, init.get(), options, info);
         }
 
         indent_level--;
@@ -382,11 +447,11 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
     // final block
     if (!mod->final_processes.empty()) {
         s << get_indent(indent_level) << "void " << mod->name
-          << "::final(xsim::runtime::Scheduler *scheduler) {" << std::endl;
+          << "::final(xsim::runtime::Scheduler *" << info.scheduler_name() << ") {" << std::endl;
         indent_level++;
 
         for (auto const &final : mod->final_processes) {
-            codegen_final(s, indent_level, final.get(), options);
+            codegen_final(s, indent_level, final.get(), options, info);
         }
 
         indent_level--;
@@ -415,8 +480,9 @@ void CXXCodeGen::output(const std::string &dir) {
     std::filesystem::path dir_path = dir;
     auto cc_filename = dir_path / get_cc_filename(top_->name);
     auto hh_filename = dir_path / get_hh_filename(top_->name);
-    output_header_file(hh_filename, top_, option_);
-    output_cc_file(cc_filename, top_, option_);
+    CodeGenModuleInformation info;
+    output_header_file(hh_filename, top_, option_, info);
+    output_cc_file(cc_filename, top_, option_, info);
     auto main_filename = dir_path / fmt::format("{0}.cc", main_name);
     output_main_file(main_filename, top_);
 }

@@ -38,7 +38,7 @@ public:
         init_ptr->func = [init_ptr, scheduler]() {
             // #2 delay
             // switch to a new env variable
-            SCHEDULE_DELAY(init_ptr, 2, scheduler);
+            SCHEDULE_DELAY(init_ptr, 2, scheduler, n);
             // done with this init
             END_PROCESS(init_ptr);
         };
@@ -62,7 +62,7 @@ public:
             auto init_ptr = scheduler->create_init_process();
             init_ptr->func = [init_ptr, scheduler, this]() {
                 // #5 delay
-                SCHEDULE_DELAY(init_ptr, 5, scheduler);
+                SCHEDULE_DELAY(init_ptr, 5, scheduler, n);
                 EXPECT_TRUE(sequence);
                 // done with this init
                 END_PROCESS(init_ptr);
@@ -73,7 +73,7 @@ public:
             auto init_ptr = scheduler->create_init_process();
             init_ptr->func = [init_ptr, scheduler, this]() {
                 // #2 delay
-                SCHEDULE_DELAY(init_ptr, 2, scheduler);
+                SCHEDULE_DELAY(init_ptr, 2, scheduler, n);
                 sequence = true;
                 // done with this init
                 END_PROCESS(init_ptr);
@@ -158,7 +158,7 @@ public:
         auto init_ptr = scheduler->create_init_process();
         init_ptr->func = [init_ptr, scheduler, this]() {
             a = 4_logic;
-            SCHEDULE_DELAY(init_ptr, 5, scheduler);
+            SCHEDULE_DELAY(init_ptr, 5, scheduler, n);
             // print out b value
             display(this, "b is %0d", b);
             // done with this init
@@ -223,11 +223,11 @@ public:
         init_ptr->func = [init_ptr, scheduler, this]() {
             for (auto i = 0u; i < 4; i++) {
                 a = logic::logic<3, 0>(i);
-                SCHEDULE_DELAY(init_ptr, 2, scheduler);
+                SCHEDULE_DELAY(init_ptr, 2, scheduler, n);
 
                 b = logic::logic<3, 0>(i);
 
-                SCHEDULE_DELAY(init_ptr, 2, scheduler);
+                SCHEDULE_DELAY(init_ptr, 2, scheduler, n);
             }
             // done with this init
             END_PROCESS(init_ptr);
@@ -245,7 +245,7 @@ public:
             c = a;  // NOLINT
             display(this, "c = %0d @ %d", c, scheduler->sim_time);
 
-            SCHEDULE_DELAY(always, 5, scheduler);
+            SCHEDULE_DELAY(always, 5, scheduler, n);
 
             c = b + 1_logic;
 

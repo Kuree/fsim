@@ -85,7 +85,13 @@ public:
     }
     void add_tracked_name(std::string_view name) { tracked_vars_.emplace(name); }
 
-    void exit_process() { process_names_.pop(); }
+    void exit_process() {
+        auto name = current_process_name();
+        // before we create a new scope for every process, when it exists the scope, we can
+        // recycle the process name
+        used_names_.erase(name);
+        process_names_.pop();
+    }
 
 private:
     std::stack<std::string> process_names_;
@@ -298,6 +304,11 @@ public:
         }
     }
 
+    [[maybe_unused]] void handle(const slang::ContinuousAssignSymbol &sym) {
+        this->visitDefault(sym);
+        s << ";" << std::endl;
+    }
+
 private:
     std::ostream &s;
     int &indent_level;
@@ -306,9 +317,9 @@ private:
 
     [[nodiscard]] std::string_view get_var_type(std::string_view name) const {
         if (options.use_4state) {
-            return module_info.var_tracked(name) ? "logic_t" : "logic::logic";
+            return module_info.var_tracked(name) ? "xsim::runtime::logic_t" : "logic::logic";
         } else {
-            return module_info.var_tracked(name) ? "bit_t" : "logic::bit";
+            return module_info.var_tracked(name) ? "xsim::runtime::bit_t" : "logic::bit";
         }
     }
 };
@@ -352,11 +363,10 @@ void codegen_init(std::ostream &s, int &indent_level, const Process *process,
 
 void codegen_final(std::ostream &s, int &indent_level, const Process *process,
                    const CXXCodeGenOptions &options, CodeGenModuleInformation &info) {
-    // TODO. merge process codegen since they same lots of code
     s << get_indent(indent_level) << "{" << std::endl;
     indent_level++;
-
     auto const &ptr_name = info.enter_process();
+
     s << get_indent(indent_level)
       << fmt::format("auto {0} = {1}->create_final_process();", ptr_name, info.scheduler_name())
       << std::endl
@@ -364,7 +374,6 @@ void codegen_final(std::ostream &s, int &indent_level, const Process *process,
       << fmt::format("{0}->func = [this, {0}, {1}]() {{", ptr_name, info.scheduler_name())
       << std::endl;
     indent_level++;
-    info.exit_process();
     s << get_indent(indent_level);
 
     auto const &stmts = process->stmts;
@@ -378,6 +387,66 @@ void codegen_final(std::ostream &s, int &indent_level, const Process *process,
       << fmt::format("xsim::runtime::Scheduler::schedule_final({0});", ptr_name) << std::endl;
 
     indent_level--;
+    info.exit_process();
+    s << get_indent(indent_level) << "}" << std::endl;
+}
+
+void codegen_always(std::ostream &s, int &indent_level, const CombProcess *process,
+                    const CXXCodeGenOptions &options, CodeGenModuleInformation &info) {
+    s << get_indent(indent_level) << "{" << std::endl;
+    indent_level++;
+    auto const &ptr_name = info.enter_process();
+
+    // depends on the comb process type, we may generate different style
+    if (process->kind == CombProcess::CombKind::GeneralPurpose) {
+        // this is infinite loop
+        throw std::runtime_error("General purpose always not not supposed yet");
+    } else {
+        // declare the always block
+
+        s << get_indent(indent_level)
+          << fmt::format("auto {0} = {1}->create_comb_process();", ptr_name, info.scheduler_name())
+          << std::endl
+          << get_indent(indent_level)
+          << fmt::format("{0}->func = [this, {0}, {1}]() {{", ptr_name, info.scheduler_name())
+          << std::endl;
+        indent_level++;
+        s << get_indent(indent_level);
+
+        auto const &stmts = process->stmts;
+        for (auto const *stmt : stmts) {
+            codegen_sym(s, indent_level, stmt, options, info);
+        }
+
+        indent_level--;
+        s << get_indent(indent_level) << "};" << std::endl;
+
+        // set input changed function
+        s << get_indent(indent_level) << ptr_name << "->input_changed = [this]() {" << std::endl;
+        indent_level++;
+        s << get_indent(indent_level) << "bool res = false";
+        for (auto *var : process->sensitive_list) {
+            s << " || " << var->name;
+        }
+        s << ";" << std::endl << get_indent(indent_level) << "return res;" << std::endl;
+        indent_level--;
+        s << get_indent(indent_level) << "};" << std::endl;
+
+        // set the input changed cancel function
+        s << get_indent(indent_level) << ptr_name << "->cancel_changed = [this]() {" << std::endl;
+        indent_level++;
+        for (auto *var : process->sensitive_list) {
+            s << get_indent(indent_level) << var->name << ".changed = false;" << std::endl;
+        }
+        indent_level--;
+        s << get_indent(indent_level) << "};" << std::endl;
+
+        s << get_indent(indent_level) << fmt::format("comb_processes_.emplace_back({0});", ptr_name)
+          << std::endl;
+    }
+
+    indent_level--;
+    info.exit_process();
     s << get_indent(indent_level) << "}" << std::endl;
 }
 
@@ -398,6 +467,14 @@ void output_header_file(const std::filesystem::path &filename, const Module *mod
     s << get_indent(indent_level) << mod->name << "(): xsim::runtime::Module(\"" << mod->name
       << "\") {}" << std::endl;
 
+    // need to look through the sensitivity list first
+    for (auto const &comb : mod->comb_processes) {
+        // label sensitivities variables
+        for (auto const *sym : comb->sensitive_list) {
+            info.add_tracked_name(sym->name);
+        }
+    }
+
     // all variables are public
     {
         CodeGenVisitor<false, false> v(s, indent_level, options, info);
@@ -412,6 +489,11 @@ void output_header_file(const std::filesystem::path &filename, const Module *mod
 
     if (!mod->final_processes.empty()) {
         s << get_indent(indent_level) << "void final(xsim::runtime::Scheduler *) override;"
+          << std::endl;
+    }
+
+    if (!mod->comb_processes.empty()) {
+        s << get_indent(indent_level) << "void comb(xsim::runtime::Scheduler *) override;"
           << std::endl;
     }
 
@@ -441,7 +523,7 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
         }
 
         indent_level--;
-        s << get_indent(indent_level) << "}";
+        s << get_indent(indent_level) << "}" << std::endl;
     }
 
     // final block
@@ -455,7 +537,21 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
         }
 
         indent_level--;
-        s << get_indent(indent_level) << "}";
+        s << get_indent(indent_level) << "}" << std::endl;
+    }
+
+    // always block
+    if (!mod->comb_processes.empty()) {
+        s << get_indent(indent_level) << "void " << mod->name << "::comb(xsim::runtime::Scheduler *"
+          << info.scheduler_name() << ") {" << std::endl;
+        indent_level++;
+
+        for (auto const &comb : mod->comb_processes) {
+            codegen_always(s, indent_level, comb.get(), options, info);
+        }
+
+        indent_level--;
+        s << get_indent(indent_level) << "}" << std::endl;
     }
 }
 

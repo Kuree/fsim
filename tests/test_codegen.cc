@@ -6,7 +6,7 @@
 using namespace xsim;
 using namespace slang;
 
-TEST(codegen, declaration) {    // NOLINT
+TEST(codegen, declaration) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module m;
 logic [3:0] a, b;
@@ -30,7 +30,7 @@ endmodule
     EXPECT_NE(output.find("PASS"), std::string::npos);
 }
 
-TEST(codegen, if_stmt) {    // NOLINT
+TEST(codegen, if_stmt) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module m;
 logic [3:0] a;
@@ -57,7 +57,7 @@ endmodule
     EXPECT_NE(output.find("PASS"), std::string::npos);
 }
 
-TEST(codegen, delay) {    // NOLINT
+TEST(codegen, delay) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module m;
 initial begin
@@ -79,7 +79,7 @@ endmodule
     EXPECT_NE(output.find("PASS"), std::string::npos);
 }
 
-TEST(codegen, multi_init) { // NOLINT
+TEST(codegen, multi_init) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module m;
 initial begin
@@ -123,4 +123,37 @@ endmodule
     builder.build(&compilation);
     std::string output = testing::internal::GetCapturedStdout();
     EXPECT_NE(output.find("PASS"), std::string::npos);
+}
+
+TEST(code, always_assign) {  // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+module m;
+logic [3:0] a, b, c;
+always_comb begin
+    a = b + 1;
+end
+assign c = b + 2;
+
+initial begin
+    b = 1;
+    #1;
+    $display("a=%0d b=%0d", a, b);
+    #1;
+    b = 2;
+    #1;
+    $display("a=%0d b=%0d", a, b);
+end
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    BuildOptions options;
+    options.debug_build = true;
+    options.run_after_build = true;
+    Builder builder(options);
+    testing::internal::CaptureStdout();
+    builder.build(&compilation);
+    std::string output = testing::internal::GetCapturedStdout();
+    printf("%s\n", output.c_str());
 }

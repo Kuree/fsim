@@ -101,6 +101,39 @@ private:
     std::string scheduler_name_;
 };
 
+void write_to_file(const std::string &filename, std::stringstream &stream) {
+    if (!std::filesystem::exists(filename)) {
+        // doesn't exist, directly write to the file
+        std::ofstream s(filename, std::ios::trunc);
+        s << stream.rdbuf();
+    } else {
+        // need to compare size
+        // if they are different, output to that file
+        {
+            std::ifstream f(filename, std::ifstream::ate | std::ifstream::binary);
+            auto size = static_cast<uint64_t>(f.tellg());
+            auto buf = stream.str();
+            if (size != buf.size()) {
+                std::ofstream s(filename, std::ios::trunc);
+                s << buf;
+            } else {
+                // they are the same size, now need to compare its actual content
+                std::string contents;
+                f.seekg(0, std::ios::end);
+                contents.resize(f.tellg());
+                f.seekg(0, std::ios::beg);
+                f.read(&contents[0], contents.size());
+
+                if (contents != buf) {
+                    f.close();
+                    std::ofstream s(filename, std::ios::trunc);
+                    s << buf;
+                }
+            }
+        }
+    }
+}
+
 std::string_view get_indent(int indent_level) {
     static std::unordered_map<int, std::string> cache;
     if (cache.find(indent_level) == cache.end()) {
@@ -453,7 +486,7 @@ void codegen_always(std::ostream &s, int &indent_level, const CombProcess *proce
 void output_header_file(const std::filesystem::path &filename, const Module *mod,
                         const CXXCodeGenOptions &options, CodeGenModuleInformation &info) {
     // analyze the dependencies to include which headers
-    std::ofstream s(filename, std::ios::trunc);
+    std::stringstream s;
     int indent_level = 0;
     s << "#pragma once" << std::endl;
     s << raw_header_include;
@@ -500,11 +533,13 @@ void output_header_file(const std::filesystem::path &filename, const Module *mod
     indent_level--;
 
     s << get_indent(indent_level) << "};";
+
+    write_to_file(filename, s);
 }
 
 void output_cc_file(const std::filesystem::path &filename, const Module *mod,
                     const CXXCodeGenOptions &options, CodeGenModuleInformation &info) {
-    std::ofstream s(filename, std::ios::trunc);
+    std::stringstream s;
     auto hh_filename = get_hh_filename(mod->name);
     s << "#include \"" << hh_filename << "\"" << std::endl;
     // include more stuff
@@ -553,10 +588,12 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
         indent_level--;
         s << get_indent(indent_level) << "}" << std::endl;
     }
+
+    write_to_file(filename, s);
 }
 
 void output_main_file(const std::string &filename, const Module *top) {
-    std::ofstream s(filename, std::ios::trunc);
+    std::stringstream s;
 
     s << raw_header_include;
 
@@ -570,6 +607,8 @@ void output_main_file(const std::string &filename, const Module *top) {
       << "    " << top->name << " top;" << std::endl
       << "    scheduler.run(&top);" << std::endl
       << "}";
+
+    write_to_file(filename, s);
 }
 
 void CXXCodeGen::output(const std::string &dir) {
@@ -599,7 +638,7 @@ std::set<std::string> get_defs(const Module *module) {
 void NinjaCodeGen::output(const std::string &dir) {
     std::filesystem::path dir_path = dir;
     auto ninja_filename = dir_path / "build.ninja";
-    std::ofstream stream(ninja_filename, std::ios::trunc);
+    std::stringstream stream;
     // filling out missing information
     // use the output dir as the runtime dir
     if (options_.clang_path.empty()) {
@@ -649,6 +688,8 @@ void NinjaCodeGen::output(const std::string &dir) {
            << main_linkers << " -o $out" << std::endl
            << std::endl;
     stream << "build " << options_.binary_name << ": main " << objs << std::endl;
+
+    write_to_file(ninja_filename, stream);
 }
 
 }  // namespace xsim

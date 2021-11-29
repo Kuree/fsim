@@ -12,6 +12,7 @@
 namespace xsim {
 auto constexpr xsim_next_time = "xsim_next_time";
 auto constexpr xsim_schedule_delay = "SCHEDULE_DELAY";
+auto constexpr xsim_schedule_nba = "SCHEDULE_NBA";
 
 template <typename T>
 inline std::string get_cc_filename(const T &name) {
@@ -269,12 +270,23 @@ public:
     }
 
     [[maybe_unused]] void handle(const slang::AssignmentExpression &expr) {
-        auto const &left = expr.left();
-        ExprCodeGenVisitor v(s);
-        left.visit(v);
-        s << " = ";
-        auto const &right = expr.right();
-        right.visit(v);
+        if (expr.isNonBlocking()) {
+            s << xsim_schedule_nba << "(";
+            auto const &left = expr.left();
+            ExprCodeGenVisitor v(s);
+            left.visit(v);
+            s << ", ";
+            auto const &right = expr.right();
+            right.visit(v);
+            s << ", " << module_info.current_process_name() << ")";
+        } else {
+            auto const &left = expr.left();
+            ExprCodeGenVisitor v(s);
+            left.visit(v);
+            s << " = ";
+            auto const &right = expr.right();
+            right.visit(v);
+        }
     }
 
     [[maybe_unused]] void handle(const slang::StatementBlockSymbol &) {
@@ -551,7 +563,7 @@ void codegen_ff(std::ostream &s, int &indent_level, const FFProcess *process,
     s << get_indent(indent_level) << "};" << std::endl;
 
     // set edge tracking as well
-    for (auto name: vars) {
+    for (auto name : vars) {
         s << get_indent(indent_level) << name << ".track_edge = true;" << std::endl;
     }
 

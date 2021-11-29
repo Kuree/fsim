@@ -40,6 +40,8 @@ public:
     std::function<void()> cancel_changed = []() {};
 };
 
+struct FFProcess : public Process {};
+
 struct FinalProcess : public Process {};
 
 class ScheduledTimeslot {
@@ -67,6 +69,7 @@ public:
     InitialProcess *create_init_process();
     FinalProcess *create_final_process();
     CombProcess *create_comb_process();
+    FFProcess *create_ff_process();
 
     static void schedule_init(InitialProcess *init);
     static void schedule_final(FinalProcess *final);
@@ -88,6 +91,7 @@ private:
     std::vector<std::unique_ptr<InitialProcess>> init_processes_;
     std::vector<std::unique_ptr<FinalProcess>> final_processes_;
     std::vector<std::unique_ptr<CombProcess>> comb_processes_;
+    std::vector<std::unique_ptr<FFProcess>> ff_processes_;
     marl::Scheduler marl_scheduler_;
 
     // finish info

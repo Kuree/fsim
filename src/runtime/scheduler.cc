@@ -121,6 +121,14 @@ CombProcess *Scheduler::create_comb_process() {
     return p.get();
 }
 
+FFProcess *Scheduler::create_ff_process() {
+    auto ptr = std::make_unique<FFProcess>();
+    ptr->id = id_count_.fetch_add(1);
+    ptr->scheduler = this;
+    auto &p = ff_processes_.emplace_back(std::move(ptr));
+    return p.get();
+}
+
 void Scheduler::schedule_init(InitialProcess *process) {
     marl::schedule([process] {
         process->func();
@@ -165,6 +173,8 @@ void schedule_callbacks(const std::vector<std::function<void()>> &funcs) {
     if (funcs.empty()) return;
     marl::WaitGroup wg(funcs.size());
 
+    // this is just to make sure we call each functions
+    // we don't care if they actually finish or not
     for (auto const &func : funcs) {
         marl::schedule([func, wg]() {
             func();

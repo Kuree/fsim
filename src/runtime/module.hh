@@ -9,6 +9,7 @@
 namespace xsim::runtime {
 class Scheduler;
 class CombProcess;
+class FFProcess;
 class CombinationalGraph;
 
 void schedule_callbacks(const std::vector<std::function<void()>> &funcs);
@@ -81,10 +82,13 @@ public:
 
 protected:
     std::vector<CombProcess *> comb_processes_;
+    std::vector<FFProcess *> ff_process_;
 
 private:
     std::shared_ptr<CombinationalGraph> comb_graph_;
     bool sensitivity_stable();
+
+    void wait_for_timed_processes();
 };
 }  // namespace xsim::runtime
 

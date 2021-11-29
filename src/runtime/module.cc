@@ -60,12 +60,7 @@ void Module::active() {
     }
 
     // try to finish what's still there
-    for (auto *p : comb_processes_) {
-        if (!p->finished && p->running) {
-            p->cond.wait();
-            p->running = false;
-        }
-    }
+    wait_for_timed_processes();
 
     while (!sensitivity_stable()) {
         comb_graph_->run();
@@ -81,6 +76,22 @@ bool Module::sensitivity_stable() {
 bool Module::stabilized() const {
     return std::all_of(comb_processes_.begin(), comb_processes_.end(),
                        [](auto *p) { return p->finished || !p->running; });
+}
+
+void Module::wait_for_timed_processes() {
+    for (auto *p : comb_processes_) {
+        if (!p->finished && p->running) {
+            p->cond.wait();
+            p->running = false;
+        }
+    }
+
+    for (auto *p : ff_process_) {
+        if (!p->finished && p->running) {
+            p->cond.wait();
+            p->running = false;
+        }
+    }
 }
 
 }  // namespace xsim::runtime

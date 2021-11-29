@@ -27,6 +27,8 @@ struct Process {
 
     marl::Event delay = marl::Event(marl::Event::Mode::Auto);
     Scheduler *scheduler = nullptr;
+
+    void schedule_nba(std::function<void()> &&f) const;
 };
 
 struct InitialProcess : public Process {};
@@ -81,6 +83,7 @@ public:
     static void schedule_final(FinalProcess *final);
     void schedule_delay(const ScheduledTimeslot &event);
     void schedule_finish(int code);
+    void schedule_nba(std::function<void()> &&func);
 
     [[nodiscard]] bool finished() const { return finish_flag_.load(); }
 
@@ -100,6 +103,9 @@ private:
     std::vector<std::unique_ptr<FFProcess>> ff_processes_;
     marl::Scheduler marl_scheduler_;
 
+    // NBA
+    std::vector<std::function<void()>> nbas_;
+
     // finish info
     std::atomic<bool> finish_flag_ = false;
     FinishInfo finish_ = {};
@@ -108,6 +114,7 @@ private:
 
     [[nodiscard]] bool loop_stabilized() const;
     [[nodiscard]] bool terminate() const;
+    void execute_nba();
 
     Module *top_ = nullptr;
 };

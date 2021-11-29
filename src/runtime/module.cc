@@ -76,11 +76,11 @@ void Module::active() {
         }
     }
 
-    // try to finish what's still there
-    wait_for_timed_processes();
-
     bool changed;
     do {
+        // try to finish what's still there
+        wait_for_timed_processes();
+
         changed = false;
         while (!sensitivity_stable()) {
             comb_graph_->run();

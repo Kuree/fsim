@@ -304,9 +304,7 @@ public:
         };
 
         process->should_trigger = [this]() { return clk.should_trigger_posedge; };
-        process->cancel_changed = [this]() {
-            clk.should_trigger_posedge = false;
-        };
+        process->cancel_changed = [this]() { clk.should_trigger_posedge = false; };
 
         ff_process_.emplace_back(process);
         clk.track_edge = true;
@@ -348,4 +346,82 @@ TEST(runtime, ff_blocking) {  // NOLINT
     scheduler.run(&m);
     std::string output = testing::internal::GetCapturedStdout();
     EXPECT_NE(output.find("b is 1"), std::string::npos);
+}
+
+class FFNonBlockingAssignment : public Module {
+public:
+    FFNonBlockingAssignment() : Module("ff_nonblocking_assignment") {}
+
+    /*
+     * module top;
+     * logic clk;
+     * logic[3:0] a, b;
+     *
+     * always_comb
+     *     b = a;
+     *
+     * always_ff @(posedge clk)
+     *     a <= 1;
+     *
+     * endmodule
+     */
+
+    logic_t<3, 0> a;
+    logic::logic<3, 0> b;
+    logic_t<0> clk;
+
+    void ff(Scheduler *scheduler) override {
+        auto process = scheduler->create_ff_process();
+        process->func = [this, process, scheduler]() {
+            process->running = true;
+            process->finished = false;
+            marl::schedule([this, process]() {
+                SCHEDULE_NBA(a, 1_logic, process);
+                END_PROCESS(process);
+            });
+        };
+
+        process->should_trigger = [this]() { return clk.should_trigger_posedge; };
+        process->cancel_changed = [this]() { clk.should_trigger_posedge = false; };
+
+        ff_process_.emplace_back(process);
+        clk.track_edge = true;
+    }
+
+    void comb(Scheduler *scheduler) override {
+        auto *always = scheduler->create_comb_process();
+        always->input_changed = [this]() {
+            bool res = this->a.changed;
+            return res;
+        };
+        always->func = [this] {
+            b = a;  // NOLINT
+        };
+        always->cancel_changed = [this]() { a.changed = false; };
+        comb_processes_.emplace_back(always);
+    }
+
+    void init(Scheduler *scheduler) override {
+        auto init_ptr = scheduler->create_init_process();
+        init_ptr->func = [init_ptr, scheduler, this]() {
+            clk = 0_logic;
+            SCHEDULE_DELAY(init_ptr, 2, scheduler, n);
+            clk = 1_logic;
+            SCHEDULE_DELAY(init_ptr, 2, scheduler, n);
+            display(this, "b is %0d", b);
+
+            // done with this init
+            END_PROCESS(init_ptr);
+        };
+        Scheduler::schedule_init(init_ptr);
+    }
+};
+
+TEST(runtime, ff_nba) {  // NOLINT
+    Scheduler scheduler;
+    FFNonBlockingAssignment m;
+    testing::internal::CaptureStdout();
+    scheduler.run(&m);
+    std::string output = testing::internal::GetCapturedStdout();
+    EXPECT_NE(output.find("b is 1\n"), std::string::npos);
 }

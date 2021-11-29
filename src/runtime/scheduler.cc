@@ -10,6 +10,10 @@ namespace xsim::runtime {
 // statically determined the number of cores to use based on number of event-based processes?
 constexpr uint64_t num_marl_cores = 2;
 
+void Process::schedule_nba(std::function<void()> &&f) const {
+    scheduler->schedule_nba(std::move(f));
+}
+
 FFProcess::FFProcess() {
     // by default, it's not doing anything
     running = false;
@@ -54,6 +58,9 @@ void Scheduler::run(Module *top) {
             // active
             top->active();
             // nba
+            execute_nba();
+            // activate again
+            top->active();
         } while (!loop_stabilized());
 
         if (terminate()) {
@@ -68,7 +75,6 @@ void Scheduler::run(Module *top) {
             break;
         }
 
-        std::atomic_thread_fence(std::memory_order_seq_cst);
         // schedule for the next time slot
         {
             // need to lock it since the moment we unlock a process, it may try to
@@ -82,7 +88,6 @@ void Scheduler::run(Module *top) {
                 //  release all of them at once
                 while (!event_queue_.empty() && event_queue_.top().time == next_slot_time) {
                     auto const &event = event_queue_.top();
-                    std::atomic_thread_fence(std::memory_order_seq_cst);
                     event.process->delay.signal();
                     event.process->running = true;
                     event_queue_.pop();
@@ -160,6 +165,8 @@ void Scheduler::schedule_finish(int code) {
     finish_flag_ = true;
 }
 
+void Scheduler::schedule_nba(std::function<void()> &&func) { nbas_.emplace_back(std::move(func)); }
+
 Scheduler::~Scheduler() {
     marl_scheduler_.unbind();  // NOLINT
 }
@@ -172,6 +179,14 @@ bool Scheduler::loop_stabilized() const {
 
 bool Scheduler::terminate() const {
     return !has_init_left(init_processes_) && top_->stabilized() && event_queue_.empty();
+}
+
+void Scheduler::execute_nba() {
+    // maybe split it up into multiple fiber threads?
+    for (auto const &f : nbas_) {
+        f();
+    }
+    nbas_.clear();
 }
 
 }  // namespace xsim::runtime

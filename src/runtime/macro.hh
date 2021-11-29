@@ -17,4 +17,12 @@
         process->finished = true; \
         process->running = false; \
     } while (0)
+
+#define SCHEDULE_NBA(target, value, process)                          \
+    do {                                                              \
+        if (!target.match(value)) {                                   \
+            auto wire = value;                                        \
+            process->schedule_nba([this, wire]() { target = wire; }); \
+        }                                                             \
+    } while (0)
 #endif  // XSIM_MACRO_HH

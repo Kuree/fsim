@@ -3,7 +3,6 @@
 #include <iostream>
 #include <utility>
 
-#include "marl/waitgroup.h"
 #include "module.hh"
 
 namespace xsim::runtime {
@@ -173,21 +172,6 @@ bool Scheduler::loop_stabilized() const {
 
 bool Scheduler::terminate() const {
     return !has_init_left(init_processes_) && top_->stabilized() && event_queue_.empty();
-}
-
-void schedule_callbacks(const std::vector<FFProcess *> &processes) {
-    if (processes.empty()) return;
-    marl::WaitGroup wg(processes.size());
-
-    // TODO: implement iff condition with triggering
-    // this is just to make sure we call each functions
-    for (auto *p : processes) {
-        marl::schedule([p, wg]() {
-            p->func();
-            wg.done();
-        });
-    }
-    wg.wait();
 }
 
 }  // namespace xsim::runtime

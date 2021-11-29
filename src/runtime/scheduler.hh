@@ -43,6 +43,9 @@ public:
 struct FFProcess : public Process {
 public:
     FFProcess();
+
+    std::function<bool()> should_trigger = []() { return false; };
+    std::function<void()> cancel_changed = []() {};
 };
 
 struct FinalProcess : public Process {};

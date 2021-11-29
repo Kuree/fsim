@@ -303,8 +303,13 @@ public:
             });
         };
 
+        process->should_trigger = [this]() { return clk.should_trigger_posedge; };
+        process->cancel_changed = [this]() {
+            clk.should_trigger_posedge = false;
+        };
+
         ff_process_.emplace_back(process);
-        clk.posedge.emplace_back(process);
+        clk.track_edge = true;
     }
 
     void comb(Scheduler *scheduler) override {

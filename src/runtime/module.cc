@@ -1,6 +1,7 @@
 #include "module.hh"
 
 #include "fmt/format.h"
+#include "marl/waitgroup.h"
 #include "scheduler.hh"
 
 namespace xsim::runtime {
@@ -30,37 +31,40 @@ std::string Module::hierarchy_name() const {
 
 class CombinationalGraph {
 public:
-    explicit CombinationalGraph(const std::vector<CombProcess *> &processes)
-        : processes_(processes) {}
+    explicit CombinationalGraph(const std::vector<CombProcess *> &comb_processes)
+        : comb_processes_(comb_processes) {}
 
     void run() {
-        for (auto *p : processes_) {
+        for (auto *p : comb_processes_) {
             // if it's not finished, it means it's waiting
             if (!p->finished) {
                 continue;
             }
-
-            marl::schedule([p]() {
-                p->finished = false;
-                p->running = true;
-                p->func();
-                p->cond.signal();
-                p->finished = true;
+            if (p->input_changed()) {
+                marl::schedule([p]() {
+                    p->finished = false;
+                    p->running = true;
+                    p->func();
+                    p->cond.signal();
+                    p->finished = true;
+                    p->running = false;
+                });
+                p->cond.wait();
                 p->running = false;
-            });
-            p->cond.wait();
-            p->running = false;
+            }
         }
+    }
 
+    void clear() {
         // after every process have been run, we cancel the changes
         // maybe adjust this in the future once we have instances?
-        for (auto *p : processes_) {
+        for (auto *p : comb_processes_) {
             p->cancel_changed();
         }
     }
 
 private:
-    const std::vector<CombProcess *> &processes_;
+    const std::vector<CombProcess *> &comb_processes_;
 };
 
 void Module::active() {
@@ -75,9 +79,20 @@ void Module::active() {
     // try to finish what's still there
     wait_for_timed_processes();
 
-    while (!sensitivity_stable()) {
-        comb_graph_->run();
-    }
+    bool changed;
+    do {
+        changed = false;
+        while (!sensitivity_stable()) {
+            comb_graph_->run();
+            comb_graph_->clear();
+            changed = true;
+        }
+
+        while (!edge_stable()) {
+            schedule_ff();
+            changed = true;
+        }
+    } while (changed);
 }
 
 bool Module::sensitivity_stable() {
@@ -86,9 +101,18 @@ bool Module::sensitivity_stable() {
     return r;
 }
 
+bool Module::edge_stable() {
+    return std::all_of(ff_process_.begin(), ff_process_.end(),
+                       [](auto *p) { return !p->should_trigger(); });
+}
+
 bool Module::stabilized() const {
-    return std::all_of(comb_processes_.begin(), comb_processes_.end(),
-                       [](auto *p) { return p->finished || !p->running; });
+    auto r = std::all_of(comb_processes_.begin(), comb_processes_.end(),
+                         [](auto *p) { return p->finished || !p->running; });
+    r = r && std::all_of(ff_process_.begin(), ff_process_.end(),
+                         [](auto *p) { return p->finished || !p->running; });
+
+    return r;
 }
 
 void Module::wait_for_timed_processes() {
@@ -103,6 +127,30 @@ void Module::wait_for_timed_processes() {
         if (!p->finished && p->running) {
             p->cond.wait();
         }
+    }
+}
+
+void Module::schedule_ff() {
+    if (ff_process_.empty()) return;
+    uint64_t num_process = 0;
+    for (auto const *p : ff_process_) {
+        if (p->should_trigger()) num_process++;
+    }
+    marl::WaitGroup wg(num_process);
+
+    // this is just to make sure we call each functions
+    for (auto *p : ff_process_) {
+        if (p->should_trigger()) {
+            marl::schedule([p, wg]() {
+                p->func();
+                wg.done();
+            });
+        }
+    }
+
+    wg.wait();
+    for (auto *p : ff_process_) {
+        p->cancel_changed();
     }
 }
 

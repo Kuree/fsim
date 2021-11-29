@@ -12,7 +12,6 @@ class CombProcess;
 class FFProcess;
 class CombinationalGraph;
 
-void schedule_callbacks(const std::vector<FFProcess *> &processes);
 bool trigger_posedge(const logic::logic<0> &old, const logic::logic<0> &new_);
 bool trigger_negedge(const logic::logic<0> &old, const logic::logic<0> &new_);
 
@@ -34,20 +33,12 @@ public:
             // dealing with edge triggering events
             if constexpr (size == 1) {
                 // only allowed for size 1 signals
-                // LRM Table 9-2
                 auto const new_v = v[logic::util::min(op_msb, op_lsb)];
-                bool should_trigger_posedge = !posedge.empty() && trigger_posedge(*this, new_v);
-                bool should_trigger_negedge = !negedge.empty() && trigger_negedge(*this, new_v);
-                // value has to be changed first
-                logic::logic<msb, lsb, signed_>::operator=(v);
-                if (should_trigger_posedge) schedule_callbacks(posedge);
-                if (should_trigger_negedge) schedule_callbacks(negedge);
-                changed = true;
-            } else {
-                // value has to be changed first
-                logic::logic<msb, lsb, signed_>::operator=(v);
-                changed = true;
+                should_trigger_posedge = track_edge && trigger_posedge(*this, new_v);
+                should_trigger_negedge = track_edge && trigger_negedge(*this, new_v);
             }
+            logic::logic<msb, lsb, signed_>::operator=(v);
+            changed = true;
         }
 
         return *this;
@@ -57,8 +48,9 @@ public:
     // clang-tidy will complain, but it's worth it
     bool changed = false;
 
-    std::vector<FFProcess *> posedge;
-    std::vector<FFProcess *> negedge;
+    bool track_edge = false;
+    bool should_trigger_posedge = false;
+    bool should_trigger_negedge = false;
 };
 
 class Module {
@@ -91,8 +83,10 @@ protected:
 private:
     std::shared_ptr<CombinationalGraph> comb_graph_;
     bool sensitivity_stable();
+    bool edge_stable();
 
     void wait_for_timed_processes();
+    void schedule_ff();
 };
 }  // namespace xsim::runtime
 

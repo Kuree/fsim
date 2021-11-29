@@ -29,7 +29,6 @@ auto constexpr raw_header_include = R"(#include "logic/array.hh"
 #include "logic/logic.hh"
 #include "logic/struct.hh"
 #include "logic/union.hh"
-#include "runtime/macro.hh"
 #include "runtime/module.hh"
 #include "runtime/system_task.hh"
 
@@ -633,6 +632,7 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
     s << "#include \"" << hh_filename << "\"" << std::endl;
     // include more stuff
     s << "#include \"runtime/scheduler.hh\"" << std::endl;
+    s << "#include \"runtime/macro.hh\"" << std::endl;
 
     int indent_level = 0;
 

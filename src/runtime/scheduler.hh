@@ -18,10 +18,10 @@ class Scheduler;
 
 struct Process {
     uint64_t id = 0;
-    std::atomic<bool> finished = false;
+    bool finished = false;
     // by default a process is always running. it is only false
     // when it is waiting for some time slot in the future
-    std::atomic<bool> running = true;
+    bool running = true;
     marl::Event cond = marl::Event(marl::Event::Mode::Auto);
     std::function<void()> func;
 

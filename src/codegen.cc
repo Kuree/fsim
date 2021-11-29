@@ -516,15 +516,44 @@ void codegen_ff(std::ostream &s, int &indent_level, const FFProcess *process,
       << std::endl;
 
     // generate edge trigger functions
+    s << get_indent(indent_level) << ptr_name << "->should_trigger = [this]() {" << std::endl;
+    indent_level++;
+
+    s << get_indent(indent_level) << "return false";
+    for (auto const &[edge, v] : process->edges) {
+        if (edge == slang::EdgeKind::PosEdge || edge == slang::EdgeKind::BothEdges) {
+            s << fmt::format(" || {0}.should_trigger_posedge", v->name);
+        }
+        if (edge == slang::EdgeKind::NegEdge || edge == slang::EdgeKind::BothEdges) {
+            s << fmt::format(" || {0}.should_trigger_negedge", v->name);
+        }
+    }
+    indent_level--;
+    s << ";" << std::endl << get_indent(indent_level) << "};" << std::endl;
+
+    // compute trigger cancel
+    s << get_indent(indent_level) << ptr_name << "->cancel_changed = [this]() {" << std::endl;
+    indent_level++;
+
+    std::set<std::string_view> vars;
     for (auto const &[edge, v] : process->edges) {
         if (edge == slang::EdgeKind::PosEdge || edge == slang::EdgeKind::BothEdges) {
             s << get_indent(indent_level)
-              << fmt::format("{0}.posedge.emplace_back({1});", v->name, ptr_name) << std::endl;
+              << fmt::format("{0}.should_trigger_posedge = false;", v->name) << std::endl;
         }
         if (edge == slang::EdgeKind::NegEdge || edge == slang::EdgeKind::BothEdges) {
             s << get_indent(indent_level)
-              << fmt::format("{0}.negedge.emplace_back({1});", v->name, ptr_name) << std::endl;
+              << fmt::format("{0}.should_trigger_negedge = false;", v->name) << std::endl;
         }
+        vars.emplace(v->name);
+    }
+
+    indent_level--;
+    s << get_indent(indent_level) << "};" << std::endl;
+
+    // set edge tracking as well
+    for (auto name: vars) {
+        s << get_indent(indent_level) << name << ".track_edge = true;" << std::endl;
     }
 
     indent_level--;

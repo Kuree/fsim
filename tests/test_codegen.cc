@@ -197,5 +197,5 @@ endmodule
     testing::internal::CaptureStdout();
     builder.build(&compilation);
     std::string output = testing::internal::GetCapturedStdout();
-    printf("%s\n", output.c_str());
+    EXPECT_NE(output.find("a=2 b=1\na=3 b=3"), std::string::npos);
 }

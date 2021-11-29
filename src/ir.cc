@@ -302,8 +302,6 @@ std::string Module::analyze_ff() {
                         }
                         auto const &named = single_event.expr.as<slang::NamedValueExpression>();
                         edges.emplace_back(std::make_pair(single_event.edge, &named.symbol));
-                    } else if (single_event.edge == slang::EdgeKind::BothEdges) {
-                        return "Both edges not supported";
                     }
                 }
             }

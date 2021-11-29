@@ -179,6 +179,7 @@ void schedule_callbacks(const std::vector<FFProcess *> &processes) {
     if (processes.empty()) return;
     marl::WaitGroup wg(processes.size());
 
+    // TODO: implement iff condition with triggering
     // this is just to make sure we call each functions
     for (auto *p : processes) {
         marl::schedule([p, wg]() {

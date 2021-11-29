@@ -249,7 +249,9 @@ public:
     [[maybe_unused]] void handle(const slang::TimedStatement &stmt) {
         auto const &timing = stmt.timing;
         if (timing.kind != slang::TimingControlKind::Delay) {
-            throw std::runtime_error("Only delay timing control supported");
+            // only care about delay so far
+            stmt.stmt.visit(*this);
+            return;
         }
         s << std::endl;
         // we first release the current condition holds
@@ -483,6 +485,53 @@ void codegen_always(std::ostream &s, int &indent_level, const CombProcess *proce
     s << get_indent(indent_level) << "}" << std::endl;
 }
 
+void codegen_ff(std::ostream &s, int &indent_level, const FFProcess *process,
+                const CXXCodeGenOptions &options, CodeGenModuleInformation &info) {
+    s << get_indent(indent_level) << "{" << std::endl;
+    indent_level++;
+    auto const &ptr_name = info.enter_process();
+
+    s << get_indent(indent_level)
+      << fmt::format("auto {0} = {1}->create_ff_process();", ptr_name, info.scheduler_name())
+      << std::endl
+      << get_indent(indent_level)
+      << fmt::format("{0}->func = [this, {0}, {1}]() {{", ptr_name, info.scheduler_name())
+      << std::endl;
+    indent_level++;
+    s << get_indent(indent_level) << ptr_name << "->running = true;" << std::endl;
+    s << get_indent(indent_level) << ptr_name << "->finished = false;" << std::endl;
+    s << get_indent(indent_level);
+
+    auto const &stmts = process->stmts;
+    for (auto const *stmt : stmts) {
+        codegen_sym(s, indent_level, stmt, options, info);
+    }
+
+    s << get_indent(indent_level) << fmt::format("END_PROCESS({0});", ptr_name) << std::endl;
+
+    indent_level--;
+    s << get_indent(indent_level) << "};" << std::endl;
+
+    s << get_indent(indent_level) << fmt::format("ff_process_.emplace_back({0});", ptr_name)
+      << std::endl;
+
+    // generate edge trigger functions
+    for (auto const &[edge, v] : process->edges) {
+        if (edge == slang::EdgeKind::PosEdge || edge == slang::EdgeKind::BothEdges) {
+            s << get_indent(indent_level)
+              << fmt::format("{0}.posedge.emplace_back({1});", v->name, ptr_name) << std::endl;
+        }
+        if (edge == slang::EdgeKind::NegEdge || edge == slang::EdgeKind::BothEdges) {
+            s << get_indent(indent_level)
+              << fmt::format("{0}.negedge.emplace_back({1});", v->name, ptr_name) << std::endl;
+        }
+    }
+
+    indent_level--;
+    info.exit_process();
+    s << get_indent(indent_level) << "}" << std::endl;
+}
+
 void output_header_file(const std::filesystem::path &filename, const Module *mod,
                         const CXXCodeGenOptions &options, CodeGenModuleInformation &info) {
     // analyze the dependencies to include which headers
@@ -508,6 +557,12 @@ void output_header_file(const std::filesystem::path &filename, const Module *mod
         }
     }
 
+    for (auto const &ff : mod->ff_processes) {
+        for (auto const &[_, v] : ff->edges) {
+            info.add_tracked_name(v->name);
+        }
+    }
+
     // all variables are public
     {
         CodeGenVisitor<false, false> v(s, indent_level, options, info);
@@ -527,6 +582,11 @@ void output_header_file(const std::filesystem::path &filename, const Module *mod
 
     if (!mod->comb_processes.empty()) {
         s << get_indent(indent_level) << "void comb(xsim::runtime::Scheduler *) override;"
+          << std::endl;
+    }
+
+    if (!mod->ff_processes.empty()) {
+        s << get_indent(indent_level) << "void ff(xsim::runtime::Scheduler *) override;"
           << std::endl;
     }
 
@@ -583,6 +643,20 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
 
         for (auto const &comb : mod->comb_processes) {
             codegen_always(s, indent_level, comb.get(), options, info);
+        }
+
+        indent_level--;
+        s << get_indent(indent_level) << "}" << std::endl;
+    }
+
+    // ff block
+    if (!mod->ff_processes.empty()) {
+        s << get_indent(indent_level) << "void " << mod->name << "::ff(xsim::runtime::Scheduler *"
+          << info.scheduler_name() << ") {" << std::endl;
+        indent_level++;
+
+        for (auto const &comb : mod->ff_processes) {
+            codegen_ff(s, indent_level, comb.get(), options, info);
         }
 
         indent_level--;

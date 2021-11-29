@@ -158,3 +158,44 @@ endmodule
     EXPECT_NE(output.find("a=2 c=3"), std::string::npos);
     EXPECT_NE(output.find("a=3 c=4"), std::string::npos);
 }
+
+TEST(code, always_ff_single_trigger) {  // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+module m;
+logic [3:0] a, b;
+logic clk;
+
+always_ff @(posedge clk) begin
+    b = a;
+end
+
+initial begin
+    clk = 0;
+    a = 0;
+    #1;
+    clk = 1;
+    a = 1;
+    #1;
+    clk = 0;
+    a = 2;
+    $display("a=%0d b=%0d", a, b);
+    #1
+    clk = 1;
+    a = 3;
+    #1
+    $display("a=%0d b=%0d", a, b);
+end
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    BuildOptions options;
+    options.debug_build = true;
+    options.run_after_build = true;
+    Builder builder(options);
+    testing::internal::CaptureStdout();
+    builder.build(&compilation);
+    std::string output = testing::internal::GetCapturedStdout();
+    printf("%s\n", output.c_str());
+}

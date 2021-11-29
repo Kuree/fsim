@@ -40,7 +40,10 @@ public:
     std::function<void()> cancel_changed = []() {};
 };
 
-struct FFProcess : public Process {};
+struct FFProcess : public Process {
+public:
+    FFProcess();
+};
 
 struct FinalProcess : public Process {};
 

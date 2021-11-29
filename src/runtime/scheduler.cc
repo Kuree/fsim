@@ -11,6 +11,12 @@ namespace xsim::runtime {
 // statically determined the number of cores to use based on number of event-based processes?
 constexpr uint64_t num_marl_cores = 2;
 
+FFProcess::FFProcess() {
+    // by default, it's not doing anything
+    running = false;
+    finished = true;
+}
+
 ScheduledTimeslot::ScheduledTimeslot(uint64_t time, Process *process)
     : time(time), process(process) {}
 
@@ -169,15 +175,14 @@ bool Scheduler::terminate() const {
     return !has_init_left(init_processes_) && top_->stabilized() && event_queue_.empty();
 }
 
-void schedule_callbacks(const std::vector<std::function<void()>> &funcs) {
-    if (funcs.empty()) return;
-    marl::WaitGroup wg(funcs.size());
+void schedule_callbacks(const std::vector<FFProcess *> &processes) {
+    if (processes.empty()) return;
+    marl::WaitGroup wg(processes.size());
 
     // this is just to make sure we call each functions
-    // we don't care if they actually finish or not
-    for (auto const &func : funcs) {
-        marl::schedule([func, wg]() {
-            func();
+    for (auto *p : processes) {
+        marl::schedule([p, wg]() {
+            p->func();
             wg.done();
         });
     }

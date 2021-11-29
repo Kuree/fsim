@@ -89,7 +89,6 @@ void Module::wait_for_timed_processes() {
     for (auto *p : ff_process_) {
         if (!p->finished && p->running) {
             p->cond.wait();
-            p->running = false;
         }
     }
 }

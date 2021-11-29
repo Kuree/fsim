@@ -15,5 +15,6 @@
     do {                          \
         process->cond.signal();   \
         process->finished = true; \
+        process->running = false; \
     } while (0)
 #endif  // XSIM_MACRO_HH

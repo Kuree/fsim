@@ -12,7 +12,7 @@ class CombProcess;
 class FFProcess;
 class CombinationalGraph;
 
-void schedule_callbacks(const std::vector<std::function<void()>> &funcs);
+void schedule_callbacks(const std::vector<FFProcess *> &processes);
 
 template <int msb, int lsb = msb, bool signed_ = false>
 class logic_t : public logic::logic<msb, lsb, signed_> {
@@ -29,20 +29,28 @@ public:
         if (this->match(v)) {
             changed = false;
         } else {
-            // value has to be changed first
-            logic::logic<msb, lsb, signed_>::operator=(v);
-            changed = true;
-
             // dealing with edge triggering events
             if constexpr (size == 1) {
                 // only allowed for size 1 signals
+                // LRM Table 9-2
                 if (!posedge.empty() && v == logic::logic<msb, lsb, signed_>::one_() &&
                     (*this) != logic::logic<msb, lsb, signed_>::one_()) {
+                    // value has to be changed first
+                    logic::logic<msb, lsb, signed_>::operator=(v);
+                    changed = true;
                     schedule_callbacks(posedge);
-                } else if (!negedge.empty() && v == logic::logic<msb, lsb, signed_>::zero_() &&
-                           (*this) != logic::logic<msb, lsb, signed_>::zero_()) {
+                }
+                if (!negedge.empty() && v == logic::logic<msb, lsb, signed_>::zero_() &&
+                    (*this) != logic::logic<msb, lsb, signed_>::zero_()) {
+                    // value has to be changed first
+                    logic::logic<msb, lsb, signed_>::operator=(v);
+                    changed = true;
                     schedule_callbacks(negedge);
                 }
+            } else {
+                // value has to be changed first
+                logic::logic<msb, lsb, signed_>::operator=(v);
+                changed = true;
             }
         }
 
@@ -51,10 +59,10 @@ public:
 
     // discard the state when it's assigned to
     // clang-tidy will complain, but it's worth it
-    bool changed = true;
+    bool changed = false;
 
-    std::vector<std::function<void()>> posedge;
-    std::vector<std::function<void()>> negedge;
+    std::vector<FFProcess *> posedge;
+    std::vector<FFProcess *> negedge;
 };
 
 class Module {

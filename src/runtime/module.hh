@@ -13,6 +13,8 @@ class FFProcess;
 class CombinationalGraph;
 
 void schedule_callbacks(const std::vector<FFProcess *> &processes);
+bool trigger_posedge(const logic::logic<0> &old, const logic::logic<0> &new_);
+bool trigger_negedge(const logic::logic<0> &old, const logic::logic<0> &new_);
 
 template <int msb, int lsb = msb, bool signed_ = false>
 class logic_t : public logic::logic<msb, lsb, signed_> {
@@ -33,20 +35,14 @@ public:
             if constexpr (size == 1) {
                 // only allowed for size 1 signals
                 // LRM Table 9-2
-                if (!posedge.empty() && v == logic::logic<msb, lsb, signed_>::one_() &&
-                    (*this) != logic::logic<msb, lsb, signed_>::one_()) {
-                    // value has to be changed first
-                    logic::logic<msb, lsb, signed_>::operator=(v);
-                    changed = true;
-                    schedule_callbacks(posedge);
-                }
-                if (!negedge.empty() && v == logic::logic<msb, lsb, signed_>::zero_() &&
-                    (*this) != logic::logic<msb, lsb, signed_>::zero_()) {
-                    // value has to be changed first
-                    logic::logic<msb, lsb, signed_>::operator=(v);
-                    changed = true;
-                    schedule_callbacks(negedge);
-                }
+                auto const new_v = v[logic::util::min(op_msb, op_lsb)];
+                bool should_trigger_posedge = !posedge.empty() && trigger_posedge(*this, new_v);
+                bool should_trigger_negedge = !negedge.empty() && trigger_negedge(*this, new_v);
+                // value has to be changed first
+                logic::logic<msb, lsb, signed_>::operator=(v);
+                if (should_trigger_posedge) schedule_callbacks(posedge);
+                if (should_trigger_negedge) schedule_callbacks(negedge);
+                changed = true;
             } else {
                 // value has to be changed first
                 logic::logic<msb, lsb, signed_>::operator=(v);

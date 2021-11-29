@@ -339,5 +339,8 @@ public:
 TEST(runtime, ff_blocking) {  // NOLINT
     Scheduler scheduler;
     FFBlockingAssignment m;
+    testing::internal::CaptureStdout();
     scheduler.run(&m);
+    std::string output = testing::internal::GetCapturedStdout();
+    EXPECT_NE(output.find("b is 1"), std::string::npos);
 }

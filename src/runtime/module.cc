@@ -4,6 +4,19 @@
 #include "scheduler.hh"
 
 namespace xsim::runtime {
+
+bool trigger_posedge(const logic::logic<0> &old, const logic::logic<0> &new_) {
+    // LRM Table 9-2
+    return ((old != logic::logic<0>::one_() && new_ == logic::logic<0>::one_()) ||
+            (old == logic::logic<0>::zero_() && new_ != logic::logic<0>::zero_()));
+}
+
+bool trigger_negedge(const logic::logic<0> &old, const logic::logic<0> &new_) {
+    // LRM Table 9-2
+    return ((old != logic::logic<0>::zero_() && new_ == logic::logic<0>::zero_()) ||
+            (old == logic::logic<0>::one_() && new_ != logic::logic<0>::one_()));
+}
+
 std::string Module::hierarchy_name() const {
     std::string result = std::string(inst_name);
     auto const *module = this->parent;

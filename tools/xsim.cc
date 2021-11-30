@@ -2,8 +2,8 @@
  * Majority of this code is copied from slang/driver
  */
 #include <fstream>
-#include <iostream>
 
+#include "../src/builder.hh"
 #include "slang/compilation/Compilation.h"
 #include "slang/diagnostics/DeclarationsDiags.h"
 #include "slang/diagnostics/DiagnosticEngine.h"
@@ -21,7 +21,6 @@
 #include "slang/util/OS.h"
 #include "slang/util/String.h"
 #include "slang/util/Version.h"
-#include "../src/builder.hh"
 
 using namespace slang;
 
@@ -479,6 +478,7 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
             if (runAfterCompilation) {
                 b_opt.run_after_build = true;
             }
+            b_opt.simv_path = std::filesystem::weakly_canonical(argv[0]);
             xsim::Builder builder(b_opt);
             builder.build(&compilation);
         }

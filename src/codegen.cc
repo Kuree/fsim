@@ -756,13 +756,13 @@ void NinjaCodeGen::output(const std::string &dir) {
     std::stringstream stream;
     // filling out missing information
     // use the output dir as the runtime dir
-    if (options_.clang_path.empty()) {
+    if (options_.cxx_path.empty()) {
         // hope for the best?
         auto const *cxx = std::getenv("XSIM_CXX");
         if (cxx) {
-            options_.clang_path = cxx;
+            options_.cxx_path = cxx;
         } else {
-            options_.clang_path = "clang";
+            options_.cxx_path = "g++";
         }
     }
     if (options_.binary_name.empty()) {
@@ -782,7 +782,7 @@ void NinjaCodeGen::output(const std::string &dir) {
     stream << std::endl << std::endl;
     stream << "rule cc" << std::endl;
     stream << "  depfile = $out.d" << std::endl;
-    stream << "  command = " << options_.clang_path << " -MD -MF $out.d $cflags -c $in -o $out"
+    stream << "  command = " << options_.cxx_path << " -MD -MF $out.d $cflags -c $in -o $out"
            << std::endl
            << std::endl;
 
@@ -799,7 +799,7 @@ void NinjaCodeGen::output(const std::string &dir) {
     auto main_linkers = fmt::format("-pthread -lstdc++ -Wl,-rpath,{0}", lib_path.string());
     // build the main
     stream << "rule main" << std::endl;
-    stream << "  command = " << options_.clang_path << " $in " << runtime_lib_path << " $cflags "
+    stream << "  command = " << options_.cxx_path << " $in " << runtime_lib_path << " $cflags "
            << main_linkers << " -o $out" << std::endl
            << std::endl;
     stream << "build " << options_.binary_name << ": main " << objs << std::endl;

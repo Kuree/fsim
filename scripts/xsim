@@ -1,0 +1,3 @@
+#!/bin/bash -xe
+
+docker run -it --rm -v ${PWD}:/work --user $(id -u):$(id -g) keyiz/xsim "${@:1}"

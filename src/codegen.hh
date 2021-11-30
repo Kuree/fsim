@@ -30,7 +30,7 @@ private:
 
 struct NinjaCodeGenOptions {
     bool debug_build = false;
-    std::string clang_path;
+    std::string cxx_path;
     std::string binary_name;
 };
 

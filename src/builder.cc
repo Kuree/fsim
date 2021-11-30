@@ -26,16 +26,46 @@ std::unordered_set<const Module *> get_defs(const Module *module) {
     return result;
 }
 
-void symlink_folders(const std::string &output_dir) {
+void symlink_folders(const std::string &output_dir, const std::string &simv_path) {
     // need to locate where the files are
     // for now we look for stuff based on the current file
-    std::filesystem::path current_file = __FILE__;
-    auto src = current_file.parent_path();
-    auto runtime = src / "runtime";
-    auto root = src.parent_path();
-    auto extern_ = root / "extern";
-    auto logic = extern_ / "logic" / "include" / "logic";
-    auto marl = extern_ / "marl" / "include" / "marl";
+    std::filesystem::path runtime, logic, marl, runtime_path;
+    if (simv_path.empty()) {
+        std::filesystem::path current_file = __FILE__;
+        auto src = current_file.parent_path();
+        runtime = src / "runtime";
+        auto root = src.parent_path();
+        auto extern_ = root / "extern";
+        logic = extern_ / "logic" / "include" / "logic";
+        marl = extern_ / "marl" / "include" / "marl";
+
+        std::filesystem::directory_iterator it(root);
+        for (auto const &p : it) {
+            std::string path_str = p.path();
+            if (path_str.find("build") != std::string::npos) {
+                auto target_path = p.path() / "src" / "runtime" / "libxsim-runtime.so";
+                if (std::filesystem::exists(target_path)) {
+                    runtime_path = target_path;
+                }
+            }
+        }
+        if (runtime_path.empty()) {
+            throw std::runtime_error("Unable to locate xsim runtime library");
+        }
+
+    } else {
+        std::filesystem::path exe = simv_path;
+        auto root = exe.parent_path().parent_path();
+        auto include = root / "include";
+        runtime = include / "runtime";
+        logic = include / "logic";
+        marl = include / "marl";
+        runtime_path = root / "lib" / "libxsim-runtime.so";
+    }
+
+    if (!std::filesystem::exists(runtime_path)) {
+        throw std::runtime_error("Unable to locate xsim libraries");
+    }
 
     std::filesystem::path output_path = output_dir;
     auto dst_include_dir = output_path / "include";
@@ -64,22 +94,7 @@ void symlink_folders(const std::string &output_dir) {
     // once packaging is working all the search process needs to be enhanced
     auto runtime_dst_path = dst_lib_dir / "libxsim-runtime.so";
     if (!std::filesystem::exists(runtime_dst_path)) {
-        bool lib_linked = false;
-        std::filesystem::directory_iterator it(root);
-        for (auto const &p : it) {
-            std::string path_str = p.path();
-            if (path_str.find("build") != std::string::npos) {
-                auto target_path = p.path() / "src" / "runtime" / "libxsim-runtime.so";
-                if (std::filesystem::exists(target_path)) {
-                    std::filesystem::create_symlink(target_path, runtime_dst_path);
-                    lib_linked = true;
-                    break;
-                }
-            }
-        }
-        if (!lib_linked) {
-            throw std::runtime_error("Unable to locate xsim runtime library");
-        }
+        std::filesystem::create_symlink(runtime_path, runtime_dst_path);
     }
 }
 
@@ -97,7 +112,7 @@ void Builder::build(const Module *module) const {
     // generate ninja first
     NinjaCodeGenOptions n_options;
     n_options.debug_build = options_.debug_build;
-    n_options.clang_path = options_.clang_path;
+    n_options.cxx_path = options_.cxx_path;
     n_options.binary_name = options_.binary_name;
 
     NinjaCodeGen ninja(module, n_options);
@@ -116,7 +131,7 @@ void Builder::build(const Module *module) const {
     }
 
     // need to symlink stuff over
-    symlink_folders(options_.working_dir);
+    symlink_folders(options_.working_dir, options_.simv_path);
 
     // call ninja to build the stuff
     {

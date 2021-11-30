@@ -18,6 +18,7 @@ template <typename T>
 inline std::string get_cc_filename(const T &name) {
     return fmt::format("{0}.cc", name);
 }
+
 template <typename T>
 inline std::string get_hh_filename(const T &name) {
     return fmt::format("{0}.hh", name);
@@ -122,7 +123,7 @@ void write_to_file(const std::string &filename, std::stringstream &stream) {
                 f.seekg(0, std::ios::end);
                 contents.resize(f.tellg());
                 f.seekg(0, std::ios::beg);
-                f.read(&contents[0], contents.size());
+                f.read(&contents[0], static_cast<int64_t>(contents.size()));
 
                 if (contents != buf) {
                     f.close();

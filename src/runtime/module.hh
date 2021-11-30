@@ -8,8 +8,8 @@
 #include "logic/logic.hh"
 namespace xsim::runtime {
 class Scheduler;
-class CombProcess;
-class FFProcess;
+struct CombProcess;
+struct FFProcess;
 class CombinationalGraph;
 
 bool trigger_posedge(const logic::logic<0> &old, const logic::logic<0> &new_);

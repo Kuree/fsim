@@ -2,6 +2,7 @@
 #define XSIM_IR_HH
 
 #include <memory>
+#include <unordered_set>
 
 #include "slang/symbols/ASTVisitor.h"
 
@@ -63,6 +64,8 @@ public:
     std::map<std::string, std::shared_ptr<Module>> child_instances;
 
     [[nodiscard]] const slang::InstanceSymbol *def() const { return def_; }
+
+    [[nodiscard]] std::unordered_set<const Module *> get_defs() const;
 
 private:
     const slang::InstanceSymbol *def_;

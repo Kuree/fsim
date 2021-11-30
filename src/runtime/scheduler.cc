@@ -7,9 +7,6 @@
 
 namespace xsim::runtime {
 
-// statically determined the number of cores to use based on number of event-based processes?
-constexpr uint64_t num_marl_cores = 2;
-
 void Process::schedule_nba(std::function<void()> &&f) const {
     scheduler->schedule_nba(std::move(f));
 }
@@ -23,7 +20,7 @@ FFProcess::FFProcess() {
 ScheduledTimeslot::ScheduledTimeslot(uint64_t time, Process *process)
     : time(time), process(process) {}
 
-Scheduler::Scheduler() : marl_scheduler_({num_marl_cores}) {
+Scheduler::Scheduler() : marl_scheduler_(marl::Scheduler::Config::allCores()) {
     // bind to the main thread
     marl_scheduler_.bind();
 }

@@ -11,6 +11,7 @@ namespace xsim {
 using DGraph = DependencyAnalysisVisitor::Graph;
 using DNode = DependencyAnalysisVisitor::Node;
 
+// NOLINTNEXTLINE
 void sort_(const DNode *node, std::unordered_set<const DNode *> &visited,
            std::stack<const DNode *> &stack) {
     visited.emplace(node);
@@ -349,6 +350,20 @@ std::string Module::analyze_inst() {
     ModuleAnalyzeVisitor vis(this);
     def_->visit(vis);
     return vis.error;
+}
+
+// NOLINTNEXTLINE
+void get_defs(const Module *module, std::unordered_set<const Module *> &result) {
+    result.emplace(module);
+    for (auto const &[_, inst] : module->child_instances) {
+        get_defs(inst.get(), result);
+    }
+}
+
+std::unordered_set<const Module *> Module::get_defs() const {
+    std::unordered_set<const Module *> result;
+    ::xsim::get_defs(this, result);
+    return result;
 }
 
 }  // namespace xsim

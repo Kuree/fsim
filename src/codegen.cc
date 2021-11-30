@@ -738,16 +738,12 @@ void CXXCodeGen::output(const std::string &dir) {
     output_main_file(main_filename, top_);
 }
 
-void get_defs(const Module *module, std::set<std::string> &result) {
-    result.emplace(module->name);
-    for (auto const &[_, inst] : module->child_instances) {
-        get_defs(inst.get(), result);
+std::set<std::string_view> get_defs(const Module *module) {
+    auto defs = module->get_defs();
+    std::set<std::string_view> result;
+    for (auto const *def : defs) {
+        result.emplace(def->name);
     }
-}
-
-std::set<std::string> get_defs(const Module *module) {
-    std::set<std::string> result;
-    get_defs(module, result);
     return result;
 }
 

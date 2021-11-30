@@ -13,19 +13,6 @@ namespace xsim {
 
 auto constexpr default_working_dir = "xsim_dir";
 
-void get_defs(const Module *module, std::unordered_set<const Module *> &result) {
-    result.emplace(module);
-    for (auto const &[_, inst] : module->child_instances) {
-        get_defs(inst.get(), result);
-    }
-}
-
-std::unordered_set<const Module *> get_defs(const Module *module) {
-    std::unordered_set<const Module *> result;
-    get_defs(module, result);
-    return result;
-}
-
 void symlink_folders(const std::string &output_dir, const std::string &simv_path) {
     // need to locate where the files are
     // for now we look for stuff based on the current file
@@ -124,7 +111,7 @@ void Builder::build(const Module *module) const {
     c_options.use_4state = options_.use_4state;
 
     // could be parallelized here
-    auto modules = get_defs(module);
+    auto modules = module->get_defs();
     for (auto const *mod : modules) {
         CXXCodeGen cxx(mod, c_options);
         cxx.output(options_.working_dir);

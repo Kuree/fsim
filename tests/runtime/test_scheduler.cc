@@ -425,3 +425,154 @@ TEST(runtime, ff_nba) {  // NOLINT
     std::string output = testing::internal::GetCapturedStdout();
     EXPECT_NE(output.find("b is 1\n"), std::string::npos);
 }
+
+class ChildInstanceTest : public Module {
+public:
+    ChildInstanceTest() : Module("child") {}
+    /*
+     * module child (input logic clk,
+     *               input logic[3:0] in,
+     *               output logic[3:0] out);
+     * always_ff @(posedge clk) out <= in;
+     * endmodule
+     */
+    logic_t<0, 0> clk;
+    logic_t<3, 0> in, out;
+
+    void ff(Scheduler *scheduler) override {
+        auto process = scheduler->create_ff_process();
+        process->func = [this, process]() {
+            process->running = true;
+            process->finished = false;
+            marl::schedule([this, process]() {
+                SCHEDULE_NBA_UPDATE(out, in, process);
+                END_PROCESS(process);
+            });
+        };
+
+        process->should_trigger = [this]() { return clk.should_trigger_posedge; };
+        process->cancel_changed = [this]() { clk.should_trigger_posedge = false; };
+
+        ff_process_.emplace_back(process);
+        clk.track_edge = true;
+    }
+};
+
+class ChildInstanceTop : public Module {
+public:
+    ChildInstanceTop() : Module("top"), inst(std::make_shared<ChildInstanceTest>()) {
+        child_instances_.emplace_back(inst.get());
+    }
+
+    /*
+     *
+     * module top;
+     * logic[3:0] in, out, a;
+     * logic clk;
+     * child inst (.*);
+     *
+     * assign a = out;
+     *
+     * always_ff @(posedge clk)
+     *     a <= 1;
+     *
+     * endmodule
+     */
+
+    logic_t<3, 0> out, in;
+    logic::logic<3, 0> a;
+    logic_t<0, 0> clk;
+
+    std::shared_ptr<ChildInstanceTest> inst;
+
+    void comb(Scheduler *scheduler) override {
+        {
+            auto *always = scheduler->create_comb_process();
+            always->input_changed = [this]() {
+                bool res = this->out.changed;
+                return res;
+            };
+            always->func = [this] {
+                a = out;  // NOLINT
+            };
+            always->cancel_changed = [this]() {
+                out.changed = false; };
+            comb_processes_.emplace_back(always);
+        }
+
+        // a comb process for child instance input
+        {
+            auto *always = scheduler->create_comb_process();
+            always->input_changed = [this]() {
+                bool res = this->in.changed || this->clk.changed;
+                return res;
+            };
+            always->func = [this] {
+                this->inst->in.update_value(in);
+                this->inst->clk.update_value(clk);
+            };
+            always->cancel_changed = [this]() {
+                in.changed = false;
+                clk.changed = false;
+            };
+            comb_processes_.emplace_back(always);
+        }
+
+        // a comb process for child instance output
+        {
+            auto *always = scheduler->create_comb_process();
+            always->input_changed = [this]() {
+                bool res = this->inst->out.changed;
+                return res;
+            };
+            always->func = [this] {
+                this->out.update_value(this->inst->out);
+            };
+            always->cancel_changed = [this]() {
+                this->inst->out.changed = false;
+            };
+            comb_processes_.emplace_back(always);
+        }
+
+
+        for (auto *module : child_instances_) {
+            module->comb(scheduler);
+        }
+    }
+
+    void init(Scheduler *scheduler) override {
+        auto init_ptr = scheduler->create_init_process();
+        init_ptr->func = [init_ptr, scheduler, this]() {
+            clk = 0_logic;
+            in = 4_logic;
+            SCHEDULE_DELAY(init_ptr, 2, scheduler, n);
+            clk = 1_logic;
+            SCHEDULE_DELAY(init_ptr, 2, scheduler, n);
+            display(this, "a=%0d", a);
+
+            // done with this init
+            END_PROCESS(init_ptr);
+        };
+        Scheduler::schedule_init(init_ptr);
+
+        for (auto *module : child_instances_) {
+            module->init(scheduler);
+        }
+    }
+
+    void ff(Scheduler *scheduler) override {
+        for (auto *module : child_instances_) {
+            module->ff(scheduler);
+        }
+    }
+};
+
+TEST(runtime, inst) {  // NOLINT
+    Scheduler scheduler;
+    ChildInstanceTop m;
+    testing::internal::CaptureStdout();
+    scheduler.run(&m);
+    std::string output = testing::internal::GetCapturedStdout();
+    printf("%s\n", output.c_str());
+    EXPECT_NE(output.find("a=4\n"), std::string::npos);
+}

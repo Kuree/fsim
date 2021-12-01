@@ -44,6 +44,22 @@ public:
         return *this;
     }
 
+    template <typename T>
+    void update_value(const T &v) {
+        if (this->match(v)) {
+            changed = false;
+        } else {
+            // dealing with edge triggering events
+            if constexpr (size == 1 && v.size == 1) {
+                // only allowed for size 1 signals
+                should_trigger_posedge = track_edge && trigger_posedge(*this, v);
+                should_trigger_negedge = track_edge && trigger_negedge(*this, v);
+            }
+            logic::logic<msb, lsb, signed_>::operator=(v);
+            changed = true;
+        }
+    }
+
     // discard the state when it's assigned to
     // clang-tidy will complain, but it's worth it
     bool changed = false;
@@ -79,6 +95,9 @@ public:
 protected:
     std::vector<CombProcess *> comb_processes_;
     std::vector<FFProcess *> ff_process_;
+
+    // child instances
+    std::vector<Module *> child_instances_;
 
 private:
     std::shared_ptr<CombinationalGraph> comb_graph_;

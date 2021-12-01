@@ -25,4 +25,12 @@
             process->schedule_nba([this, wire]() { target = wire; }); \
         }                                                             \
     } while (0)
+
+#define SCHEDULE_NBA_UPDATE(target, value, process)                               \
+    do {                                                                          \
+        if (!target.match(value)) {                                               \
+            auto wire = value;                                                    \
+            process->schedule_nba([this, wire]() { target.update_value(wire); }); \
+        }                                                                         \
+    } while (0)
 #endif  // XSIM_MACRO_HH

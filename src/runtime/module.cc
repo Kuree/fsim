@@ -67,7 +67,7 @@ private:
     const std::vector<CombProcess *> &comb_processes_;
 };
 
-void Module::active() {
+void Module::active() {  // NOLINT
     if (!comb_graph_) {
         comb_graph_ = std::make_shared<CombinationalGraph>(comb_processes_);
         // every process is finished by default
@@ -84,6 +84,10 @@ void Module::active() {
         changed = false;
         while (!sensitivity_stable()) {
             comb_graph_->run();
+            for (auto *inst : child_instances_) {
+                inst->active();
+            }
+
             comb_graph_->clear();
             changed = true;
         }
@@ -96,6 +100,7 @@ void Module::active() {
 }
 
 bool Module::sensitivity_stable() {
+    if (comb_processes_.empty()) return true;
     auto r = std::all_of(comb_processes_.begin(), comb_processes_.end(),
                          [](auto *p) { return !p->input_changed(); });
     return r;
@@ -130,7 +135,7 @@ void Module::wait_for_timed_processes() {
     }
 }
 
-void Module::schedule_ff() {
+void Module::schedule_ff() {  // NOLINT
     if (ff_process_.empty()) return;
     uint64_t num_process = 0;
     for (auto const *p : ff_process_) {
@@ -149,6 +154,11 @@ void Module::schedule_ff() {
     }
 
     wg.wait();
+
+    for (auto *inst : child_instances_) {
+        inst->schedule_ff();
+    }
+
     for (auto *p : ff_process_) {
         p->cancel_changed();
     }

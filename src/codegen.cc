@@ -157,13 +157,98 @@ public:
         auto uint_opt = v.as<int>();
         int value = uint_opt ? *uint_opt : 0;
         s << value;
-        // use constexpr
         s << "_logic";
     }
 
     [[maybe_unused]] void handle(const slang::NamedValueExpression &n) { s << n.symbol.name; }
 
-    [[maybe_unused]] void handle(const slang::ConversionExpression &c) { c.operand().visit(*this); }
+    [[maybe_unused]] void handle(const slang::ConversionExpression &c) {
+        auto const &t = *c.type;
+        s << "(";
+        c.operand().visit(*this);
+        s << ")";
+        if (c.operand().kind != slang::ExpressionKind::IntegerLiteral) {
+            if (c.operand().type->getBitWidth() > t.getBitWidth()) {
+                // this is a slice
+                s << ".slice<" << t.getFixedRange().left << ", " << t.getFixedRange().right
+                  << ">()";
+            } else if (c.operand().type->getBitWidth() < t.getBitWidth()) {
+                // it's an extension
+                auto size = std::abs(t.getFixedRange().left - t.getFixedRange().right);
+                s << ".extend<" << size << ">()";
+            }
+            if (c.operand().type->isSigned() && !t.isSigned()) {
+                s << ".to_unsigned()";
+            } else if (!c.operand().type->isSigned() && t.isSigned()) {
+                s << ".to_signed()";
+            }
+        }
+    }
+
+    [[maybe_unused]] void handle(const slang::LValueReferenceExpression &) {
+        if (!left_ptr) throw std::runtime_error("Unable to determine LValue");
+        left_ptr->visit(*this);
+    }
+
+    [[maybe_unused]] void handle(const slang::UnaryExpression &expr) {
+        auto const &op = expr.operand();
+        s << "(";
+        // simple ones that have C++ operator overloaded
+        bool handled = true;
+        switch (expr.op) {
+            case slang::UnaryOperator::Minus:
+                s << "-";
+                op.visit(*this);
+                break;
+            case slang::UnaryOperator::Plus:
+                s << "+";
+                op.visit(*this);
+                break;
+            case slang::UnaryOperator::Predecrement:
+                s << "--";
+                op.visit(*this);
+                break;
+            case slang::UnaryOperator::Preincrement:
+                s << "++";
+                op.visit(*this);
+                break;
+            default:
+                handled = false;
+        }
+        // complex one that uses special function calls
+        switch (expr.op) {
+            case slang::UnaryOperator::BitwiseAnd:
+                op.visit(*this);
+                s << ").r_and(";
+                break;
+            case slang::UnaryOperator::BitwiseOr:
+                op.visit(*this);
+                s << ").r_or(";
+                break;
+            case slang::UnaryOperator::Preincrement:
+                s << "++";
+                op.visit(*this);
+                break;
+            case slang::UnaryOperator::Predecrement:
+                s << "--";
+                op.visit(*this);
+                break;
+            case slang::UnaryOperator::Postdecrement:
+                op.visit(*this);
+                s << "--";
+                break;
+            case slang::UnaryOperator::Postincrement:
+                op.visit(*this);
+                s << "++";
+                break;
+            default:
+                if (!handled)
+                    throw std::runtime_error(
+                        fmt::format("Unsupported operator {0}", slang::toString(expr.op)));
+        }
+        // the one with special function calls
+        s << ")";
+    }
 
     [[maybe_unused]] void handle(const slang::BinaryExpression &expr) {
         // TODO: implement sizing, which is the most bizarre thing compared to C/C++
@@ -198,6 +283,24 @@ public:
             case slang::BinaryOperator::Inequality:
                 s << " != ";
                 break;
+            case slang::BinaryOperator::LogicalAnd:
+                s << " && ";
+                break;
+            case slang::BinaryOperator::LogicalOr:
+                s << " || ";
+                break;
+            case slang::BinaryOperator ::LessThan:
+                s << " < ";
+                break;
+            case slang::BinaryOperator::LessThanEqual:
+                s << " <= ";
+                break;
+            case slang::BinaryOperator::GreaterThan:
+                s << " > ";
+                break;
+            case slang::BinaryOperator::GreaterThanEqual:
+                s << " >= ";
+                break;
             default:
                 throw std::runtime_error(
                     fmt::format("Unsupported operator {0}", slang::toString(expr.op)));
@@ -209,6 +312,8 @@ public:
     }
 
     std::ostream &s;
+
+    const slang::Expression *left_ptr = nullptr;
 };
 
 template <bool visit_stmt = true, bool visit_expr = true>
@@ -226,7 +331,16 @@ public:
         auto type_name = get_var_type(var.name);
         auto range = t.getFixedRange();
         s << get_indent(indent_level) << type_name << "<" << range.left << ", " << range.right
-          << "> " << var.name << ";" << std::endl;
+          << "> " << var.name;
+
+        auto *init = var.getInitializer();
+        if (init) {
+            s << " = ";
+            ExprCodeGenVisitor v(s);
+            init->visit(v);
+        }
+
+        s << ";" << std::endl;
         // add it to tracked names
         module_info.add_used_names(var.name);
     }
@@ -284,6 +398,7 @@ public:
             auto const &left = expr.left();
             ExprCodeGenVisitor v(s);
             left.visit(v);
+            v.left_ptr = &left;
             s << " = ";
             auto const &right = expr.right();
             right.visit(v);
@@ -354,6 +469,39 @@ public:
     [[maybe_unused]] void handle(const slang::ContinuousAssignSymbol &sym) {
         this->visitDefault(sym);
         s << ";" << std::endl;
+    }
+
+    [[maybe_unused]] void handle(const slang::ForLoopStatement &loop) {
+        s << get_indent(indent_level) << "for (";
+        for (uint64_t i = 0; i < loop.initializers.size(); i++) {
+            auto const *expr = loop.initializers[i];
+            ExprCodeGenVisitor v(s);
+            expr->visit(v);
+            if (i != (loop.initializers.size() - 1)) {
+                s << ", ";
+            }
+        }
+        s << "; ";
+        {
+            ExprCodeGenVisitor v(s);
+            loop.stopExpr->visit(v);
+        }
+        s << "; ";
+        for (uint64_t i = 0; i < loop.steps.size(); i++) {
+            auto const *expr = loop.steps[i];
+            ExprCodeGenVisitor v(s);
+            expr->visit(v);
+            if (i != (loop.steps.size() - 1)) {
+                s << ", ";
+            }
+        }
+        s << ") {" << std::endl;
+        indent_level++;
+
+        loop.body.visit(*this);
+
+        indent_level--;
+        s << get_indent(indent_level) << "}";
     }
 
 private:

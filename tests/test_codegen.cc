@@ -240,3 +240,28 @@ endmodule
     std::string output = testing::internal::GetCapturedStdout();
     EXPECT_NE(output.find("a=2 b=1\na=3 b=3"), std::string::npos);
 }
+
+TEST(code, loop) {  // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+module m;
+initial begin
+    logic [3:0] sum = 0;
+    for (int i = 0; i < 4; i++) begin
+        sum += i;
+    end
+    $display("sum=%0d", sum);
+end
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    BuildOptions options;
+    options.debug_build = true;
+    options.run_after_build = true;
+    Builder builder(options);
+    testing::internal::CaptureStdout();
+    builder.build(&compilation);
+    std::string output = testing::internal::GetCapturedStdout();
+    EXPECT_NE(output.find("sum=6\n"), std::string::npos);
+}

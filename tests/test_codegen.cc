@@ -265,3 +265,45 @@ endmodule
     std::string output = testing::internal::GetCapturedStdout();
     EXPECT_NE(output.find("sum=6\n"), std::string::npos);
 }
+
+
+TEST(code, child_instance) {  // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+module child (
+    input logic clk,
+    input logic[5:0] in,
+    output logic[5:0] out);
+
+always_ff @(posedge clk)
+    out <= in;
+endmodule
+module m;
+logic clk;
+logic[5:0] in, out, a, b;
+
+child inst (.*);
+
+assign in = a + 1;
+assign b = out + 1;
+initial begin
+    clk = 0;
+    a = 1;
+    #1;
+    clk = 1;
+    #1;
+    $display("b=%0d", b);
+end
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    BuildOptions options;
+    options.debug_build = true;
+    options.run_after_build = true;
+    Builder builder(options);
+    testing::internal::CaptureStdout();
+    builder.build(&compilation);
+    std::string output = testing::internal::GetCapturedStdout();
+    EXPECT_NE(output.find("b=3\n"), std::string::npos);
+}

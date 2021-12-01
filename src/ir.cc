@@ -326,16 +326,19 @@ public:
         if (target_->def() == &inst) {
             visitDefault(inst);
         } else {
-            // child instance
-            auto def_name = inst.getDefinition().name;
-            if (module_defs_.find(def_name) == module_defs_.end()) {
-                auto child = std::make_shared<Module>(&inst);
-                module_defs_.emplace(def_name, child);
-                // this will call the analysis function recursively
-                error = child->analyze();
+            auto const &def = inst.getDefinition();
+            if (def.definitionKind == slang::DefinitionKind::Module) {
+                // child instance
+                auto def_name = inst.getDefinition().name;
+                if (module_defs_.find(def_name) == module_defs_.end()) {
+                    auto child = std::make_shared<Module>(&inst);
+                    module_defs_.emplace(def_name, child);
+                    // this will call the analysis function recursively
+                    error = child->analyze();
+                }
+                auto c = module_defs_.at(def_name);
+                target_->child_instances.emplace(inst.name, c);
             }
-            auto c = module_defs_.at(def_name);
-            target_->child_instances.emplace(inst.name, c);
         }
     }
 

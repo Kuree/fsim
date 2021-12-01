@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <set>
 #include <stack>
 #include <unordered_set>
@@ -466,9 +467,11 @@ public:
     }
 
     [[maybe_unused]] void handle(const slang::ContinuousAssignSymbol &sym) {
-        s << get_indent(indent_level);
-        this->visitDefault(sym);
-        s << ";" << std::endl;
+        if constexpr (visit_stmt) {
+            s << get_indent(indent_level);
+            this->visitDefault(sym);
+            s << ";" << std::endl;
+        }
     }
 
     [[maybe_unused]] void handle(const slang::ForLoopStatement &loop) {
@@ -500,6 +503,19 @@ public:
         loop.body.visit(*this);
     }
 
+    [[maybe_unused]] void handle(const slang::InstanceSymbol &inst) {
+        auto const &def = inst.getDefinition();
+        if (def.definitionKind == slang::DefinitionKind::Module) {
+            if (!inst_) {
+                inst_ = &inst;
+                this->template visitDefault(inst);
+            } else {
+                // don't go deeper
+                return;
+            }
+        }
+    }
+
 private:
     std::ostream &s;
     int &indent_level;
@@ -513,6 +529,8 @@ private:
             return module_info.var_tracked(name) ? "xsim::runtime::bit_t" : "logic::bit";
         }
     }
+
+    const slang::InstanceSymbol *inst_ = nullptr;
 };
 
 void codegen_sym(std::ostream &s, int &indent_level, const slang::Symbol *sym,

@@ -378,8 +378,7 @@ public:
         ExprCodeGenVisitor v(s);
         delay.expr.visit(v);
         s << fmt::format(").to_uint64(), {0}, {1});", module_info.scheduler_name(),
-                         module_info.get_new_name(xsim_next_time, false))
-          << std::endl;
+                         module_info.get_new_name(xsim_next_time, false));
 
         stmt.stmt.visit(*this);
     }
@@ -411,17 +410,17 @@ public:
 
     [[maybe_unused]] void handle(const slang::StatementList &list) {
         // entering a scope
-        s << "{";
+        s << get_indent(indent_level) << "{";
         indent_level++;
         this->template visitDefault(list);
         indent_level--;
-        s << get_indent(indent_level) << "}" << std::endl;
+        s << std::endl << get_indent(indent_level) << "}" << std::endl;
     }
 
     [[maybe_unused]] void handle(const slang::ExpressionStatement &stmt) {
         s << std::endl << get_indent(indent_level);
         this->template visitDefault(stmt);
-        s << ";" << std::endl;
+        s << ";";
     }
 
     [[maybe_unused]] void handle(const slang::ConditionalStatement &stmt) {
@@ -467,6 +466,7 @@ public:
     }
 
     [[maybe_unused]] void handle(const slang::ContinuousAssignSymbol &sym) {
+        s << get_indent(indent_level);
         this->visitDefault(sym);
         s << ";" << std::endl;
     }
@@ -495,13 +495,9 @@ public:
                 s << ", ";
             }
         }
-        s << ") {" << std::endl;
-        indent_level++;
+        s << ")";
 
         loop.body.visit(*this);
-
-        indent_level--;
-        s << get_indent(indent_level) << "}";
     }
 
 private:
@@ -538,7 +534,6 @@ void codegen_init(std::ostream &s, int &indent_level, const Process *process,
       << fmt::format("{0}->func = [this, {0}, {1}]() {{", ptr_name, info.scheduler_name())
       << std::endl;
     indent_level++;
-    s << get_indent(indent_level);
 
     auto const &stmts = process->stmts;
     for (auto const *stmt : stmts) {
@@ -569,7 +564,6 @@ void codegen_final(std::ostream &s, int &indent_level, const Process *process,
       << fmt::format("{0}->func = [this, {0}, {1}]() {{", ptr_name, info.scheduler_name())
       << std::endl;
     indent_level++;
-    s << get_indent(indent_level);
 
     auto const &stmts = process->stmts;
     for (auto const *stmt : stmts) {
@@ -606,7 +600,6 @@ void codegen_always(std::ostream &s, int &indent_level, const CombProcess *proce
           << fmt::format("{0}->func = [this, {0}, {1}]() {{", ptr_name, info.scheduler_name())
           << std::endl;
         indent_level++;
-        s << get_indent(indent_level);
 
         auto const &stmts = process->stmts;
         for (auto const *stmt : stmts) {
@@ -660,7 +653,6 @@ void codegen_ff(std::ostream &s, int &indent_level, const FFProcess *process,
     indent_level++;
     s << get_indent(indent_level) << ptr_name << "->running = true;" << std::endl;
     s << get_indent(indent_level) << ptr_name << "->finished = false;" << std::endl;
-    s << get_indent(indent_level);
 
     auto const &stmts = process->stmts;
     for (auto const *stmt : stmts) {

@@ -15,8 +15,30 @@ class CombinationalGraph;
 bool trigger_posedge(const logic::logic<0> &old, const logic::logic<0> &new_);
 bool trigger_negedge(const logic::logic<0> &old, const logic::logic<0> &new_);
 
+class TrackedVar {
+public:
+    bool changed = false;
+
+    bool track_edge = false;
+    bool should_trigger_posedge = false;
+    bool should_trigger_negedge = false;
+
+    std::vector<CombProcess *> comb_processes;
+    std::vector<FFProcess *> ff_posedge_processes;
+    std::vector<FFProcess *> ff_negedge_processes;
+
+    // no copy constructor
+    TrackedVar(const TrackedVar &) = delete;
+    TrackedVar &operator=(const TrackedVar &) = delete;
+
+    TrackedVar() = default;
+
+protected:
+    void trigger_process();
+};
+
 template <int msb, int lsb = msb, bool signed_ = false>
-class logic_t : public logic::logic<msb, lsb, signed_> {
+class logic_t : public logic::logic<msb, lsb, signed_>, public TrackedVar {
 public:
     // t for tracking
     static auto constexpr size = logic::util::abs_diff(msb, lsb) + 1;
@@ -27,6 +49,23 @@ public:
     template <int op_msb, int op_lsb, bool op_signed_>
     logic::logic<size - 1, 0, signed_> &operator=(
         const logic::logic<op_msb, op_lsb, op_signed_> &v) {
+        update_value(v);
+        return *this;
+    }
+
+    logic_t<size - 1, 0, signed_> &operator=(const logic_t<msb, lsb, signed_> &v) {
+        update_value(v);
+        return *this;
+    }
+
+    logic_t(const logic_t<msb, lsb, signed_> &v) { update_value(v); }
+
+    explicit logic_t(const logic::logic<msb, lsb, signed_> &v) { update_value(v); }
+
+    logic_t() : TrackedVar() {}
+
+    template <int op_msb, int op_lsb, bool op_signed_>
+    void update_value(const logic::logic<op_msb, op_lsb, op_signed_> &v) {
         if (this->match(v)) {
             changed = false;
         } else {
@@ -39,34 +78,9 @@ public:
             }
             logic::logic<msb, lsb, signed_>::operator=(v);
             changed = true;
-        }
-
-        return *this;
-    }
-
-    template <typename T>
-    void update_value(const T &v) {
-        if (this->match(v)) {
-            changed = false;
-        } else {
-            // dealing with edge triggering events
-            if constexpr (size == 1 && v.size == 1) {
-                // only allowed for size 1 signals
-                should_trigger_posedge = track_edge && trigger_posedge(*this, v);
-                should_trigger_negedge = track_edge && trigger_negedge(*this, v);
-            }
-            logic::logic<msb, lsb, signed_>::operator=(v);
-            changed = true;
+            trigger_process();
         }
     }
-
-    // discard the state when it's assigned to
-    // clang-tidy will complain, but it's worth it
-    bool changed = false;
-
-    bool track_edge = false;
-    bool should_trigger_posedge = false;
-    bool should_trigger_negedge = false;
 };
 
 class Module {

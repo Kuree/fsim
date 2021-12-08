@@ -29,24 +29,20 @@ struct Process {
     Scheduler *scheduler = nullptr;
 
     void schedule_nba(std::function<void()> &&f) const;
+
+    // used by trigger-based processes
+    bool should_trigger = false;
 };
 
 struct InitialProcess : public Process {};
 
 struct ForkProcess : public Process {};
 
-struct CombProcess : public Process {
-public:
-    std::function<bool()> input_changed = []() { return false; };
-
-    std::function<void()> cancel_changed = []() {};
-};
+struct CombProcess : public Process {};
 
 struct FFProcess : public Process {
 public:
     FFProcess();
-
-    std::function<bool()> should_trigger = []() { return false; };
     std::function<void()> cancel_changed = []() {};
 };
 

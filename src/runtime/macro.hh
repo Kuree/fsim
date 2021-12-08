@@ -8,14 +8,16 @@
             xsim::runtime::ScheduledTimeslot(scheduler->sim_time + pound_time, process); \
         scheduler->schedule_delay(next_time);                                            \
         process->cond.signal();                                                          \
+        process->running = false;                                                        \
         process->delay.wait();                                                           \
     } while (0)
 
-#define END_PROCESS(process)      \
-    do {                          \
-        process->cond.signal();   \
-        process->finished = true; \
-        process->running = false; \
+#define END_PROCESS(process)             \
+    do {                                 \
+        process->cond.signal();          \
+        process->finished = true;        \
+        process->running = false;        \
+        process->should_trigger = false; \
     } while (0)
 
 #define SCHEDULE_NBA(target, value, process)                          \

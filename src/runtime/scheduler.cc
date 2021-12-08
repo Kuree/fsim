@@ -36,10 +36,11 @@ void printout_finish(int code, uint64_t time) {
 void Scheduler::run(Module *top) {
     // schedule init for every module
     top_ = top;
-    top->init(this);
-    top->final(this);
     top->comb(this);
     top->ff(this);
+    // init will run immediately so need to initialize comb and ff first
+    top->init(this);
+    top->final(this);
     bool finished = false;
 
     // either wait for the finish or wait for the complete from init

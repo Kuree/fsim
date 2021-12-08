@@ -18,6 +18,24 @@ bool trigger_negedge(const logic::logic<0> &old, const logic::logic<0> &new_) {
             (old == logic::logic<0>::one_() && new_ != logic::logic<0>::one_()));
 }
 
+void TrackedVar::trigger_process() {
+    for (auto *process : comb_processes) {
+        process->should_trigger = true;
+    }
+
+    if (should_trigger_posedge && !ff_posedge_processes.empty()) {
+        for (auto *process : ff_posedge_processes) {
+            process->should_trigger = true;
+        }
+    }
+
+    if (should_trigger_negedge && !ff_negedge_processes.empty()) {
+        for (auto *process : ff_negedge_processes) {
+            process->should_trigger = true;
+        }
+    }
+}
+
 std::string Module::hierarchy_name() const {
     std::string result = std::string(inst_name);
     auto const *module = this->parent;
@@ -40,26 +58,14 @@ public:
             if (!p->finished) {
                 continue;
             }
-            if (p->input_changed()) {
+            if (p->should_trigger) {
                 marl::schedule([p]() {
                     p->finished = false;
                     p->running = true;
                     p->func();
-                    p->cond.signal();
-                    p->finished = true;
-                    p->running = false;
                 });
                 p->cond.wait();
-                p->running = false;
             }
-        }
-    }
-
-    void clear() {
-        // after every process have been run, we cancel the changes
-        // maybe adjust this in the future once we have instances?
-        for (auto *p : comb_processes_) {
-            p->cancel_changed();
         }
     }
 
@@ -87,8 +93,6 @@ void Module::active() {  // NOLINT
             for (auto *inst : child_instances_) {
                 inst->active();
             }
-
-            comb_graph_->clear();
             changed = true;
         }
 
@@ -101,14 +105,15 @@ void Module::active() {  // NOLINT
 
 bool Module::sensitivity_stable() {
     if (comb_processes_.empty()) return true;
-    auto r = std::all_of(comb_processes_.begin(), comb_processes_.end(),
-                         [](auto *p) { return !p->input_changed(); });
+    auto r = std::all_of(comb_processes_.begin(), comb_processes_.end(), [](auto *p) {
+        return !p->should_trigger || (!p->running && !p->finished);
+    });
     return r;
 }
 
 bool Module::edge_stable() {
     return std::all_of(ff_process_.begin(), ff_process_.end(),
-                       [](auto *p) { return !p->should_trigger(); });
+                       [](auto *p) { return !p->should_trigger || (!p->running && !p->finished); });
 }
 
 bool Module::stabilized() const {
@@ -139,13 +144,13 @@ void Module::schedule_ff() {  // NOLINT
     if (ff_process_.empty()) return;
     uint64_t num_process = 0;
     for (auto const *p : ff_process_) {
-        if (p->should_trigger()) num_process++;
+        if (p->should_trigger) num_process++;
     }
     marl::WaitGroup wg(num_process);
 
     // this is just to make sure we call each functions
     for (auto *p : ff_process_) {
-        if (p->should_trigger()) {
+        if (p->should_trigger) {
             marl::schedule([p, wg]() {
                 p->func();
                 wg.done();

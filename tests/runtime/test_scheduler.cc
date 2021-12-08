@@ -169,17 +169,17 @@ public:
 
     void comb(Scheduler *scheduler) override {
         auto *always = scheduler->create_comb_process();
-        always->input_changed = [this]() { return a.changed; };
-        always->func = [this] {
+        always->func = [this, always] {
             b = a;  // NOLINT
+            END_PROCESS(always);
         };
-        always->cancel_changed = [this]() { a.changed = false; };
         comb_processes_.emplace_back(always);
+        a.comb_processes.emplace_back(always);
     }
 };
 
 TEST(runtime, comb_one_block) {  // NOLINT
-    for (auto i = 0; i < 100; i++) {
+    for (auto i = 0; i < 1; i++) {
         Scheduler scheduler;
         CombModuleOneBlock m;
         testing::internal::CaptureStdout();
@@ -237,10 +237,6 @@ public:
 
     void comb(Scheduler *scheduler) override {
         auto *always = scheduler->create_comb_process();
-        always->input_changed = [this]() {
-            bool res = this->a.changed || this->b.changed;
-            return res;
-        };
         always->func = [scheduler, this, always] {
             c = a;  // NOLINT
             display(this, "c = %0d @ %d", c, scheduler->sim_time);
@@ -250,12 +246,11 @@ public:
             c = b + 1_logic;
 
             display(this, "c = %0d @ %d", c, scheduler->sim_time);
-        };
-        always->cancel_changed = [this]() {
-            a.changed = false;
-            b.changed = false;
+            END_PROCESS(always);
         };
         comb_processes_.emplace_back(always);
+        a.comb_processes.emplace_back(always);
+        b.comb_processes.emplace_back(always);
     }
 };
 
@@ -303,24 +298,19 @@ public:
             });
         };
 
-        process->should_trigger = [this]() { return clk.should_trigger_posedge; };
-        process->cancel_changed = [this]() { clk.should_trigger_posedge = false; };
-
         ff_process_.emplace_back(process);
         clk.track_edge = true;
+        clk.ff_posedge_processes.emplace_back(process);
     }
 
     void comb(Scheduler *scheduler) override {
         auto *always = scheduler->create_comb_process();
-        always->input_changed = [this]() {
-            bool res = this->a.changed;
-            return res;
-        };
-        always->func = [this] {
+        always->func = [this, always] {
             b = a;  // NOLINT
+            END_PROCESS(always);
         };
-        always->cancel_changed = [this]() { a.changed = false; };
         comb_processes_.emplace_back(always);
+        a.comb_processes.emplace_back(always);
     }
 
     void init(Scheduler *scheduler) override {
@@ -381,24 +371,21 @@ public:
             });
         };
 
-        process->should_trigger = [this]() { return clk.should_trigger_posedge; };
         process->cancel_changed = [this]() { clk.should_trigger_posedge = false; };
 
         ff_process_.emplace_back(process);
         clk.track_edge = true;
+        clk.ff_posedge_processes.emplace_back(process);
     }
 
     void comb(Scheduler *scheduler) override {
         auto *always = scheduler->create_comb_process();
-        always->input_changed = [this]() {
-            bool res = this->a.changed;
-            return res;
-        };
-        always->func = [this] {
+        always->func = [this, always] {
             b = a;  // NOLINT
+            END_PROCESS(always);
         };
-        always->cancel_changed = [this]() { a.changed = false; };
         comb_processes_.emplace_back(always);
+        a.comb_processes.emplace_back(always);
     }
 
     void init(Scheduler *scheduler) override {
@@ -442,19 +429,15 @@ public:
     void ff(Scheduler *scheduler) override {
         auto process = scheduler->create_ff_process();
         process->func = [this, process]() {
-            process->running = true;
-            process->finished = false;
-            marl::schedule([this, process]() {
-                SCHEDULE_NBA_UPDATE(out, in, process);
-                END_PROCESS(process);
-            });
+            SCHEDULE_NBA(out, in, process);
+            END_PROCESS(process);
         };
 
-        process->should_trigger = [this]() { return clk.should_trigger_posedge; };
         process->cancel_changed = [this]() { clk.should_trigger_posedge = false; };
 
         ff_process_.emplace_back(process);
         clk.track_edge = true;
+        clk.ff_posedge_processes.emplace_back(process);
     }
 };
 
@@ -488,52 +471,38 @@ public:
     void comb(Scheduler *scheduler) override {
         {
             auto *always = scheduler->create_comb_process();
-            always->input_changed = [this]() {
-                bool res = this->out.changed;
-                return res;
-            };
-            always->func = [this] {
+            always->func = [this, always] {
                 a = out;  // NOLINT
+                END_PROCESS(always);
             };
-            always->cancel_changed = [this]() {
-                out.changed = false; };
+
             comb_processes_.emplace_back(always);
+            out.comb_processes.emplace_back(always);
         }
 
         // a comb process for child instance input
         {
             auto *always = scheduler->create_comb_process();
-            always->input_changed = [this]() {
-                bool res = this->in.changed || this->clk.changed;
-                return res;
-            };
-            always->func = [this] {
-                this->inst->in.update_value(in);
-                this->inst->clk.update_value(clk);
-            };
-            always->cancel_changed = [this]() {
-                in.changed = false;
-                clk.changed = false;
+            always->func = [this, always] {
+                this->inst->in = in;
+                this->inst->clk = clk;
+                END_PROCESS(always);
             };
             comb_processes_.emplace_back(always);
+            in.comb_processes.emplace_back(always);
+            clk.comb_processes.emplace_back(always);
         }
 
         // a comb process for child instance output
         {
             auto *always = scheduler->create_comb_process();
-            always->input_changed = [this]() {
-                bool res = this->inst->out.changed;
-                return res;
-            };
-            always->func = [this] {
-                this->out.update_value(this->inst->out);
-            };
-            always->cancel_changed = [this]() {
-                this->inst->out.changed = false;
+            always->func = [this, always] {
+                this->out = this->inst->out;
+                END_PROCESS(always);
             };
             comb_processes_.emplace_back(always);
+            this->inst->out.comb_processes.emplace_back(always);
         }
-
 
         for (auto *module : child_instances_) {
             module->comb(scheduler);
@@ -573,6 +542,5 @@ TEST(runtime, inst) {  // NOLINT
     testing::internal::CaptureStdout();
     scheduler.run(&m);
     std::string output = testing::internal::GetCapturedStdout();
-    printf("%s\n", output.c_str());
     EXPECT_NE(output.find("a=4\n"), std::string::npos);
 }

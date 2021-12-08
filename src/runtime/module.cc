@@ -163,10 +163,6 @@ void Module::schedule_ff() {  // NOLINT
     for (auto *inst : child_instances_) {
         inst->schedule_ff();
     }
-
-    for (auto *p : ff_process_) {
-        p->cancel_changed();
-    }
 }
 
 }  // namespace xsim::runtime

@@ -371,8 +371,6 @@ public:
             });
         };
 
-        process->cancel_changed = [this]() { clk.should_trigger_posedge = false; };
-
         ff_process_.emplace_back(process);
         clk.track_edge = true;
         clk.ff_posedge_processes.emplace_back(process);
@@ -432,8 +430,6 @@ public:
             SCHEDULE_NBA(out, in, process);
             END_PROCESS(process);
         };
-
-        process->cancel_changed = [this]() { clk.should_trigger_posedge = false; };
 
         ff_process_.emplace_back(process);
         clk.track_edge = true;

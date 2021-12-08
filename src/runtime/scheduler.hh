@@ -43,7 +43,6 @@ struct CombProcess : public Process {};
 struct FFProcess : public Process {
 public:
     FFProcess();
-    std::function<void()> cancel_changed = []() {};
 };
 
 struct FinalProcess : public Process {};

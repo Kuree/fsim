@@ -8,7 +8,6 @@
             xsim::runtime::ScheduledTimeslot(scheduler->sim_time + pound_time, process); \
         scheduler->schedule_delay(next_time);                                            \
         process->cond.signal();                                                          \
-        process->running = false;                                                        \
         process->delay.wait();                                                           \
     } while (0)
 
@@ -28,11 +27,4 @@
         }                                                             \
     } while (0)
 
-#define SCHEDULE_NBA_UPDATE(target, value, process)                               \
-    do {                                                                          \
-        if (!target.match(value)) {                                               \
-            auto wire = value;                                                    \
-            process->schedule_nba([this, wire]() { target.update_value(wire); }); \
-        }                                                                         \
-    } while (0)
 #endif  // XSIM_MACRO_HH

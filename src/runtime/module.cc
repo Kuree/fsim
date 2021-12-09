@@ -6,6 +6,11 @@
 
 namespace xsim::runtime {
 
+inline void wait_process_switch(Process *process) {
+    process->cond.wait();
+    process->running = false;
+}
+
 bool trigger_posedge(const logic::logic<0> &old, const logic::logic<0> &new_) {
     // LRM Table 9-2
     return ((old != logic::logic<0>::one_() && new_ == logic::logic<0>::one_()) ||
@@ -64,7 +69,7 @@ public:
                     p->running = true;
                     p->func();
                 });
-                p->cond.wait();
+                wait_process_switch(p);
             }
         }
     }
@@ -94,11 +99,15 @@ void Module::active() {  // NOLINT
                 inst->active();
             }
             changed = true;
+            wait_for_timed_processes();
         }
 
         while (!edge_stable()) {
+            // try to finish what's still there
             schedule_ff();
             changed = true;
+
+            wait_for_timed_processes();
         }
     } while (changed);
 }
@@ -116,52 +125,45 @@ bool Module::edge_stable() {
                        [](auto *p) { return !p->should_trigger || (!p->running && !p->finished); });
 }
 
-bool Module::stabilized() const {
+bool Module::stabilized() const {  // NOLINT
     auto r = std::all_of(comb_processes_.begin(), comb_processes_.end(),
                          [](auto *p) { return p->finished || !p->running; });
     r = r && std::all_of(ff_process_.begin(), ff_process_.end(),
                          [](auto *p) { return p->finished || !p->running; });
 
-    return r;
+    if (!r) return r;
+
+    return std::all_of(child_instances_.begin(), child_instances_.end(),
+                       [](auto *i) { return i->stabilized(); });
 }
 
 void Module::wait_for_timed_processes() {
     for (auto *p : comb_processes_) {
         if (!p->finished && p->running) {
-            p->cond.wait();
-            p->running = false;
+            wait_process_switch(p);
         }
     }
 
     for (auto *p : ff_process_) {
         if (!p->finished && p->running) {
-            p->cond.wait();
+            wait_process_switch(p);
         }
     }
 }
 
 void Module::schedule_ff() {  // NOLINT
     if (ff_process_.empty()) return;
-    uint64_t num_process = 0;
-    for (auto const *p : ff_process_) {
-        if (p->should_trigger) num_process++;
-    }
-    marl::WaitGroup wg(num_process);
 
     // this is just to make sure we call each functions
     for (auto *p : ff_process_) {
         if (p->should_trigger) {
-            marl::schedule([p, wg]() {
-                p->func();
-                wg.done();
-            });
+            // once we triggered, we need to cancel the triggering to avoid re-triggering
+            p->should_trigger = false;
+            p->finished = false;
+            p->running = true;
+            // non-blocking since we will check it at the end
+            marl::schedule([p]() { p->func(); });
         }
-    }
-
-    wg.wait();
-
-    for (auto *inst : child_instances_) {
-        inst->schedule_ff();
     }
 }
 

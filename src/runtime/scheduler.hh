@@ -28,7 +28,7 @@ struct Process {
     marl::Event delay = marl::Event(marl::Event::Mode::Auto);
     Scheduler *scheduler = nullptr;
 
-    void schedule_nba(std::function<void()> &&f) const;
+    void schedule_nba(const std::function<void()> &f) const;
 
     // used by trigger-based processes
     bool should_trigger = false;
@@ -38,7 +38,9 @@ struct InitialProcess : public Process {};
 
 struct ForkProcess : public Process {};
 
-struct CombProcess : public Process {};
+struct CombProcess : public Process {
+    CombProcess();
+};
 
 struct FFProcess : public Process {
 public:
@@ -78,7 +80,7 @@ public:
     static void schedule_final(FinalProcess *final);
     void schedule_delay(const ScheduledTimeslot &event);
     void schedule_finish(int code);
-    void schedule_nba(std::function<void()> &&func);
+    void schedule_nba(const std::function<void()> &func);
 
     [[nodiscard]] bool finished() const { return finish_flag_.load(); }
 
@@ -100,6 +102,7 @@ private:
 
     // NBA
     std::vector<std::function<void()>> nbas_;
+    std::mutex nba_lock_;
 
     // finish info
     std::atomic<bool> finish_flag_ = false;

@@ -7,8 +7,12 @@
 
 namespace xsim::runtime {
 
-void Process::schedule_nba(std::function<void()> &&f) const {
-    scheduler->schedule_nba(std::move(f));
+void Process::schedule_nba(const std::function<void()> &f) const { scheduler->schedule_nba(f); }
+
+CombProcess::CombProcess() {
+    // by default, it's not running
+    running = false;
+    finished = true;
 }
 
 FFProcess::FFProcess() {
@@ -163,16 +167,19 @@ void Scheduler::schedule_finish(int code) {
     finish_flag_ = true;
 }
 
-void Scheduler::schedule_nba(std::function<void()> &&func) { nbas_.emplace_back(std::move(func)); }
+void Scheduler::schedule_nba(const std::function<void()> &func) {
+    std::lock_guard guard(nba_lock_);
+    nbas_.emplace_back(func);
+}
 
 Scheduler::~Scheduler() {
+    nbas_.clear();
     marl_scheduler_.unbind();  // NOLINT
 }
 
 bool Scheduler::loop_stabilized() const {
     auto r = top_->stabilized();
-    if (!r) return false;
-    return true;
+    return r;
 }
 
 bool Scheduler::terminate() const {

@@ -289,13 +289,9 @@ public:
 
     void ff(Scheduler *scheduler) override {
         auto process = scheduler->create_ff_process();
-        process->func = [this, process, scheduler]() {
-            process->running = true;
-            process->finished = false;
-            marl::schedule([this, process]() {
-                a = 1_logic;
-                END_PROCESS(process);
-            });
+        process->func = [this, process]() {
+            a = 1_logic;
+            END_PROCESS(process);
         };
 
         ff_process_.emplace_back(process);
@@ -330,12 +326,14 @@ public:
 };
 
 TEST(runtime, ff_blocking) {  // NOLINT
-    Scheduler scheduler;
-    FFBlockingAssignment m;
-    testing::internal::CaptureStdout();
-    scheduler.run(&m);
-    std::string output = testing::internal::GetCapturedStdout();
-    EXPECT_NE(output.find("b is 1"), std::string::npos);
+    for (auto i = 0; i < 100; i++) {
+        Scheduler scheduler;
+        FFBlockingAssignment m;
+        testing::internal::CaptureStdout();
+        scheduler.run(&m);
+        std::string output = testing::internal::GetCapturedStdout();
+        EXPECT_NE(output.find("b is 1"), std::string::npos);
+    }
 }
 
 class FFNonBlockingAssignment : public Module {
@@ -362,7 +360,7 @@ public:
 
     void ff(Scheduler *scheduler) override {
         auto process = scheduler->create_ff_process();
-        process->func = [this, process, scheduler]() {
+        process->func = [this, process]() {
             process->running = true;
             process->finished = false;
             marl::schedule([this, process]() {
@@ -403,12 +401,14 @@ public:
 };
 
 TEST(runtime, ff_nba) {  // NOLINT
-    Scheduler scheduler;
-    FFNonBlockingAssignment m;
-    testing::internal::CaptureStdout();
-    scheduler.run(&m);
-    std::string output = testing::internal::GetCapturedStdout();
-    EXPECT_NE(output.find("b is 1\n"), std::string::npos);
+    for (auto i = 0; i < 100; i++) {
+        Scheduler scheduler;
+        FFNonBlockingAssignment m;
+        testing::internal::CaptureStdout();
+        scheduler.run(&m);
+        std::string output = testing::internal::GetCapturedStdout();
+        EXPECT_NE(output.find("b is 1\n"), std::string::npos);
+    }
 }
 
 class ChildInstanceTest : public Module {
@@ -533,10 +533,12 @@ public:
 };
 
 TEST(runtime, inst) {  // NOLINT
-    Scheduler scheduler;
-    ChildInstanceTop m;
-    testing::internal::CaptureStdout();
-    scheduler.run(&m);
-    std::string output = testing::internal::GetCapturedStdout();
-    EXPECT_NE(output.find("a=4\n"), std::string::npos);
+    for (auto i = 0; i < 100; i++) {
+        Scheduler scheduler;
+        ChildInstanceTop m;
+        testing::internal::CaptureStdout();
+        scheduler.run(&m);
+        std::string output = testing::internal::GetCapturedStdout();
+        EXPECT_NE(output.find("a=4\n"), std::string::npos);
+    }
 }

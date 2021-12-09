@@ -14,6 +14,7 @@ namespace xsim {
 auto constexpr xsim_next_time = "xsim_next_time";
 auto constexpr xsim_schedule_delay = "SCHEDULE_DELAY";
 auto constexpr xsim_schedule_nba = "SCHEDULE_NBA";
+auto constexpr xsim_end_process = "END_PROCESS";
 
 template <typename T>
 inline std::string get_cc_filename(const T &name) {
@@ -558,7 +559,7 @@ void codegen_init(std::ostream &s, int &indent_level, const Process *process,
         codegen_sym(s, indent_level, stmt, options, info);
     }
 
-    s << get_indent(indent_level) << fmt::format("END_PROCESS({0});", ptr_name) << std::endl;
+    s << get_indent(indent_level) << xsim_end_process << "(" << ptr_name << ");" << std::endl;
     indent_level--;
     s << get_indent(indent_level) << "};" << std::endl;
     s << get_indent(indent_level)
@@ -624,28 +625,17 @@ void codegen_always(std::ostream &s, int &indent_level, const CombProcess *proce
             codegen_sym(s, indent_level, stmt, options, info);
         }
 
+        // output end process
+        s << get_indent(indent_level) << xsim_end_process << "(" << ptr_name << ");" << std::endl;
+
         indent_level--;
         s << get_indent(indent_level) << "};" << std::endl;
 
-        // set input changed function
-        s << get_indent(indent_level) << ptr_name << "->input_changed = [this]() {" << std::endl;
-        indent_level++;
-        s << get_indent(indent_level) << "bool res = false";
+        // set input changed
         for (auto *var : process->sensitive_list) {
-            s << " || " << var->name << ".changed";
+            s << get_indent(indent_level) << var->name << ".comb_processes.emplace_back("
+              << ptr_name << ");" << std::endl;
         }
-        s << ";" << std::endl << get_indent(indent_level) << "return res;" << std::endl;
-        indent_level--;
-        s << get_indent(indent_level) << "};" << std::endl;
-
-        // set the input changed cancel function
-        s << get_indent(indent_level) << ptr_name << "->cancel_changed = [this]() {" << std::endl;
-        indent_level++;
-        for (auto *var : process->sensitive_list) {
-            s << get_indent(indent_level) << var->name << ".changed = false;" << std::endl;
-        }
-        indent_level--;
-        s << get_indent(indent_level) << "};" << std::endl;
 
         s << get_indent(indent_level) << fmt::format("comb_processes_.emplace_back({0});", ptr_name)
           << std::endl;
@@ -669,15 +659,14 @@ void codegen_ff(std::ostream &s, int &indent_level, const FFProcess *process,
       << fmt::format("{0}->func = [this, {0}, {1}]() {{", ptr_name, info.scheduler_name())
       << std::endl;
     indent_level++;
-    s << get_indent(indent_level) << ptr_name << "->running = true;" << std::endl;
-    s << get_indent(indent_level) << ptr_name << "->finished = false;" << std::endl;
 
     auto const &stmts = process->stmts;
     for (auto const *stmt : stmts) {
         codegen_sym(s, indent_level, stmt, options, info);
     }
 
-    s << get_indent(indent_level) << fmt::format("END_PROCESS({0});", ptr_name) << std::endl;
+    // output end process
+    s << get_indent(indent_level) << xsim_end_process << "(" << ptr_name << ");" << std::endl;
 
     indent_level--;
     s << get_indent(indent_level) << "};" << std::endl;
@@ -686,43 +675,23 @@ void codegen_ff(std::ostream &s, int &indent_level, const FFProcess *process,
       << std::endl;
 
     // generate edge trigger functions
-    s << get_indent(indent_level) << ptr_name << "->should_trigger = [this]() {" << std::endl;
-    indent_level++;
-
-    s << get_indent(indent_level) << "return false";
     for (auto const &[edge, v] : process->edges) {
         if (edge == slang::EdgeKind::PosEdge || edge == slang::EdgeKind::BothEdges) {
-            s << fmt::format(" || {0}.should_trigger_posedge", v->name);
+            s << get_indent(indent_level) << v->name << ".ff_posedge_processes.emplace_back("
+              << ptr_name << ");" << std::endl;
         }
         if (edge == slang::EdgeKind::NegEdge || edge == slang::EdgeKind::BothEdges) {
-            s << fmt::format(" || {0}.should_trigger_negedge", v->name);
+            s << get_indent(indent_level) << v->name << ".ff_negedge_processes.emplace_back("
+              << ptr_name << ");" << std::endl;
         }
     }
-    indent_level--;
-    s << ";" << std::endl << get_indent(indent_level) << "};" << std::endl;
-
-    // compute trigger cancel
-    s << get_indent(indent_level) << ptr_name << "->cancel_changed = [this]() {" << std::endl;
-    indent_level++;
-
-    std::set<std::string_view> vars;
-    for (auto const &[edge, v] : process->edges) {
-        if (edge == slang::EdgeKind::PosEdge || edge == slang::EdgeKind::BothEdges) {
-            s << get_indent(indent_level)
-              << fmt::format("{0}.should_trigger_posedge = false;", v->name) << std::endl;
-        }
-        if (edge == slang::EdgeKind::NegEdge || edge == slang::EdgeKind::BothEdges) {
-            s << get_indent(indent_level)
-              << fmt::format("{0}.should_trigger_negedge = false;", v->name) << std::endl;
-        }
-        vars.emplace(v->name);
-    }
-
-    indent_level--;
-    s << get_indent(indent_level) << "};" << std::endl;
 
     // set edge tracking as well
-    for (auto name : vars) {
+    std::set<std::string_view> vars;
+    for (auto const &iter : process->edges) {
+        vars.emplace(iter.second->name);
+    }
+    for (auto const &name : vars) {
         s << get_indent(indent_level) << name << ".track_edge = true;" << std::endl;
     }
 

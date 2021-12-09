@@ -700,6 +700,27 @@ void codegen_ff(std::ostream &s, int &indent_level, const FFProcess *process,
     s << get_indent(indent_level) << "}" << std::endl;
 }
 
+void output_ctor(std::ostream &s, int &indent_level, const Module *module) {
+    std::set<std::string_view> headers;
+    for (auto const &iter : module->child_instances) {
+        s << "#include \"" << iter.second->name << ".hh\"" << std::endl;
+    }
+
+    // then output the class ctor
+
+    s << module->name << "::" << module->name << "(): xsim::runtime::Module(\"" << module->name
+      << "\") {" << std::endl;
+    indent_level++;
+
+    for (auto const &[name, m] : module->child_instances) {
+        s << get_indent(indent_level) << name << " = std::make_shared<" << m->name << ">();"
+          << std::endl;
+    }
+
+    indent_level--;
+    s << "}" << std::endl;
+};
+
 void output_header_file(const std::filesystem::path &filename, const Module *mod,
                         const CXXCodeGenOptions &options, CodeGenModuleInformation &info) {
     // analyze the dependencies to include which headers
@@ -708,14 +729,31 @@ void output_header_file(const std::filesystem::path &filename, const Module *mod
     s << "#pragma once" << std::endl;
     s << raw_header_include;
 
+    // forward declaration
+    bool has_ctor = !mod->child_instances.empty();
+    {
+        std::set<std::string_view> class_names;
+        for (auto const &iter : mod->child_instances) {
+            class_names.emplace(iter.second->name);
+        }
+        for (auto const &inst : class_names) {
+            s << get_indent(indent_level) << "class " << inst << ";" << std::endl;
+        }
+    }
+
     s << get_indent(indent_level) << "class " << mod->name << ": public xsim::runtime::Module {"
       << std::endl;
     s << get_indent(indent_level) << "public: " << std::endl;
 
     indent_level++;
     // constructor
-    s << get_indent(indent_level) << mod->name << "(): xsim::runtime::Module(\"" << mod->name
-      << "\") {}" << std::endl;
+    if (has_ctor) {
+        // if we have ctor, we only generate a signature
+        s << get_indent(indent_level) << mod->name << "();" << std::endl;
+    } else {
+        s << get_indent(indent_level) << mod->name << "(): xsim::runtime::Module(\"" << mod->name
+          << "\") {}" << std::endl;
+    }
 
     // need to look through the sensitivity list first
     for (auto const &comb : mod->comb_processes) {
@@ -758,6 +796,13 @@ void output_header_file(const std::filesystem::path &filename, const Module *mod
           << std::endl;
     }
 
+    // child instances
+    for (auto const &[name, inst] : mod->child_instances) {
+        // we use shared ptr instead of unique ptr to avoid import the class header
+        s << get_indent(indent_level) << "std::shared_ptr<" << inst->name << "> " << name << ";"
+          << std::endl;
+    }
+
     indent_level--;
 
     s << get_indent(indent_level) << "};";
@@ -775,6 +820,11 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
     s << "#include \"runtime/macro.hh\"" << std::endl;
 
     int indent_level = 0;
+
+    bool has_ctor = !mod->child_instances.empty();
+    if (has_ctor) {
+        output_ctor(s, indent_level, mod);
+    }
 
     // initial block
     if (!mod->init_processes.empty()) {

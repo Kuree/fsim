@@ -11,6 +11,15 @@ inline void wait_process_switch(Process *process) {
     process->running = false;
 }
 
+inline void start_process(Process *process) {
+    process->finished = false;
+    process->running = true;
+}
+
+inline bool should_trigger_process(Process *process) {
+    return process->should_trigger && process->finished;
+}
+
 bool trigger_posedge(const logic::logic<0> &old, const logic::logic<0> &new_) {
     // LRM Table 9-2
     return ((old != logic::logic<0>::one_() && new_ == logic::logic<0>::one_()) ||
@@ -60,15 +69,9 @@ public:
     void run() {
         for (auto *p : comb_processes_) {
             // if it's not finished, it means it's waiting
-            if (!p->finished) {
-                continue;
-            }
-            if (p->should_trigger) {
-                marl::schedule([p]() {
-                    p->finished = false;
-                    p->running = true;
-                    p->func();
-                });
+            if (should_trigger_process(p)) {
+                start_process(p);
+                marl::schedule([p]() { p->func(); });
                 wait_process_switch(p);
             }
         }
@@ -156,11 +159,8 @@ void Module::schedule_ff() {  // NOLINT
 
     // this is just to make sure we call each functions
     for (auto *p : ff_process_) {
-        if (p->should_trigger) {
-            // once we triggered, we need to cancel the triggering to avoid re-triggering
-            p->should_trigger = false;
-            p->finished = false;
-            p->running = true;
+        if (should_trigger_process(p)) {
+            start_process(p);
             // non-blocking since we will check it at the end
             marl::schedule([p]() { p->func(); });
         }

@@ -116,6 +116,11 @@ void Builder::build(const Module *module) const {
         CXXCodeGen cxx(mod, c_options);
         cxx.output(options_.working_dir);
     }
+    // output main as well
+    {
+        CXXCodeGen cxx(module, c_options);
+        cxx.output_main(options_.working_dir);
+    }
 
     // need to symlink stuff over
     symlink_folders(options_.working_dir, options_.simv_path);

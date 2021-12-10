@@ -9,6 +9,7 @@
 
 #include "fmt/format.h"
 #include "slang/binding/SystemSubroutine.h"
+#include "slang/compilation/Compilation.h"
 
 namespace xsim {
 auto constexpr xsim_next_time = "xsim_next_time";
@@ -96,6 +97,8 @@ public:
         process_names_.pop();
     }
 
+    const Module *current_module = nullptr;
+
 private:
     std::stack<std::string> process_names_;
     std::unordered_set<std::string> used_names_;
@@ -147,9 +150,24 @@ std::string_view get_indent(int indent_level) {
     return cache.at(indent_level);
 }
 
+const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol) {
+    auto scope = symbol->getParentScope();
+    auto current = symbol;
+    if (scope && symbol->kind == slang::SymbolKind::InstanceBody) {
+        auto parents =
+            scope->getCompilation().getParentInstances(symbol->as<slang::InstanceBodySymbol>());
+        if (parents.empty()) return nullptr;
+
+        current = parents[0];
+        scope = current->getParentScope();
+    }
+    return &scope->asSymbol();
+}
+
 class ExprCodeGenVisitor : public slang::ASTVisitor<ExprCodeGenVisitor, false, true> {
 public:
     explicit ExprCodeGenVisitor(std::ostream &s) : s(s) {}
+    ExprCodeGenVisitor(std::ostream &s, const Module *module) : s(s), current_module_(module) {}
     [[maybe_unused]] void handle(const slang::StringLiteral &str) {
         s << '\"' << str.getValue() << '\"';
     }
@@ -162,7 +180,31 @@ public:
         s << "_logic";
     }
 
-    [[maybe_unused]] void handle(const slang::NamedValueExpression &n) { s << n.symbol.name; }
+    [[maybe_unused]] void handle(const slang::NamedValueExpression &n) {
+        // if the current symbol is not null, we need to resolve the hierarchy
+        if (current_module_) {
+            auto const &sym = n.symbol;
+            auto const *parent = &sym.getParentScope()->asSymbol();
+            auto const *top_body = &current_module_->def()->body;
+            if (!parent || parent == top_body) {
+                s << n.symbol.name;
+            } else {
+                // different path, need to generate the path
+                std::vector<std::string_view> paths;
+                do {
+                    paths.emplace_back(parent->name);
+                    parent = get_parent_symbol(parent);
+                } while (parent && parent != top_body);
+                std::reverse(paths.begin(), paths.end());
+                for (auto const &p : paths) {
+                    s << p << "->";
+                }
+                s << n.symbol.name;
+            }
+        } else {
+            s << n.symbol.name;
+        }
+    }
 
     [[maybe_unused]] void handle(const slang::ConversionExpression &c) {
         auto const &t = *c.type;
@@ -316,6 +358,9 @@ public:
     std::ostream &s;
 
     const slang::Expression *left_ptr = nullptr;
+
+private:
+    const Module *current_module_ = nullptr;
 };
 
 template <bool visit_stmt = true, bool visit_expr = true>
@@ -389,7 +434,7 @@ public:
         if (expr.isNonBlocking()) {
             s << xsim_schedule_nba << "(";
             auto const &left = expr.left();
-            ExprCodeGenVisitor v(s);
+            ExprCodeGenVisitor v(s, module_info.current_module);
             left.visit(v);
             s << ", ";
             auto const &right = expr.right();
@@ -397,7 +442,7 @@ public:
             s << ", " << module_info.current_process_name() << ")";
         } else {
             auto const &left = expr.left();
-            ExprCodeGenVisitor v(s);
+            ExprCodeGenVisitor v(s, module_info.current_module);
             left.visit(v);
             v.left_ptr = &left;
             s << " = ";
@@ -700,6 +745,47 @@ void codegen_ff(std::ostream &s, int &indent_level, const FFProcess *process,
     s << get_indent(indent_level) << "}" << std::endl;
 }
 
+void codegen_port_connections(std::ostream &s, int &indent_level, const Module *module,
+                              const CXXCodeGenOptions &options, CodeGenModuleInformation &info) {
+    // we generate it as an "always" process
+    // to allow code re-use, we create fake assignment
+    auto comb_process = CombProcess(CombProcess::CombKind::AlwaysComb);
+    std::vector<std::unique_ptr<slang::AssignmentExpression>> exprs;
+    std::vector<std::unique_ptr<slang::ContinuousAssignSymbol>> stmts;
+    std::vector<std::unique_ptr<slang::NamedValueExpression>> names;
+    slang::SourceRange sr;
+    slang::SourceLocation sl;
+
+    for (auto const &[port, var] : module->inputs) {
+        // inputs is var assigned to port, so it's port = var
+        auto name = std::make_unique<slang::NamedValueExpression>(*port, sr);
+        auto expr = std::make_unique<slang::AssignmentExpression>(
+            std::nullopt, false, port->getType(), *name, *const_cast<slang::Expression *>(var),
+            nullptr, sr);
+        auto stmt = std::make_unique<slang::ContinuousAssignSymbol>(sl, *expr);
+        names.emplace_back(std::move(name));
+        exprs.emplace_back(std::move(expr));
+        comb_process.stmts.emplace_back(stmt.get());
+        stmts.emplace_back(std::move(stmt));
+    }
+
+    // for output as well
+    for (auto const &[port, var] : module->outputs) {
+        // inputs is var assigned to port, so it's var = port
+        auto name = std::make_unique<slang::NamedValueExpression>(*port, sr);
+        auto expr = std::make_unique<slang::AssignmentExpression>(
+            std::nullopt, false, *var->type, *const_cast<slang::Expression *>(var), *name,
+            nullptr, sr);
+        auto stmt = std::make_unique<slang::ContinuousAssignSymbol>(sl, *expr);
+        names.emplace_back(std::move(name));
+        exprs.emplace_back(std::move(expr));
+        comb_process.stmts.emplace_back(stmt.get());
+        stmts.emplace_back(std::move(stmt));
+    }
+
+    codegen_always(s, indent_level, &comb_process, options, info);
+}
+
 void output_ctor(std::ostream &s, int &indent_level, const Module *module) {
     std::set<std::string_view> headers;
     for (auto const &iter : module->child_instances) {
@@ -855,13 +941,17 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
     }
 
     // always block
-    if (!mod->comb_processes.empty()) {
+    if (!mod->comb_processes.empty() || !mod->child_instances.empty()) {
         s << get_indent(indent_level) << "void " << mod->name << "::comb(xsim::runtime::Scheduler *"
           << info.scheduler_name() << ") {" << std::endl;
         indent_level++;
 
         for (auto const &comb : mod->comb_processes) {
             codegen_always(s, indent_level, comb.get(), options, info);
+        }
+
+        for (auto const &iter : mod->child_instances) {
+            codegen_port_connections(s, indent_level, iter.second.get(), options, info);
         }
 
         indent_level--;
@@ -909,8 +999,13 @@ void CXXCodeGen::output(const std::string &dir) {
     auto cc_filename = dir_path / get_cc_filename(top_->name);
     auto hh_filename = dir_path / get_hh_filename(top_->name);
     CodeGenModuleInformation info;
+    info.current_module = top_;
     output_header_file(hh_filename, top_, option_, info);
     output_cc_file(cc_filename, top_, option_, info);
+}
+
+void CXXCodeGen::output_main(const std::string &dir) {
+    std::filesystem::path dir_path = dir;
     auto main_filename = dir_path / fmt::format("{0}.cc", main_name);
     output_main_file(main_filename, top_);
 }

@@ -22,6 +22,7 @@ public:
         : top_(top), option_(option) {}
 
     void output(const std::string &dir);
+    void output_main(const std::string &dir);
 
 private:
     const Module *top_;

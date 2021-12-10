@@ -36,22 +36,6 @@ private:
     uint64_t current_level_ = 1;
 };
 
-class VariableDefinitionVisitor
-    : public slang::ASTVisitor<VariableDefinitionVisitor, false, false> {
-public:
-    VariableDefinitionVisitor() = default;
-    explicit VariableDefinitionVisitor(const slang::InstanceSymbol *target_inst)
-        : target_inst_(target_inst) {}
-
-    [[maybe_unused]] void handle(const slang::VariableDeclStatement &stmt);
-    [[maybe_unused]] void handle(const slang::InstanceSymbol &inst);
-
-    std::vector<const slang::VariableSymbol *> vars;
-
-private:
-    const slang::InstanceSymbol *target_inst_ = nullptr;
-};
-
 class DependencyAnalysisVisitor : public slang::ASTVisitor<DependencyAnalysisVisitor, true, true> {
 public:
     struct Node {

@@ -65,10 +65,8 @@ std::vector<const DependencyAnalysisVisitor::Node *> sort(const DGraph *graph, s
 
 std::string Module::analyze() {
     std::string error;
-    error = analyze_vars();
+    error = analyze_connections();
     if (!error.empty()) return error;
-
-    // TODO: add ports
 
     // compute procedure combinational blocks
     error = analyze_comb();
@@ -89,14 +87,30 @@ std::string Module::analyze() {
     return error;
 }
 
-std::string Module::analyze_vars() {
-    VariableDefinitionVisitor v(def_);
-    def_->visit(v);
-    for (auto const *var : v.vars) {
-        auto v_ = std::make_unique<Variable>();
-        v_->sym = var;
-        vars.emplace(var->name, std::move(v_));
+std::string Module::analyze_connections() {
+    // we only care about ports for now
+    auto const &port_list = def_->body.getPortList();
+    for (auto const *sym : port_list) {
+        if (slang::PortSymbol::isKind(sym->kind)) {
+            auto const &port = sym->as<slang::PortSymbol>();
+            auto connection = def_->getPortConnection(port);
+            auto const *expr = connection->expr;
+            switch (port.direction) {
+                case slang::ArgumentDirection::In: {
+                    inputs.emplace_back(std::make_pair(&port, expr));
+                    break;
+                }
+                case slang::ArgumentDirection::Out: {
+                    outputs.emplace_back(std::make_pair(&port, expr));
+                    break;
+                }
+                default:
+                    return fmt::format("Unsupported port direction {0}",
+                                       slang::toString(port.direction));
+            }
+        }
     }
+
     return {};
 }
 
@@ -330,6 +344,7 @@ public:
             if (def.definitionKind == slang::DefinitionKind::Module) {
                 // child instance
                 auto def_name = inst.getDefinition().name;
+                // TODO. deal with parametrization
                 if (module_defs_.find(def_name) == module_defs_.end()) {
                     auto child = std::make_shared<Module>(&inst);
                     module_defs_.emplace(def_name, child);

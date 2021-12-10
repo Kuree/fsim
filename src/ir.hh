@@ -53,11 +53,13 @@ public:
         : name(def->getDefinition().name), def_(def) {}
     std::string_view name;
 
-    std::map<std::string_view, std::unique_ptr<Variable>> vars;
     std::vector<std::unique_ptr<CombProcess>> comb_processes;
     std::vector<std::unique_ptr<FFProcess>> ff_processes;
     std::vector<std::unique_ptr<Process>> init_processes;
     std::vector<std::unique_ptr<Process>> final_processes;
+
+    std::vector<std::pair<const slang::PortSymbol *, const slang::Expression *>> inputs;
+    std::vector<std::pair<const slang::PortSymbol *, const slang::Expression *>> outputs;
 
     std::string analyze();
 
@@ -71,7 +73,7 @@ public:
 private:
     const slang::InstanceSymbol *def_;
 
-    std::string analyze_vars();
+    std::string analyze_connections();
     std::string analyze_comb();
     std::string analyze_init();
     std::string analyze_ff();

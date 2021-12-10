@@ -72,3 +72,27 @@ endmodule
     EXPECT_EQ(m.ff_processes[2]->edges[1].first, slang::EdgeKind::NegEdge);
     EXPECT_EQ(m.ff_processes[2]->edges[0].second->name, "a");
 }
+
+TEST(ir, child_inst) {  // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+module child (input logic a, b, output logic c);
+assign c = a & b;
+endmodule
+module m;
+logic a, b, c;
+child inst (.*);
+endmodule
+)");
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    ModuleDefinitionVisitor vis;
+    compilation.getRoot().visit(vis);
+    auto *def = vis.modules.at("m");
+    Module m(def);
+    auto error = m.analyze();
+    EXPECT_TRUE(error.empty());
+
+    auto const &child = m.child_instances.at("inst");
+    EXPECT_EQ(child->inputs.size(), 2);
+    EXPECT_EQ(child->outputs.size(), 1);
+}

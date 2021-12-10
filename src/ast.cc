@@ -45,19 +45,6 @@ public:
     current_level_--;
 }
 
-[[maybe_unused]] void VariableDefinitionVisitor::handle(const slang::VariableDeclStatement &stmt) {
-    auto const &var = stmt.symbol;
-    vars.emplace_back(&var);
-}
-
-[[maybe_unused]] void VariableDefinitionVisitor::handle(const slang::InstanceSymbol &inst) {
-    if (target_inst_) {
-        if (&inst == target_inst_) visitDefault(inst);
-    } else {
-        visitDefault(inst);
-    }
-}
-
 DependencyAnalysisVisitor::Node *get_node_(DependencyAnalysisVisitor::Graph *graph,
                                            const slang::Symbol &sym) {
     auto n = std::string(sym.name);

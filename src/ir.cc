@@ -384,4 +384,40 @@ std::unordered_set<const Module *> Module::get_defs() const {
     return result;
 }
 
+std::unordered_set<std::string_view> Module::get_tracked_vars() const {
+    std::unordered_set<std::string_view> result;
+    for (auto const &comb : comb_processes) {
+        // label sensitivities variables
+        for (auto const *sym : comb->sensitive_list) {
+            result.emplace(sym->name);
+        }
+    }
+
+    for (auto const &ff : ff_processes) {
+        for (auto const &[_, v] : ff->edges) {
+            result.emplace(v->name);
+        }
+    }
+
+    // any input needs to be tracked
+    for (auto const &iter : inputs) {
+        result.emplace(iter.first->name);
+    }
+
+    // any expr connected to child instance's output needs to be tracked
+    for (auto const &iter : child_instances) {
+        auto const &os = iter.second->outputs;
+        for (auto const &[_, expr] : os) {
+            // need to figure out any named expressions
+            VariableExtractor e;
+            expr->visit(e);
+            for (auto const &n : e.vars) {
+                result.emplace(n->symbol.name);
+            }
+        }
+    }
+
+    return result;
+}
+
 }  // namespace xsim

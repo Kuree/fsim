@@ -70,6 +70,8 @@ public:
 
     [[nodiscard]] std::unordered_set<const Module *> get_defs() const;
 
+    [[nodiscard]] std::unordered_set<std::string_view> get_tracked_vars() const;
+
 private:
     const slang::InstanceSymbol *def_;
 

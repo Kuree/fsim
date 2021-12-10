@@ -87,6 +87,7 @@ public:
     [[nodiscard]] bool var_tracked(std::string_view name) const {
         return tracked_vars_.find(name) != tracked_vars_.end();
     }
+
     void add_tracked_name(std::string_view name) { tracked_vars_.emplace(name); }
 
     void exit_process() {
@@ -774,8 +775,8 @@ void codegen_port_connections(std::ostream &s, int &indent_level, const Module *
         // inputs is var assigned to port, so it's var = port
         auto name = std::make_unique<slang::NamedValueExpression>(*port, sr);
         auto expr = std::make_unique<slang::AssignmentExpression>(
-            std::nullopt, false, *var->type, *const_cast<slang::Expression *>(var), *name,
-            nullptr, sr);
+            std::nullopt, false, *var->type, *const_cast<slang::Expression *>(var), *name, nullptr,
+            sr);
         auto stmt = std::make_unique<slang::ContinuousAssignSymbol>(sl, *expr);
         names.emplace_back(std::move(name));
         exprs.emplace_back(std::move(expr));
@@ -841,17 +842,10 @@ void output_header_file(const std::filesystem::path &filename, const Module *mod
           << "\") {}" << std::endl;
     }
 
-    // need to look through the sensitivity list first
-    for (auto const &comb : mod->comb_processes) {
-        // label sensitivities variables
-        for (auto const *sym : comb->sensitive_list) {
-            info.add_tracked_name(sym->name);
-        }
-    }
-
-    for (auto const &ff : mod->ff_processes) {
-        for (auto const &[_, v] : ff->edges) {
-            info.add_tracked_name(v->name);
+    {
+        auto const &tracked_vars = mod->get_tracked_vars();
+        for (auto const n : tracked_vars) {
+            info.add_tracked_name(n);
         }
     }
 

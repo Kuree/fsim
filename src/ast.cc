@@ -14,15 +14,6 @@ namespace xsim {
     visitDefault(symbol);
 }
 
-class VariableExtractor : public slang::ASTVisitor<VariableExtractor, true, true> {
-public:
-    VariableExtractor() = default;
-
-    [[maybe_unused]] void handle(const slang::NamedValueExpression &var) { vars.emplace(&var); }
-
-    std::unordered_set<const slang::NamedValueExpression *> vars;
-};
-
 [[maybe_unused]] void ModuleComplexityVisitor::handle(const slang::AssignmentExpression &) {
     complexity += current_level_;
 }

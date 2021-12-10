@@ -36,6 +36,15 @@ private:
     uint64_t current_level_ = 1;
 };
 
+class VariableExtractor : public slang::ASTVisitor<VariableExtractor, true, true> {
+public:
+    VariableExtractor() = default;
+
+    [[maybe_unused]] void handle(const slang::NamedValueExpression &var) { vars.emplace(&var); }
+
+    std::unordered_set<const slang::NamedValueExpression *> vars;
+};
+
 class DependencyAnalysisVisitor : public slang::ASTVisitor<DependencyAnalysisVisitor, true, true> {
 public:
     struct Node {

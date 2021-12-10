@@ -500,9 +500,7 @@ public:
             this->inst->out.comb_processes.emplace_back(always);
         }
 
-        for (auto *module : child_instances_) {
-            module->comb(scheduler);
-        }
+        Module::comb(scheduler);
     }
 
     void init(Scheduler *scheduler) override {
@@ -520,15 +518,7 @@ public:
         };
         Scheduler::schedule_init(init_ptr);
 
-        for (auto *module : child_instances_) {
-            module->init(scheduler);
-        }
-    }
-
-    void ff(Scheduler *scheduler) override {
-        for (auto *module : child_instances_) {
-            module->ff(scheduler);
-        }
+        Module::init(scheduler);
     }
 };
 

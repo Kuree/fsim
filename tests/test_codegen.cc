@@ -305,5 +305,5 @@ endmodule
     testing::internal::CaptureStdout();
     builder.build(&compilation);
     std::string output = testing::internal::GetCapturedStdout();
-    // EXPECT_NE(output.find("b=3\n"), std::string::npos);
+    EXPECT_NE(output.find("b=3\n"), std::string::npos);
 }

@@ -89,11 +89,10 @@ public:
     explicit Module(std::string_view def_name) : def_name(def_name), inst_name(def_name) {}
     explicit Module(std::string_view def_name, std::string_view inst_name)
         : def_name(def_name), inst_name(inst_name) {}
-    virtual void init(Scheduler *) {}
-    virtual void comb(Scheduler *) {}
-    virtual void ff(Scheduler *) {}
-    virtual void nba(Scheduler *) {}
-    virtual void final(Scheduler *) {}
+    virtual void init(Scheduler *scheduler);
+    virtual void comb(Scheduler *scheduler);
+    virtual void ff(Scheduler *scheduler);
+    virtual void final(Scheduler *scheduler);
 
     std::string_view def_name;
     std::string_view inst_name;

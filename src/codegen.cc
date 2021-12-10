@@ -814,7 +814,6 @@ void output_ctor(std::ostream &s, int &indent_level, const Module *module) {
     }
 
     // then output the class ctor
-
     s << module->name << "::" << module->name << "(): xsim::runtime::Module(\"" << module->name
       << "\") {" << std::endl;
     indent_level++;
@@ -822,6 +821,14 @@ void output_ctor(std::ostream &s, int &indent_level, const Module *module) {
     for (auto const &[name, m] : module->child_instances) {
         s << get_indent(indent_level) << name << " = std::make_shared<" << m->name << ">();"
           << std::endl;
+    }
+
+    // add it to the child instances
+    s << get_indent(indent_level)
+      << fmt::format("child_instances_.reserve({0});", module->child_instances.size()) << std::endl;
+    for (auto const &[name, _] : module->child_instances) {
+        s << get_indent(indent_level)
+          << fmt::format("child_instances_.emplace_back({0}.get());", name) << std::endl;
     }
 
     indent_level--;
@@ -936,6 +943,10 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
             codegen_init(s, indent_level, init.get(), options, info);
         }
 
+        if (!mod->child_instances.empty()) {
+            s << get_indent(indent_level) << "Module::init(scheduler);" << std::endl;
+        }
+
         indent_level--;
         s << get_indent(indent_level) << "}" << std::endl;
     }
@@ -948,6 +959,10 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
 
         for (auto const &final : mod->final_processes) {
             codegen_final(s, indent_level, final.get(), options, info);
+        }
+
+        if (!mod->child_instances.empty()) {
+            s << get_indent(indent_level) << "Module::final(scheduler);" << std::endl;
         }
 
         indent_level--;
@@ -968,6 +983,10 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
             codegen_port_connections(s, indent_level, iter.second.get(), options, info);
         }
 
+        if (!mod->child_instances.empty()) {
+            s << get_indent(indent_level) << "Module::comb(scheduler);" << std::endl;
+        }
+
         indent_level--;
         s << get_indent(indent_level) << "}" << std::endl;
     }
@@ -980,6 +999,10 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
 
         for (auto const &comb : mod->ff_processes) {
             codegen_ff(s, indent_level, comb.get(), options, info);
+        }
+
+        if (!mod->child_instances.empty()) {
+            s << get_indent(indent_level) << "Module::ff(scheduler);" << std::endl;
         }
 
         indent_level--;

@@ -50,6 +50,34 @@ void TrackedVar::trigger_process() {
     }
 }
 
+// NOLINTNEXTLINE
+void Module::init(Scheduler *scheduler) {
+    for (auto *inst : child_instances_) {
+        inst->init(scheduler);
+    }
+}
+
+// NOLINTNEXTLINE
+void Module::comb(Scheduler *scheduler) {
+    for (auto *inst : child_instances_) {
+        inst->comb(scheduler);
+    }
+}
+
+// NOLINTNEXTLINE
+void Module::ff(Scheduler *scheduler) {
+    for (auto *inst : child_instances_) {
+        inst->ff(scheduler);
+    }
+}
+
+// NOLINTNEXTLINE
+void Module::final(Scheduler *scheduler) {
+    for (auto *inst : child_instances_) {
+        inst->final(scheduler);
+    }
+}
+
 std::string Module::hierarchy_name() const {
     std::string result = std::string(inst_name);
     auto const *module = this->parent;

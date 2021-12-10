@@ -655,42 +655,48 @@ void codegen_always(std::ostream &s, int &indent_level, const CombProcess *proce
     auto const &ptr_name = info.enter_process();
 
     // depends on the comb process type, we may generate different style
-    if (process->kind == CombProcess::CombKind::GeneralPurpose) {
-        // this is infinite loop
-        throw std::runtime_error("General purpose always not not supposed yet");
-    } else {
-        // declare the always block
+    bool infinite_loop = process->kind == CombProcess::CombKind::GeneralPurpose;
+    // declare the always block
 
-        s << get_indent(indent_level)
-          << fmt::format("auto {0} = {1}->create_comb_process();", ptr_name, info.scheduler_name())
-          << std::endl
-          << get_indent(indent_level)
-          << fmt::format("{0}->func = [this, {0}, {1}]() {{", ptr_name, info.scheduler_name())
-          << std::endl;
+    s << get_indent(indent_level)
+      << fmt::format("auto {0} = {1}->create_comb_process();", ptr_name, info.scheduler_name())
+      << std::endl
+      << get_indent(indent_level)
+      << fmt::format("{0}->func = [this, {0}, {1}]() {{", ptr_name, info.scheduler_name())
+      << std::endl;
+    indent_level++;
+
+    if (infinite_loop) {
+        s << get_indent(indent_level) << "while (true) {" << std::endl;
         indent_level++;
-
-        auto const &stmts = process->stmts;
-        for (auto const *stmt : stmts) {
-            codegen_sym(s, indent_level, stmt, options, info);
-        }
-
-        // output end process
-        s << get_indent(indent_level) << xsim_end_process << "(" << ptr_name << ");" << std::endl;
-
-        indent_level--;
-        s << get_indent(indent_level) << "};" << std::endl;
-
-        // set input changed
-        for (auto *var : process->sensitive_list) {
-            s << get_indent(indent_level);
-            ExprCodeGenVisitor v(s, info.current_module);
-            var->visit(v);
-            s << ".comb_processes.emplace_back(" << ptr_name << ");" << std::endl;
-        }
-
-        s << get_indent(indent_level) << fmt::format("comb_processes_.emplace_back({0});", ptr_name)
-          << std::endl;
     }
+
+    auto const &stmts = process->stmts;
+    for (auto const *stmt : stmts) {
+        codegen_sym(s, indent_level, stmt, options, info);
+    }
+
+    // output end process
+    s << get_indent(indent_level) << xsim_end_process << "(" << ptr_name << ");" << std::endl;
+
+    if (infinite_loop) {
+        indent_level--;
+        s << get_indent(indent_level) << "}" << std::endl;
+    }
+
+    indent_level--;
+    s << get_indent(indent_level) << "};" << std::endl;
+
+    // set input changed
+    for (auto *var : process->sensitive_list) {
+        s << get_indent(indent_level);
+        ExprCodeGenVisitor v(s, info.current_module);
+        var->visit(v);
+        s << ".comb_processes.emplace_back(" << ptr_name << ");" << std::endl;
+    }
+
+    s << get_indent(indent_level) << fmt::format("comb_processes_.emplace_back({0});", ptr_name)
+      << std::endl;
 
     indent_level--;
     info.exit_process();

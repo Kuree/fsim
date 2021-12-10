@@ -532,3 +532,87 @@ TEST(runtime, inst) {  // NOLINT
         EXPECT_NE(output.find("a=4\n"), std::string::npos);
     }
 }
+
+
+class AlwaysGeneralPurpose: public Module {
+public:
+
+    /*
+     * module m;
+     *
+     * always #5 clk = ~clk;
+     * initial clk = 0;
+     *
+     * initial begin
+     * #1;
+     * for (int i = 0; i < 4; i++) begin
+     *   $display("clk=%0d", clk);
+     *   #5;
+     * end
+     * end
+     *
+     *
+     * endmodule
+     */
+
+    AlwaysGeneralPurpose(): Module("always_general_purpose") {}
+
+    void comb(Scheduler *scheduler) override {
+        {
+            auto *always = scheduler->create_comb_process();
+            always->func = [this, always, scheduler] {
+                while (true) {
+                    SCHEDULE_DELAY(always, 5, scheduler, n);
+                    clk = ~clk;
+                }
+                END_PROCESS(always);
+            };
+            comb_processes_.emplace_back(always);
+            clk.comb_processes.emplace_back(always);
+        }
+    }
+
+    void init(Scheduler *scheduler) override {
+        {
+            auto init_ptr = scheduler->create_init_process();
+            init_ptr->func = [init_ptr, this]() {
+                clk = 0_logic;
+                // done with this init
+                END_PROCESS(init_ptr);
+            };
+            Scheduler::schedule_init(init_ptr);
+        }
+
+        {
+            auto init_ptr = scheduler->create_init_process();
+            init_ptr->func = [init_ptr, scheduler, this]() {
+                SCHEDULE_DELAY(init_ptr, 1, scheduler, n);
+                for (auto i = 0; i < 4; i++) {
+                    display(this, "clk=%0d", clk);
+                    SCHEDULE_DELAY(init_ptr, 5, scheduler, n);
+                }
+                finish(scheduler, 0);
+                // done with this init
+                END_PROCESS(init_ptr);
+            };
+            Scheduler::schedule_init(init_ptr);
+        }
+    }
+
+    logic_t<0> clk;
+
+};
+
+TEST(runtime, always_general_purpose) { // NOLINT
+    Scheduler scheduler;
+    AlwaysGeneralPurpose m;
+    testing::internal::CaptureStdout();
+    scheduler.run(&m);
+    std::string output = testing::internal::GetCapturedStdout();
+    EXPECT_NE(output.find("clk=0\n"
+                          "clk=1\n"
+                          "clk=0\n"
+                          "clk=1\n"
+                          "$finish(0) called at 21"), std::string::npos);
+    EXPECT_EQ(scheduler.sim_time, 21);
+}

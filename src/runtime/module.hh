@@ -62,7 +62,7 @@ public:
 
     explicit logic_t(const logic::logic<msb, lsb, signed_> &v) { update_value(v); }
 
-    logic_t() : TrackedVar() {}
+    logic_t() : TrackedVar(), logic::logic<msb, lsb, signed_>() {}
 
     template <int op_msb, int op_lsb, bool op_signed_>
     void update_value(const logic::logic<op_msb, op_lsb, op_signed_> &v) {

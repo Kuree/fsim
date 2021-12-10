@@ -399,15 +399,15 @@ std::unordered_set<std::string_view> Module::get_tracked_vars() const {
         }
     }
 
-    // any input needs to be tracked
-    for (auto const &iter : inputs) {
+    // any outputs need to be tracked
+    for (auto const &iter : outputs) {
         result.emplace(iter.first->name);
     }
 
-    // any expr connected to child instance's output needs to be tracked
+    // any expr connected to child instance's inputs needs to be tracked
     for (auto const &iter : child_instances) {
-        auto const &os = iter.second->outputs;
-        for (auto const &[_, expr] : os) {
+        auto const &is = iter.second->inputs;
+        for (auto const &[_, expr] : is) {
             // need to figure out any named expressions
             VariableExtractor e;
             expr->visit(e);

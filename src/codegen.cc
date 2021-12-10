@@ -7,6 +7,7 @@
 #include <stack>
 #include <unordered_set>
 
+#include "ast.hh"
 #include "fmt/format.h"
 #include "slang/binding/SystemSubroutine.h"
 #include "slang/compilation/Compilation.h"
@@ -151,7 +152,8 @@ std::string_view get_indent(int indent_level) {
     return cache.at(indent_level);
 }
 
-const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol) {
+const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
+                                       std::vector<std::string_view> &paths) {
     auto scope = symbol->getParentScope();
     auto current = symbol;
     if (scope && symbol->kind == slang::SymbolKind::InstanceBody) {
@@ -161,6 +163,7 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol) {
 
         current = parents[0];
         scope = current->getParentScope();
+        paths.emplace_back(current->name);
     }
     return &scope->asSymbol();
 }
@@ -181,29 +184,29 @@ public:
         s << "_logic";
     }
 
-    [[maybe_unused]] void handle(const slang::NamedValueExpression &n) {
+    [[maybe_unused]] void handle(const slang::NamedValueExpression &n) { handle(n.symbol); }
+
+    void handle(const slang::ValueSymbol &sym) {
         // if the current symbol is not null, we need to resolve the hierarchy
         if (current_module_) {
-            auto const &sym = n.symbol;
             auto const *parent = &sym.getParentScope()->asSymbol();
             auto const *top_body = &current_module_->def()->body;
             if (!parent || parent == top_body) {
-                s << n.symbol.name;
+                s << sym.name;
             } else {
                 // different path, need to generate the path
                 std::vector<std::string_view> paths;
                 do {
-                    paths.emplace_back(parent->name);
-                    parent = get_parent_symbol(parent);
+                    parent = get_parent_symbol(parent, paths);
                 } while (parent && parent != top_body);
                 std::reverse(paths.begin(), paths.end());
                 for (auto const &p : paths) {
                     s << p << "->";
                 }
-                s << n.symbol.name;
+                s << sym.name;
             }
         } else {
-            s << n.symbol.name;
+            s << sym.name;
         }
     }
 
@@ -679,8 +682,10 @@ void codegen_always(std::ostream &s, int &indent_level, const CombProcess *proce
 
         // set input changed
         for (auto *var : process->sensitive_list) {
-            s << get_indent(indent_level) << var->name << ".comb_processes.emplace_back("
-              << ptr_name << ");" << std::endl;
+            s << get_indent(indent_level);
+            ExprCodeGenVisitor v(s, info.current_module);
+            var->visit(v);
+            s << ".comb_processes.emplace_back(" << ptr_name << ");" << std::endl;
         }
 
         s << get_indent(indent_level) << fmt::format("comb_processes_.emplace_back({0});", ptr_name)
@@ -757,6 +762,8 @@ void codegen_port_connections(std::ostream &s, int &indent_level, const Module *
     slang::SourceRange sr;
     slang::SourceLocation sl;
 
+    std::set<const slang::Symbol *> sensitivities;
+
     for (auto const &[port, var] : module->inputs) {
         // inputs is var assigned to port, so it's port = var
         auto name = std::make_unique<slang::NamedValueExpression>(*port, sr);
@@ -768,6 +775,13 @@ void codegen_port_connections(std::ostream &s, int &indent_level, const Module *
         exprs.emplace_back(std::move(expr));
         comb_process.stmts.emplace_back(stmt.get());
         stmts.emplace_back(std::move(stmt));
+
+        // add it to trigger list
+        VariableExtractor ex;
+        var->visit(ex);
+        for (auto const *n : ex.vars) {
+            sensitivities.emplace(&n->symbol);
+        }
     }
 
     // for output as well
@@ -782,6 +796,12 @@ void codegen_port_connections(std::ostream &s, int &indent_level, const Module *
         exprs.emplace_back(std::move(expr));
         comb_process.stmts.emplace_back(stmt.get());
         stmts.emplace_back(std::move(stmt));
+
+        sensitivities.emplace(port);
+    }
+
+    for (auto const *n : sensitivities) {
+        comb_process.sensitive_list.emplace_back(n);
     }
 
     codegen_always(s, indent_level, &comb_process, options, info);

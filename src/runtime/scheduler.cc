@@ -102,6 +102,10 @@ void Scheduler::run(Module *top) {
         printout_finish(finish_.code, sim_time);
     }
 
+    // stop any processes that's still running
+    // this only happens when a process has infinite loop or waiting for the next event schedule
+    terminate_processes();
+
     // execute final
     for (auto &final : final_processes_) {
         schedule_final(final.get());
@@ -192,6 +196,28 @@ void Scheduler::execute_nba() {
         f();
     }
     nbas_.clear();
+}
+
+void Scheduler::terminate_processes() {
+    for (auto &process : init_processes_) {
+        if (!process->finished) {
+            // cancel the delay immediately. notice that the finish flag has been set
+            process->delay.signal();
+        }
+    }
+
+    // same thing for other processes as well
+    for (auto &process : comb_processes_) {
+        if (!process->finished) {
+            process->delay.signal();
+        }
+    }
+
+    for (auto &process : ff_processes_) {
+        if (!process->finished) {
+            process->delay.signal();
+        }
+    }
 }
 
 }  // namespace xsim::runtime

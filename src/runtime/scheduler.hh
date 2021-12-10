@@ -113,6 +113,7 @@ private:
     [[nodiscard]] bool loop_stabilized() const;
     [[nodiscard]] bool terminate() const;
     void execute_nba();
+    void terminate_processes();
 
     Module *top_ = nullptr;
 };

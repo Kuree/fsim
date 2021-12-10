@@ -9,6 +9,7 @@
         scheduler->schedule_delay(next_time);                                            \
         process->cond.signal();                                                          \
         process->delay.wait();                                                           \
+        if (scheduler->finished()) return;                                               \
     } while (0)
 
 #define END_PROCESS(process)             \

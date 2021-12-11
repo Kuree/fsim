@@ -380,7 +380,7 @@ public:
     [[maybe_unused]] void handle(const slang::VariableSymbol &var) {
         // output variable definition
         auto const &t = var.getDeclaredType()->getType();
-        auto type_name = get_var_type(var.name);
+        auto type_name = get_var_type(t, var.name);
         auto range = t.getFixedRange();
         s << get_indent(indent_level) << type_name << "<" << range.left << ", " << range.right
           << "> " << var.name;
@@ -400,7 +400,7 @@ public:
     [[maybe_unused]] void handle(const slang::NetSymbol &var) {
         // output variable definition
         auto const &t = var.getDeclaredType()->getType();
-        auto type_name = get_var_type(var.name);
+        auto type_name = get_var_type(t, var.name);
         auto range = t.getFixedRange();
         s << get_indent(indent_level) << type_name << "<" << range.left << ", " << range.right
           << "> " << var.name << ";" << std::endl;
@@ -597,10 +597,16 @@ private:
     const CXXCodeGenOptions &options;
     CodeGenModuleInformation &module_info;
 
-    [[nodiscard]] std::string_view get_var_type(std::string_view name) const {
+    [[nodiscard]] std::string_view get_var_type(const slang::Type &t, std::string_view name) const {
         if (options.use_4state) {
-            return module_info.var_tracked(name) ? "xsim::runtime::logic_t" : "logic::logic";
+            auto four_state = t.isFourState();
+            if (four_state) {
+                return module_info.var_tracked(name) ? "xsim::runtime::logic_t" : "logic::logic";
+            } else {
+                return module_info.var_tracked(name) ? "xsim::runtime::bit_t" : "logic::bit";
+            }
         } else {
+            // force the simulator to use two state even though the original type maybe 4-state
             return module_info.var_tracked(name) ? "xsim::runtime::bit_t" : "logic::bit";
         }
     }

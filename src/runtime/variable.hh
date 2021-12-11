@@ -54,6 +54,12 @@ public:
         return *this;
     }
 
+    template <typename T>
+    requires(std::is_arithmetic_v<T>) logic_t &operator=(const T &v) {
+        update_value(logic::logic<msb, lsb, signed_>(v));
+        return *this;
+    }
+
     logic_t(const logic_t<msb, lsb, signed_> &v) { update_value(v); }
 
     explicit logic_t(const logic::logic<msb, lsb, signed_> &v) { update_value(v); }
@@ -77,6 +83,57 @@ public:
         }
     }
 };
+
+template <int msb, int lsb = msb, bool signed_ = false>
+class bit_t : public logic::bit<msb, lsb, signed_>, public TrackedVar {
+public:
+    // t for tracking
+    static auto constexpr size = logic::util::abs_diff(msb, lsb) + 1;
+    // we intentionally hide the underling assign operator function
+    // maybe try the type
+    // TODO: change this into a virtual function and rely on slang's conversion operator
+    //  to automatically convert types. thus disabling logic::logic's ability to change types
+    template <int op_msb, int op_lsb, bool op_signed_>
+    logic::bit<size - 1, 0, signed_> &operator=(const logic::bit<op_msb, op_lsb, op_signed_> &v) {
+        update_value(v);
+        return *this;
+    }
+
+    template <typename T>
+    requires(std::is_arithmetic_v<T>) bit_t &operator=(const T &v) {
+        update_value(logic::bit<msb, lsb, signed_>(v));
+        return *this;
+    }
+
+    bit_t &operator=(const bit_t<msb, lsb, signed_> &v) {
+        update_value(v);
+        return *this;
+    }
+
+    bit_t(const bit_t<msb, lsb, signed_> &v) { update_value(v); }
+
+    explicit bit_t(const logic::bit<msb, lsb, signed_> &v) { update_value(v); }
+
+    bit_t() : TrackedVar(), logic::bit<msb, lsb, signed_>() {}
+
+    template <int op_msb, int op_lsb, bool op_signed_>
+    void update_value(const logic::bit<op_msb, op_lsb, op_signed_> &v) {
+        if (this->match(v)) {
+            changed = false;
+        } else {
+            // dealing with edge triggering events
+            if constexpr (size == 1) {
+                // only allowed for size 1 signals
+                auto const new_v = v[logic::util::min(op_msb, op_lsb)];
+                update_edge_trigger(*this, new_v);
+            }
+            logic::bit<msb, lsb, signed_>::operator=(v);
+            changed = true;
+            trigger_process();
+        }
+    }
+};
+
 }  // namespace xsim::runtime
 
 #endif  // XSIM_VARIABLE_HH

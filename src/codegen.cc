@@ -37,6 +37,7 @@ auto constexpr raw_header_include = R"(#include "logic/array.hh"
 #include "logic/union.hh"
 #include "runtime/module.hh"
 #include "runtime/system_task.hh"
+#include "runtime/variable.hh"
 
 // forward declaration
 namespace xsim::runtime {

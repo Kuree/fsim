@@ -3,6 +3,7 @@
 #include "fmt/format.h"
 #include "marl/waitgroup.h"
 #include "scheduler.hh"
+#include "variable.hh"
 
 namespace xsim::runtime {
 
@@ -21,36 +22,6 @@ inline void start_process(Process *process) {
 
 inline bool should_trigger_process(Process *process) {
     return process->should_trigger && process->finished;
-}
-
-bool trigger_posedge(const logic::logic<0> &old, const logic::logic<0> &new_) {
-    // LRM Table 9-2
-    return ((old != logic::logic<0>::one_() && new_ == logic::logic<0>::one_()) ||
-            (old == logic::logic<0>::zero_() && new_ != logic::logic<0>::zero_()));
-}
-
-bool trigger_negedge(const logic::logic<0> &old, const logic::logic<0> &new_) {
-    // LRM Table 9-2
-    return ((old != logic::logic<0>::zero_() && new_ == logic::logic<0>::zero_()) ||
-            (old == logic::logic<0>::one_() && new_ != logic::logic<0>::one_()));
-}
-
-void TrackedVar::trigger_process() {
-    for (auto *process : comb_processes) {
-        process->should_trigger = true;
-    }
-
-    if (should_trigger_posedge && !ff_posedge_processes.empty()) {
-        for (auto *process : ff_posedge_processes) {
-            process->should_trigger = true;
-        }
-    }
-
-    if (should_trigger_negedge && !ff_negedge_processes.empty()) {
-        for (auto *process : ff_negedge_processes) {
-            process->should_trigger = true;
-        }
-    }
 }
 
 // NOLINTNEXTLINE

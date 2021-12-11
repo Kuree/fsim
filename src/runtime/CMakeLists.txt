@@ -1,4 +1,4 @@
-add_library(xsim-runtime SHARED system_task.cc scheduler.cc module.cc)
+add_library(xsim-runtime SHARED system_task.cc scheduler.cc module.cc variable.cc)
 target_include_directories(xsim-runtime PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/../../extern/fmt/include
         ${CMAKE_CURRENT_SOURCE_DIR}/../../extern/marl/include)

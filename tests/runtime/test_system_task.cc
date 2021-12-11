@@ -7,7 +7,7 @@
 using namespace xsim::runtime;
 using namespace logic::literals;
 
-TEST(systask, display_m) {  // NOLINT
+TEST(systask, display) {  // NOLINT
     Module m1("test", "test2");
     Module m2("test3", "test4");
     m2.parent = &m1;
@@ -26,6 +26,10 @@ TEST(systask, display_m) {  // NOLINT
     EXPECT_EQ(output, "PASS 1 2\n");
     testing::internal::CaptureStdout();
     display(&m2, "PASS", 1_logic, 2_logic);
+    output = testing::internal::GetCapturedStdout();
+    EXPECT_EQ(output, "PASS\n");
+    testing::internal::CaptureStdout();
+    display(&m2, "PASS");
     output = testing::internal::GetCapturedStdout();
     EXPECT_EQ(output, "PASS\n");
 }

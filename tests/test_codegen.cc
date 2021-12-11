@@ -200,7 +200,7 @@ endmodule
     EXPECT_NE(output.find("a=2 b=1\na=3 b=3"), std::string::npos);
 }
 
-TEST(code, always_ff_nba) { // NOLINT
+TEST(code, always_ff_nba) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module m;
 logic [3:0] a, b;
@@ -266,7 +266,6 @@ endmodule
     EXPECT_NE(output.find("sum=6\n"), std::string::npos);
 }
 
-
 TEST(code, child_instance) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module child (
@@ -306,4 +305,28 @@ endmodule
     builder.build(&compilation);
     std::string output = testing::internal::GetCapturedStdout();
     EXPECT_NE(output.find("b=3\n"), std::string::npos);
+}
+
+TEST(code, repeat) {  // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+module m;
+logic[5:0] a;
+initial begin
+    a = 2;
+    repeat (2) $display("2");
+    repeat (a) $display("4");
+end
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    BuildOptions options;
+    options.debug_build = true;
+    options.run_after_build = true;
+    Builder builder(options);
+    testing::internal::CaptureStdout();
+    builder.build(&compilation);
+    std::string output = testing::internal::GetCapturedStdout();
+    EXPECT_NE(output.find("2\n2\n4\n4\n"), std::string::npos);
 }

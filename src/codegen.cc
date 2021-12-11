@@ -553,6 +553,20 @@ public:
         loop.body.visit(*this);
     }
 
+    [[maybe_unused]] void handle(const slang::RepeatLoopStatement &repeat) {
+        // we use repeat as a variable since it won't appear in the code
+        s << std::endl << get_indent(indent_level) << "for (auto repeat = 0_logic; repeat < ";
+        ExprCodeGenVisitor v(s, module_info.current_module);
+        repeat.visit(v);
+        s << "; repeat++) {";
+        indent_level++;
+
+        repeat.body.visit(*this);
+
+        indent_level--;
+        s << std::endl << get_indent(indent_level) << "}";
+    }
+
     [[maybe_unused]] void handle(const slang::InstanceSymbol &inst) {
         auto const &def = inst.getDefinition();
         if (def.definitionKind == slang::DefinitionKind::Module) {

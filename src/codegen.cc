@@ -567,6 +567,16 @@ public:
         s << std::endl << get_indent(indent_level) << "}";
     }
 
+    [[maybe_unused]] void handle(const slang::ForeverLoopStatement &forever) {
+        s << std::endl << get_indent(indent_level) << "while (true) {" << std::endl;
+        indent_level++;
+
+        forever.body.visit(*this);
+
+        indent_level--;
+        s << std::endl << get_indent(indent_level) << "}";
+    }
+
     [[maybe_unused]] void handle(const slang::InstanceSymbol &inst) {
         auto const &def = inst.getDefinition();
         if (def.definitionKind == slang::DefinitionKind::Module) {

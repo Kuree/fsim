@@ -315,7 +315,12 @@ initial begin
     a = 2;
     repeat (2) $display("2");
     repeat (a) $display("4");
+    forever begin
+        $display("8");
+        #2;
+    end
 end
+initial #2 $finish(0);
 endmodule
 )");
 

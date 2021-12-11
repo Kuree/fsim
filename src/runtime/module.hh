@@ -2,6 +2,7 @@
 #define XSIM_MODULE_HH
 
 #include <memory>
+#include <mutex>
 #include <string>
 #include <string_view>
 

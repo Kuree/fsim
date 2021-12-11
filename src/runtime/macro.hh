@@ -8,8 +8,8 @@
             xsim::runtime::ScheduledTimeslot(scheduler->sim_time + pound_time, process); \
         scheduler->schedule_delay(next_time);                                            \
         process->cond.signal();                                                          \
-        process->delay.wait();                                                           \
         if (scheduler->finished()) return;                                               \
+        process->delay.wait();                                                           \
     } while (0)
 
 #define END_PROCESS(process)             \

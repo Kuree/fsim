@@ -6,6 +6,9 @@
 
 namespace xsim::runtime {
 
+// Module static members
+std::mutex Module::cout_lock_;
+
 inline void wait_process_switch(Process *process) {
     process->cond.wait();
     process->running = false;

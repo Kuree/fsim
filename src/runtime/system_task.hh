@@ -14,6 +14,11 @@ class Scheduler;
 
 void print_assert_error(std::string_view name, std::string_view loc);
 
+struct cout_lock {
+    cout_lock();
+    ~cout_lock();
+};
+
 template <typename T>
 bool assert_(const T &v, std::string_view name, std::string_view loc) {
     auto bool_ = static_cast<bool>(v);
@@ -63,6 +68,7 @@ uint64_t display_(const Module *, std::string_view format, const T &arg) {
 template <typename... Args>
 void display(const Module *module, std::string_view format, Args... args) {
     // only display the format for now
+    cout_lock lock;
     auto fmt = preprocess_display_fmt(module, format);
     display_(module, fmt, args...);
     std::cout << std::endl;

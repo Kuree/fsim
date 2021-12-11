@@ -533,10 +533,8 @@ TEST(runtime, inst) {  // NOLINT
     }
 }
 
-
-class AlwaysGeneralPurpose: public Module {
+class AlwaysGeneralPurpose : public Module {
 public:
-
     /*
      * module m;
      *
@@ -555,7 +553,7 @@ public:
      * endmodule
      */
 
-    AlwaysGeneralPurpose(): Module("always_general_purpose") {}
+    AlwaysGeneralPurpose() : Module("always_general_purpose") {}
 
     void comb(Scheduler *scheduler) override {
         {
@@ -600,10 +598,9 @@ public:
     }
 
     logic_t<0> clk;
-
 };
 
-TEST(runtime, always_general_purpose) { // NOLINT
+TEST(runtime, always_general_purpose) {  // NOLINT
     Scheduler scheduler;
     AlwaysGeneralPurpose m;
     testing::internal::CaptureStdout();
@@ -613,6 +610,67 @@ TEST(runtime, always_general_purpose) { // NOLINT
                           "clk=1\n"
                           "clk=0\n"
                           "clk=1\n"
-                          "$finish(0) called at 21"), std::string::npos);
+                          "$finish(0) called at 21"),
+              std::string::npos);
     EXPECT_EQ(scheduler.sim_time, 21);
+}
+
+class Forever : public Module {
+public:
+    /*
+     * module m;
+     * initial begin
+     * forever begin
+     *     $display("42");
+     *     #2;
+     * end
+     * end
+     *
+     * initial #2 $finish;
+     *
+     * endmodule
+     */
+
+    Forever() : Module("forever") {}
+
+    void init(Scheduler *scheduler) override {
+        {
+            auto init_ptr = scheduler->create_init_process();
+            init_ptr->func = [init_ptr, scheduler, this]() {
+                while (true) {
+                    display(this, "42");
+                    SCHEDULE_DELAY(init_ptr, 2, scheduler, n);
+                }
+                // done with this init
+                END_PROCESS(init_ptr);
+            };
+            Scheduler::schedule_init(init_ptr);
+        }
+
+        {
+            auto init_ptr = scheduler->create_init_process();
+            init_ptr->func = [init_ptr, scheduler]() {
+                SCHEDULE_DELAY(init_ptr, 2, scheduler, n);
+                finish(scheduler, 0);
+                // done with this init
+                END_PROCESS(init_ptr);
+            };
+            Scheduler::schedule_init(init_ptr);
+        }
+    }
+};
+
+TEST(runtime, forever_loop) {  // NOLINT
+    for (auto i = 0; i < 100; i++) {
+        Scheduler scheduler;
+        Forever m;
+        testing::internal::CaptureStdout();
+        scheduler.run(&m);
+        std::string output = testing::internal::GetCapturedStdout();
+        EXPECT_NE(output.find("42\n42\n"), std::string::npos);
+        if (output.find("42\n42\n") == std::string::npos) {
+            printf("%s\n", output.c_str());
+        }
+        EXPECT_EQ(scheduler.sim_time, 2);
+    }
 }

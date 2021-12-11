@@ -105,6 +105,10 @@ public:
     void active();
     [[nodiscard]] bool stabilized() const;
 
+    // cout locks
+    static void cout_lock() { cout_lock_.lock(); }
+    static void cout_unlock() { cout_lock_.unlock(); }
+
 protected:
     std::vector<CombProcess *> comb_processes_;
     std::vector<FFProcess *> ff_process_;
@@ -119,6 +123,8 @@ private:
 
     void wait_for_timed_processes();
     void schedule_ff();
+
+    static std::mutex cout_lock_;
 };
 }  // namespace xsim::runtime
 

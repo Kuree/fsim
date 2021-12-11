@@ -4,6 +4,10 @@
 
 namespace xsim::runtime {
 
+cout_lock::cout_lock() { Module::cout_lock(); }
+
+cout_lock::~cout_lock() { Module::cout_unlock(); }
+
 std::string preprocess_display_fmt(const Module *module, std::string_view format) {
     // based on LRM 21.2
     std::string result;
@@ -62,6 +66,7 @@ std::pair<std::string_view, uint64_t> preprocess_display_fmt(std::string_view fo
 
 void display(const Module *module, std::string_view format) {
     // only display the format for now
+    cout_lock lock;
     auto fmt = preprocess_display_fmt(module, format);
     std::cout << fmt << std::endl;
 }

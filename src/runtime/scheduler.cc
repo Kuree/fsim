@@ -45,7 +45,6 @@ void Scheduler::run(Module *top) {
     // init will run immediately so need to initialize comb and ff first
     top->init(this);
     top->final(this);
-    bool finished = false;
 
     // either wait for the finish or wait for the complete from init
     while (true) {
@@ -66,14 +65,6 @@ void Scheduler::run(Module *top) {
         } while (!loop_stabilized());
 
         if (terminate()) {
-            break;
-        }
-
-        // detect finish. notice that we need a second one below in case we finish it before
-        // finish is detected
-        if (finish_flag_) {
-            printout_finish(finish_.code, sim_time);
-            finished = true;
             break;
         }
 
@@ -98,13 +89,13 @@ void Scheduler::run(Module *top) {
         }
     }
 
-    if (finish_flag_ && !finished) {
-        printout_finish(finish_.code, sim_time);
-    }
-
     // stop any processes that's still running
     // this only happens when a process has infinite loop or waiting for the next event schedule
     terminate_processes();
+
+    if (finish_flag_.load()) {
+        printout_finish(finish_.code, sim_time);
+    }
 
     // execute final
     for (auto &final : final_processes_) {
@@ -169,6 +160,13 @@ void Scheduler::schedule_delay(const ScheduledTimeslot &event) {
 void Scheduler::schedule_finish(int code) {
     finish_.code = code;
     finish_flag_ = true;
+
+    // going to terminate all the process, if not finished
+    // also need to make sure that we're not doing something crazy while issuing events
+    {
+        std::lock_guard guard(event_queue_lock_);
+        terminate_processes();
+    }
 }
 
 void Scheduler::schedule_nba(const std::function<void()> &func) {
@@ -187,7 +185,8 @@ bool Scheduler::loop_stabilized() const {
 }
 
 bool Scheduler::terminate() const {
-    return !has_init_left(init_processes_) && top_->stabilized() && event_queue_.empty();
+    return finish_flag_.load() ||
+           (!has_init_left(init_processes_) && top_->stabilized() && event_queue_.empty());
 }
 
 void Scheduler::execute_nba() {

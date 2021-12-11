@@ -71,7 +71,7 @@ void display(const Module *module, std::string_view format, Args... args) {
 void display(const Module *module, std::string_view format);
 
 template <typename T>
-inline void finish(Scheduler *scheduler, T code = 0) {
+inline void finish(Scheduler *scheduler, T code) {
     int finish_code;
     if constexpr (std::is_arithmetic_v<T>) {
         finish_code = code;
@@ -80,6 +80,8 @@ inline void finish(Scheduler *scheduler, T code = 0) {
     }
     scheduler->schedule_finish(finish_code);
 }
+
+inline void finish(Scheduler *scheduler) { scheduler->schedule_finish(0); }
 
 }  // namespace xsim::runtime
 

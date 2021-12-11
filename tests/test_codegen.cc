@@ -320,7 +320,7 @@ initial begin
         #2;
     end
 end
-initial #2 $finish(0);
+initial #2 $finish;
 endmodule
 )");
 

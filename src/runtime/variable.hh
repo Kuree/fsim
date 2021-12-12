@@ -12,8 +12,6 @@ bool trigger_negedge(const logic::logic<0> &old, const logic::logic<0> &new_);
 
 class TrackedVar {
 public:
-    bool changed = false;
-
     bool track_edge = false;
     bool should_trigger_posedge = false;
     bool should_trigger_negedge = false;
@@ -74,9 +72,7 @@ public:
 
     template <int op_msb, int op_lsb, bool op_signed_>
     void update_value(const logic::logic<op_msb, op_lsb, op_signed_> &v) {
-        if (this->match(v)) {
-            changed = false;
-        } else {
+        if (!this->match(v)) {
             // dealing with edge triggering events
             if constexpr (size == 1) {
                 // only allowed for size 1 signals
@@ -84,7 +80,6 @@ public:
                 update_edge_trigger(*this, new_v);
             }
             logic::logic<msb, lsb, signed_>::operator=(v);
-            changed = true;
             trigger_process();
         }
     }
@@ -124,9 +119,7 @@ public:
 
     template <int op_msb, int op_lsb, bool op_signed_>
     void update_value(const logic::bit<op_msb, op_lsb, op_signed_> &v) {
-        if (this->match(v)) {
-            changed = false;
-        } else {
+        if (!this->match(v)) {
             // dealing with edge triggering events
             if constexpr (size == 1) {
                 // only allowed for size 1 signals
@@ -134,17 +127,10 @@ public:
                 update_edge_trigger(*this, new_v);
             }
             logic::bit<msb, lsb, signed_>::operator=(v);
-            changed = true;
             trigger_process();
         }
     }
 };
-
-template <int msb, int lsb, bool signed_>
-logic::logic<msb, lsb, signed_> to_logic(const logic::bit<msb, lsb, signed_> &v) {
-    return logic::logic(v);
-}
-
 }  // namespace xsim::runtime
 
 #endif  // XSIM_VARIABLE_HH

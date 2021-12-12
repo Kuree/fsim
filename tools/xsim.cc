@@ -323,8 +323,10 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
     // simulation
     optional<uint32_t> optimizationLevel;
     optional<bool> runAfterCompilation;
+    optional<bool> twoState;
     cmdLine.add("-O", optimizationLevel, "Optimization level");
     cmdLine.add("-R,--run", runAfterCompilation, "Run after compilation");
+    cmdLine.add("--two-state", twoState, "Turn on two-state simulation");
 
     // File list
     optional<bool> singleUnit;
@@ -477,6 +479,9 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
             }
             if (runAfterCompilation) {
                 b_opt.run_after_build = true;
+            }
+            if (twoState) {
+                b_opt.use_4state = false;
             }
             b_opt.simv_path = std::filesystem::weakly_canonical(argv[0]);
             xsim::Builder builder(b_opt);

@@ -182,7 +182,7 @@ public:
         auto uint_opt = v.as<int>();
         int value = uint_opt ? *uint_opt : 0;
         s << value;
-        s << "_logic";
+        s << "_bit";
     }
 
     [[maybe_unused]] void handle(const slang::NamedValueExpression &n) { handle(n.symbol); }
@@ -223,7 +223,7 @@ public:
                   << ">()";
             } else if (c.operand().type->getBitWidth() < t.getBitWidth()) {
                 // it's an extension
-                auto size = std::abs(t.getFixedRange().left - t.getFixedRange().right);
+                auto size = std::abs(t.getFixedRange().left - t.getFixedRange().right) + 1;
                 s << ".extend<" << size << ">()";
             }
             if (c.operand().type->isSigned() && !t.isSigned()) {
@@ -300,8 +300,8 @@ public:
     }
 
     [[maybe_unused]] void handle(const slang::BinaryExpression &expr) {
-        // TODO: implement sizing, which is the most bizarre thing compared to C/C++
         auto const &left = expr.left();
+        auto const &right = expr.right();
         s << "(";
         left.visit(*this);
         bool closing_p = false;
@@ -354,7 +354,6 @@ public:
                 throw std::runtime_error(
                     fmt::format("Unsupported operator {0}", slang::toString(expr.op)));
         }
-        auto const &right = expr.right();
         right.visit(*this);
         if (closing_p) s << ")";
         s << ")";
@@ -556,9 +555,15 @@ public:
 
     [[maybe_unused]] void handle(const slang::RepeatLoopStatement &repeat) {
         // we use repeat as a variable since it won't appear in the code
-        s << std::endl << get_indent(indent_level) << "for (auto repeat = 0_logic; repeat < ";
+        s << std::endl << get_indent(indent_level) << "for (auto repeat = 0";
+        if (repeat.count.type->isFourState()) {
+            s << "_logic";
+        } else {
+            s << "_bit";
+        }
+        s << "; repeat < ";
         ExprCodeGenVisitor v(s, module_info.current_module);
-        repeat.visit(v);
+        repeat.count.visit(v);
         s << "; repeat++) {";
         indent_level++;
 

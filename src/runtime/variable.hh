@@ -49,6 +49,12 @@ public:
         return *this;
     }
 
+    template <int op_msb, int op_lsb, bool op_signed_>
+    logic::logic<size - 1, 0, signed_> &operator=(const logic::bit<op_msb, op_lsb, op_signed_> &v) {
+        update_value(logic::logic(v));
+        return *this;
+    }
+
     logic_t<size - 1, 0, signed_> &operator=(const logic_t<msb, lsb, signed_> &v) {
         update_value(v);
         return *this;
@@ -133,6 +139,11 @@ public:
         }
     }
 };
+
+template <int msb, int lsb, bool signed_>
+logic::logic<msb, lsb, signed_> to_logic(const logic::bit<msb, lsb, signed_> &v) {
+    return logic::logic(v);
+}
 
 }  // namespace xsim::runtime
 

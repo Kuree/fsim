@@ -1,10 +1,9 @@
+#include "../../src/runtime/macro.hh"
 #include "../../src/runtime/module.hh"
 #include "../../src/runtime/scheduler.hh"
 #include "../../src/runtime/system_task.hh"
 #include "../../src/runtime/variable.hh"
-#include "../../src/runtime/macro.hh"
 #include "gtest/gtest.h"
-
 
 using namespace xsim::runtime;
 using namespace logic::literals;
@@ -56,7 +55,7 @@ public:
     }
 };
 
-TEST(two_state, tracking) {
+TEST(two_state, tracking) {  // NOLINT
     for (auto i = 0; i < 1; i++) {
         Scheduler scheduler;
         CombModuleOneBlock m;

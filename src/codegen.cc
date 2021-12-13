@@ -181,6 +181,14 @@ public:
         auto v = i.getValue();
         auto uint_opt = v.as<int>();
         int value = uint_opt ? *uint_opt : 0;
+        // depends on the width, we codegen differently
+        if (i.getEffectiveWidth()) {
+            auto bit_width = *i.getEffectiveWidth();
+            if (bit_width != 32) {
+                s << "logic::bit<" << (bit_width - 1) << ">(" << value << ")";
+                return;
+            }
+        }
         s << value;
         s << "_bit";
     }
@@ -359,6 +367,16 @@ public:
         s << ")";
     }
 
+    [[maybe_unused]] void handle(const slang::ElementSelectExpression &sym) {
+        auto const &value = sym.value();
+        auto const &selector = sym.selector();
+        // TODO: detect if the selector is constant, then use templated implementation
+        value.visit(*this);
+        s << ".get(";
+        selector.visit(*this);
+        s << ")";
+    }
+
     std::ostream &s;
 
     const slang::Expression *left_ptr = nullptr;
@@ -475,7 +493,7 @@ public:
     }
 
     [[maybe_unused]] void handle(const slang::ConditionalStatement &stmt) {
-        s << get_indent(indent_level);
+        s << std::endl << get_indent(indent_level);
         auto const &cond = stmt.cond;
         s << "if (";
         ExprCodeGenVisitor v(s);

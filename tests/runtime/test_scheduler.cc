@@ -669,9 +669,6 @@ TEST(runtime, forever_loop) {  // NOLINT
         scheduler.run(&m);
         std::string output = testing::internal::GetCapturedStdout();
         EXPECT_NE(output.find("42\n42\n"), std::string::npos);
-        if (output.find("42\n42\n") == std::string::npos) {
-            printf("%s\n", output.c_str());
-        }
         EXPECT_EQ(scheduler.sim_time, 2);
     }
 }

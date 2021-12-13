@@ -335,3 +335,30 @@ endmodule
     std::string output = testing::internal::GetCapturedStdout();
     EXPECT_NE(output.find("2\n2\n4\n4\n"), std::string::npos);
 }
+
+TEST(code, slice) { // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+module m;
+logic[5:0] a;
+logic b;
+initial begin
+    a = 6'b111111;
+    b = a[3];
+    if (b == 1'b1) begin
+        $display("PASS");
+    end
+end
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    BuildOptions options;
+    options.debug_build = true;
+    options.run_after_build = true;
+    Builder builder(options);
+    testing::internal::CaptureStdout();
+    builder.build(&compilation);
+    std::string output = testing::internal::GetCapturedStdout();
+    EXPECT_NE(output.find("PASS"), std::string::npos);
+}

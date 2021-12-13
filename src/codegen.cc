@@ -171,8 +171,9 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
 
 class ExprCodeGenVisitor : public slang::ASTVisitor<ExprCodeGenVisitor, false, true> {
 public:
-    explicit ExprCodeGenVisitor(std::ostream &s) : s(s) {}
-    ExprCodeGenVisitor(std::ostream &s, const Module *module) : s(s), current_module_(module) {}
+    ExprCodeGenVisitor(std::ostream &s, CodeGenModuleInformation &module_info)
+        : s(s), module_info_(module_info) {}
+
     [[maybe_unused]] void handle(const slang::StringLiteral &str) {
         s << '\"' << str.getValue() << '\"';
     }
@@ -183,7 +184,7 @@ public:
         int value = uint_opt ? *uint_opt : 0;
         // depends on the width, we codegen differently
         if (i.getEffectiveWidth()) {
-            auto bit_width = *i.getEffectiveWidth();
+            auto bit_width = i.getValue().getBitWidth();
             if (bit_width != 32) {
                 s << "logic::bit<" << (bit_width - 1) << ">(" << value << ")";
                 return;
@@ -197,24 +198,20 @@ public:
 
     void handle(const slang::ValueSymbol &sym) {
         // if the current symbol is not null, we need to resolve the hierarchy
-        if (current_module_) {
-            auto const *parent = &sym.getParentScope()->asSymbol();
-            auto const *top_body = &current_module_->def()->body;
-            if (!parent || parent == top_body) {
-                s << sym.name;
-            } else {
-                // different path, need to generate the path
-                std::vector<std::string_view> paths;
-                do {
-                    parent = get_parent_symbol(parent, paths);
-                } while (parent && parent != top_body);
-                std::reverse(paths.begin(), paths.end());
-                for (auto const &p : paths) {
-                    s << p << "->";
-                }
-                s << sym.name;
-            }
+        auto const *parent = &sym.getParentScope()->asSymbol();
+        auto const *top_body = &module_info_.current_module->def()->body;
+        if (!parent || parent == top_body) {
+            s << sym.name;
         } else {
+            // different path, need to generate the path
+            std::vector<std::string_view> paths;
+            do {
+                parent = get_parent_symbol(parent, paths);
+            } while (parent && parent != top_body);
+            std::reverse(paths.begin(), paths.end());
+            for (auto const &p : paths) {
+                s << p << "->";
+            }
             s << sym.name;
         }
     }
@@ -377,12 +374,57 @@ public:
         s << ")";
     }
 
+    [[maybe_unused]] void handle(const slang::CallExpression &expr) {
+        if (expr.subroutine.index() == 1) {
+            auto const &info = std::get<1>(expr.subroutine);
+            // remove the leading $
+            auto name = info.subroutine->name.substr(1);
+            auto func_name = fmt::format("xsim::runtime::{0}", name);
+            s << func_name << "(";
+            // depends on the context, we may or may not insert additional arguments
+            if (name == "finish") {
+                s << module_info_.scheduler_name();
+            } else {
+                s << "this";
+            }
+
+            auto const &arguments = expr.arguments();
+            for (auto const &arg : arguments) {
+                s << ", ";
+                arg->visit(*this);
+            }
+            s << ")";
+        } else {
+            const auto &symbol = *std::get<0>(expr.subroutine);
+            throw std::runtime_error(
+                fmt::format("Not yet implemented for symbol {0}", symbol.name));
+        }
+    }
+
+    [[maybe_unused]] void handle(const slang::AssignmentExpression &expr) {
+        if (expr.isNonBlocking()) {
+            s << xsim_schedule_nba << "(";
+            auto const &left = expr.left();
+            left.visit(*this);
+            s << ", ";
+            auto const &right = expr.right();
+            right.visit(*this);
+            s << ", " << module_info_.current_process_name() << ")";
+        } else {
+            auto const &left = expr.left();
+            left.visit(*this);
+            left_ptr = &left;
+            s << " = ";
+            auto const &right = expr.right();
+            right.visit(*this);
+        }
+    }
+
     std::ostream &s;
 
-    const slang::Expression *left_ptr = nullptr;
-
 private:
-    const Module *current_module_ = nullptr;
+    CodeGenModuleInformation &module_info_;
+    const slang::Expression *left_ptr = nullptr;
 };
 
 template <bool visit_stmt = true, bool visit_expr = true>
@@ -392,7 +434,11 @@ class CodeGenVisitor
 public:
     CodeGenVisitor(std::ostream &s, int &indent_level, const CXXCodeGenOptions &options,
                    CodeGenModuleInformation &module_info)
-        : s(s), indent_level(indent_level), options(options), module_info(module_info) {}
+        : s(s),
+          indent_level(indent_level),
+          options(options),
+          module_info(module_info),
+          expr_v(s, module_info) {}
 
     [[maybe_unused]] void handle(const slang::VariableSymbol &var) {
         // output variable definition
@@ -405,8 +451,7 @@ public:
         auto *init = var.getInitializer();
         if (init) {
             s << " = ";
-            ExprCodeGenVisitor v(s);
-            init->visit(v);
+            init->visit(expr_v);
         }
 
         s << ";" << std::endl;
@@ -444,33 +489,11 @@ public:
 
         s << get_indent(indent_level)
           << fmt::format("{0}({1}, (", xsim_schedule_delay, module_info.current_process_name());
-        ExprCodeGenVisitor v(s);
-        delay.expr.visit(v);
+        delay.expr.visit(expr_v);
         s << fmt::format(").to_uint64(), {0}, {1});", module_info.scheduler_name(),
                          module_info.get_new_name(xsim_next_time, false));
 
         stmt.stmt.visit(*this);
-    }
-
-    [[maybe_unused]] void handle(const slang::AssignmentExpression &expr) {
-        if (expr.isNonBlocking()) {
-            s << xsim_schedule_nba << "(";
-            auto const &left = expr.left();
-            ExprCodeGenVisitor v(s, module_info.current_module);
-            left.visit(v);
-            s << ", ";
-            auto const &right = expr.right();
-            right.visit(v);
-            s << ", " << module_info.current_process_name() << ")";
-        } else {
-            auto const &left = expr.left();
-            ExprCodeGenVisitor v(s, module_info.current_module);
-            left.visit(v);
-            v.left_ptr = &left;
-            s << " = ";
-            auto const &right = expr.right();
-            right.visit(v);
-        }
     }
 
     [[maybe_unused]] void handle(const slang::StatementBlockSymbol &) {
@@ -488,7 +511,7 @@ public:
 
     [[maybe_unused]] void handle(const slang::ExpressionStatement &stmt) {
         s << std::endl << get_indent(indent_level);
-        this->template visitDefault(stmt);
+        stmt.expr.visit(expr_v);
         s << ";";
     }
 
@@ -496,8 +519,7 @@ public:
         s << std::endl << get_indent(indent_level);
         auto const &cond = stmt.cond;
         s << "if (";
-        ExprCodeGenVisitor v(s);
-        cond.visit(v);
+        cond.visit(expr_v);
         s << ")";
         stmt.ifTrue.visit(*this);
         if (stmt.ifFalse) {
@@ -506,38 +528,10 @@ public:
         }
     }
 
-    [[maybe_unused]] void handle(const slang::CallExpression &expr) {
-        if (expr.subroutine.index() == 1) {
-            auto const &info = std::get<1>(expr.subroutine);
-            // remove the leading $
-            auto name = info.subroutine->name.substr(1);
-            auto func_name = fmt::format("xsim::runtime::{0}", name);
-            s << func_name << "(";
-            // depends on the context, we may or may not insert additional arguments
-            if (name == "finish") {
-                s << module_info.scheduler_name();
-            } else {
-                s << "this";
-            }
-
-            auto const &arguments = expr.arguments();
-            for (auto const &arg : arguments) {
-                s << ", ";
-                ExprCodeGenVisitor v(s);
-                arg->visit(v);
-            }
-            s << ")";
-        } else {
-            const auto &symbol = *std::get<0>(expr.subroutine);
-            throw std::runtime_error(
-                fmt::format("Not yet implemented for symbol {0}", symbol.name));
-        }
-    }
-
     [[maybe_unused]] void handle(const slang::ContinuousAssignSymbol &sym) {
         if constexpr (visit_stmt) {
             s << get_indent(indent_level);
-            this->visitDefault(sym);
+            sym.visitExprs(expr_v);
             s << ";" << std::endl;
         }
     }
@@ -546,22 +540,17 @@ public:
         s << get_indent(indent_level) << "for (";
         for (uint64_t i = 0; i < loop.initializers.size(); i++) {
             auto const *expr = loop.initializers[i];
-            ExprCodeGenVisitor v(s);
-            expr->visit(v);
+            expr->visit(expr_v);
             if (i != (loop.initializers.size() - 1)) {
                 s << ", ";
             }
         }
         s << "; ";
-        {
-            ExprCodeGenVisitor v(s);
-            loop.stopExpr->visit(v);
-        }
+        loop.stopExpr->visit(expr_v);
         s << "; ";
         for (uint64_t i = 0; i < loop.steps.size(); i++) {
             auto const *expr = loop.steps[i];
-            ExprCodeGenVisitor v(s);
-            expr->visit(v);
+            expr->visit(expr_v);
             if (i != (loop.steps.size() - 1)) {
                 s << ", ";
             }
@@ -580,8 +569,7 @@ public:
             s << "_bit";
         }
         s << "; repeat < ";
-        ExprCodeGenVisitor v(s, module_info.current_module);
-        repeat.count.visit(v);
+        repeat.count.visit(expr_v);
         s << "; repeat++) {";
         indent_level++;
 
@@ -635,6 +623,7 @@ private:
     }
 
     const slang::InstanceSymbol *inst_ = nullptr;
+    ExprCodeGenVisitor expr_v;
 };
 
 void codegen_sym(std::ostream &s, int &indent_level, const slang::Symbol *sym,
@@ -744,7 +733,7 @@ void codegen_always(std::ostream &s, int &indent_level, const CombProcess *proce
     // set input changed
     for (auto *var : process->sensitive_list) {
         s << get_indent(indent_level);
-        ExprCodeGenVisitor v(s, info.current_module);
+        ExprCodeGenVisitor v(s, info);
         var->visit(v);
         s << ".comb_processes.emplace_back(" << ptr_name << ");" << std::endl;
     }

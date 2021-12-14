@@ -374,6 +374,18 @@ public:
         s << ")";
     }
 
+    [[maybe_unused]] void handle(const slang::ConcatenationExpression &sym) {
+        s << "logic::concat(";
+        auto const &operands = sym.operands();
+        for (auto i = 0u; i < operands.size(); i++) {
+            operands[i]->visit(*this);
+            if (i != (operands.size() - 1)) {
+                s << ", ";
+            }
+        }
+        s << ")";
+    }
+
     [[maybe_unused]] void handle(const slang::CallExpression &expr) {
         if (expr.subroutine.index() == 1) {
             auto const &info = std::get<1>(expr.subroutine);
@@ -412,11 +424,28 @@ public:
             s << ", " << module_info_.current_process_name() << ")";
         } else {
             auto const &left = expr.left();
-            left.visit(*this);
-            left_ptr = &left;
-            s << " = ";
             auto const &right = expr.right();
-            right.visit(*this);
+            // detect unpacking syntax
+            if (left.kind == slang::ExpressionKind::Concatenation) {
+                // this is unpack
+                s << "(";
+                right.visit(*this);
+                s << ").unpack(";
+                auto const &concat = left.as<slang::ConcatenationExpression>();
+                auto const &operands = concat.operands();
+                for (auto i = 0u; i < operands.size(); i++) {
+                    operands[i]->visit(*this);
+                    if (i != (operands.size() - 1)) {
+                        s << ", ";
+                    }
+                }
+                s << ")";
+            } else {
+                left.visit(*this);
+                left_ptr = &left;
+                s << " = ";
+                right.visit(*this);
+            }
         }
     }
 

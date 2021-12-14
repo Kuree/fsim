@@ -362,3 +362,34 @@ endmodule
     std::string output = testing::internal::GetCapturedStdout();
     EXPECT_NE(output.find("PASS"), std::string::npos);
 }
+
+TEST(code, concat) {    // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+module m;
+logic[5:0] a;
+logic b;
+logic[6:0] c;
+initial begin
+    a = 6'b111111;
+    b = 1'b0;
+    c = {a, b};
+    $display("0c=%0b", c);
+    c = 7'b1010101;
+    {b, a} = c;
+    $display("1a=%0b 1b=%0b", a, b);
+end
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    BuildOptions options;
+    options.debug_build = true;
+    options.run_after_build = true;
+    Builder builder(options);
+    testing::internal::CaptureStdout();
+    builder.build(&compilation);
+    std::string output = testing::internal::GetCapturedStdout();
+    EXPECT_NE(output.find("0c=1111110"), std::string::npos);
+    EXPECT_NE(output.find("1a=010101 1b=1"), std::string::npos);
+}

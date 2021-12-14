@@ -415,13 +415,28 @@ public:
 
     [[maybe_unused]] void handle(const slang::AssignmentExpression &expr) {
         if (expr.isNonBlocking()) {
-            s << xsim_schedule_nba << "(";
             auto const &left = expr.left();
-            left.visit(*this);
-            s << ", ";
             auto const &right = expr.right();
-            right.visit(*this);
-            s << ", " << module_info_.current_process_name() << ")";
+            if (left.kind == slang::ExpressionKind::Concatenation) {
+                // unpack
+                // since this is very uncommon, we don't compare for update. also, inline these
+                // two statements
+                s << "{ auto wire = ";
+
+                right.visit(*this);
+                s << "; ";
+                s << module_info_.current_process_name() << "->schedule_nba([this, wire]() { ";
+                s << "wire.unpack(";
+                auto const &concat = left.as<slang::ConcatenationExpression>();
+                output_concat(concat);
+                s << "); }); }";
+            } else {
+                s << xsim_schedule_nba << "(";
+                left.visit(*this);
+                s << ", ";
+                right.visit(*this);
+                s << ", " << module_info_.current_process_name() << ")";
+            }
         } else {
             auto const &left = expr.left();
             auto const &right = expr.right();
@@ -432,13 +447,7 @@ public:
                 right.visit(*this);
                 s << ").unpack(";
                 auto const &concat = left.as<slang::ConcatenationExpression>();
-                auto const &operands = concat.operands();
-                for (auto i = 0u; i < operands.size(); i++) {
-                    operands[i]->visit(*this);
-                    if (i != (operands.size() - 1)) {
-                        s << ", ";
-                    }
-                }
+                output_concat(concat);
                 s << ")";
             } else {
                 left.visit(*this);
@@ -449,11 +458,19 @@ public:
         }
     }
 
-    std::ostream &s;
-
 private:
+    std::ostream &s;
     CodeGenModuleInformation &module_info_;
     const slang::Expression *left_ptr = nullptr;
+    void output_concat(const slang::ConcatenationExpression &concat) {
+        auto const &operands = concat.operands();
+        for (auto i = 0u; i < operands.size(); i++) {
+            operands[i]->visit(*this);
+            if (i != (operands.size() - 1)) {
+                s << ", ";
+            }
+        }
+    }
 };
 
 template <bool visit_stmt = true, bool visit_expr = true>

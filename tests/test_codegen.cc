@@ -377,6 +377,10 @@ initial begin
     c = 7'b1010101;
     {b, a} = c;
     $display("1a=%0b 1b=%0b", a, b);
+    {b, a} <= 7'b0101010;
+    $display("2a=%0b 2b=%0b", a, b);
+    #0;
+    $display("3a=%0b 3b=%0b", a, b);
 end
 endmodule
 )");
@@ -392,4 +396,6 @@ endmodule
     std::string output = testing::internal::GetCapturedStdout();
     EXPECT_NE(output.find("0c=1111110"), std::string::npos);
     EXPECT_NE(output.find("1a=010101 1b=1"), std::string::npos);
+    EXPECT_NE(output.find("2a=010101 2b=1"), std::string::npos);
+    EXPECT_NE(output.find("3a=101010 3b=0"), std::string::npos);
 }

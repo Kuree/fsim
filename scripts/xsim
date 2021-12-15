@@ -3,8 +3,30 @@ from __future__ import print_function
 import os
 import subprocess
 import sys
+import shutil
 
 GCC_VERSION = "11.2.0"
+
+
+def find_glibc_location():
+    ls_path = shutil.which("ls")
+    raw_output = subprocess.check_output(["ldd", ls_path]).decode("ascii")
+    lines = raw_output.split("\n")
+    for line in lines:
+        line = line.strip()
+        tokens = line.split(" ")
+        if tokens[1] != "=>":
+            continue
+        if "libc.so" in tokens[0]:
+            p = tokens[2]
+            return os.path.dirname(p)
+    return None
+
+
+def find_glibc_header():
+    # hardcode path for now
+    return "/usr/include/:/usr/include/x86_64-linux-gnu"
+
 
 root_dir = None
 for dirname in sys.path:
@@ -19,6 +41,13 @@ if root_dir is None:
 bin_dir = os.path.join(root_dir, "bin")
 xsim_bin = os.path.join(bin_dir, "xsim")
 cxx_bin = os.path.join(bin_dir, "g++-" + GCC_VERSION)
-env = {"XSIM_CXX": cxx_bin}
+# also need to find out the library path for crt1.o etc
+glibc_path = find_glibc_location()
+if glibc_path is None:
+    print("unable to find glibc", file=sys.stderr)
+    exit(1)
+# find glibc headers
+cpath = find_glibc_header()
+env = {"XSIM_CXX": cxx_bin, "LIBRARY_PATH": glibc_path, "CPATH": cpath}
 env.update(os.environ)
-subprocess.call([xsim_bin] + sys.argv[1:], env=env)
+exit(subprocess.call([xsim_bin] + sys.argv[1:], env=env))

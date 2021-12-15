@@ -17,12 +17,15 @@ jobs:
       - name: Build xsim 🎡
         shell: bash
         run: bash scripts/build_wheel.sh
-      #- name: Run tests ⚙️
-      #  shell: bash
-      #  run: |
-      #    echo "module top; endmodule" > test.sv
-      #    sudo pip3 install wheelhouse/*
-      #    xsim test.sv -R
+      - name: Install deps
+        shell: bash
+        run: sudo apt-get install -y libc6-dev-i386 gcc-multilib
+      - name: Run tests ⚙️
+        shell: bash
+        run: |
+          echo "module top; endmodule" > test.sv
+          sudo pip3 install wheelhouse/*
+          xsim test.sv -R
       - name: Upload artifact 🛖
         uses: actions/upload-artifact@v2
         with:

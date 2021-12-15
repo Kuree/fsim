@@ -1,0 +1,13 @@
+#!/usr/bin/env python
+import os
+import subprocess
+import sys
+
+GCC_VERSION = "11.2.0"
+
+root_dir = os.path.dirname(os.path.abspath(__file__))
+bin_dir = os.path.join(root_dir, "bin")
+xsim_bin = os.path.join(bin_dir, "xsim")
+cxx_bin = os.path.join(bin_dir, "g++-" + GCC_VERSION)
+env = {"XSIM_CXX": cxx_bin}
+subprocess.call([xsim_bin] + sys.argv[1:], env=env)

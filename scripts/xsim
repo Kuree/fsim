@@ -1,13 +1,24 @@
 #!/usr/bin/env python
+from __future__ import print_function
 import os
 import subprocess
 import sys
 
 GCC_VERSION = "11.2.0"
 
-root_dir = os.path.dirname(os.path.abspath(__file__))
+root_dir = None
+for dirname in sys.path:
+    path = os.path.join(dirname, "xsim")
+    if os.path.exists(os.path.join(path, "bin", "xsim")):
+        root_dir = path
+        break
+if root_dir is None:
+    print("unable to find xsim", file=sys.stderr)
+    exit(1)
+
 bin_dir = os.path.join(root_dir, "bin")
 xsim_bin = os.path.join(bin_dir, "xsim")
 cxx_bin = os.path.join(bin_dir, "g++-" + GCC_VERSION)
 env = {"XSIM_CXX": cxx_bin}
+env.update(os.environ)
 subprocess.call([xsim_bin] + sys.argv[1:], env=env)

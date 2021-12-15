@@ -103,6 +103,6 @@ setup(
     scripts=[os.path.join("scripts", "xsim")],
     ext_modules=[CMakeExtension("xsim")],
     # use ninja package
-    requires=["ninja"],
+    install_requires=["ninja"],
     cmdclass={"build_ext": CMakeBuild},
 )

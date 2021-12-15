@@ -1174,7 +1174,7 @@ void NinjaCodeGen::output(const std::string &dir) {
     auto include_dir = runtime_dir / "include";
     auto lib_path = runtime_dir / "lib";
     auto runtime_lib_path = lib_path / "libxsim-runtime.so";
-    stream << "cflags = -I" << include_dir << " -std=c++20 ";
+    stream << "cflags = -I" << include_dir << " -std=c++20 -march=native -m64 ";
     if (options_.debug_build) {
         stream << "-O0 -g ";
     } else {

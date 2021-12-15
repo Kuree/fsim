@@ -21,6 +21,10 @@ class CMakeBuild(build_ext):
         extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
 
         # required for auto-detection of auxiliary "native" libs
+        extdir = os.path.join(extdir, "xsim")
+        if not os.path.exists(extdir):
+            os.makedirs(extdir)
+
         if not extdir.endswith(os.path.sep):
             extdir += os.path.sep
 

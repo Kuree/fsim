@@ -928,7 +928,7 @@ void output_ctor(std::ostream &s, int &indent_level, const Module *module) {
 
     indent_level--;
     s << "}" << std::endl;
-};
+}
 
 void output_header_file(const std::filesystem::path &filename, const Module *mod,
                         const CXXCodeGenOptions &options, CodeGenModuleInformation &info) {

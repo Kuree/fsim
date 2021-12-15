@@ -32,7 +32,7 @@ class CMakeBuild(build_ext):
         # Can be set with Conda-Build, for example.
         cmake_generator = os.environ.get("CMAKE_GENERATOR", "")
         cmake_args = [
-            "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={}".format(extdir),
+            "-DSTATIC_BUILD=ON",
             "-DCMAKE_BUILD_TYPE={}".format(cfg),  # not used on MSVC, but no harm
         ]
         build_args = []
@@ -41,43 +41,55 @@ class CMakeBuild(build_ext):
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
 
-        subprocess.check_call(
-            ["cmake", ext.sourcedir] + cmake_args, cwd=self.build_temp
-        )
         # need to download the pre-built slang
         slang_dir = os.path.join(self.build_temp, "slang-dist")
         if not os.path.exists(slang_dir):
             os.makedirs(slang_dir, exist_ok=True)
-        subprocess.check_call(["curl", "-OL", SLANG_URL], cwd=slang_dir)
-        subprocess.check_call("tar xzf slang-linux.tar.gz --strip-components 1".split(), cwd=slang_dir)
-        shutil.rmtree(os.path.join(slang_dir, "slang-linux.tar.gz"), ignore_errors=True)
+            subprocess.check_call(["curl", "-OL", SLANG_URL], cwd=slang_dir)
+            subprocess.check_call("tar xzf slang-linux.tar.gz --strip-components 1".split(), cwd=slang_dir)
+            shutil.rmtree(os.path.join(slang_dir, "slang-linux.tar.gz"), ignore_errors=True)
 
-        make_targets = ["xsim-bin"]
+        subprocess.check_call(
+            ["cmake", ext.sourcedir] + cmake_args, cwd=self.build_temp
+        )
+
+        make_targets = ["xsim-bin", "xsim-runtime"]
         subprocess.check_call(
             ["cmake", "--build", ".", "--target"] + make_targets + build_args, cwd=self.build_temp
         )
         # need to copy stuff over
         # first copy GCC
-        gcc_dir = "/usr/local/" + GCC_VERSION
-        for name_tuple in os.walk(gcc_dir):
-            src = os.path.join(gcc_dir, name_tuple[1])
-            dst = os.path.join(extdir, name_tuple[1])
-            shutil.copytree(src, dst)
+        gcc_dir = "/usr/local/gcc-" + GCC_VERSION
+        gcc_dirs = next(os.walk(gcc_dir))[1]
+        for dirname in gcc_dirs:
+            src = os.path.join(gcc_dir, dirname)
+            dst = os.path.join(extdir, dirname)
+            if not os.path.exists(dst):
+                shutil.copytree(src, dst)
         # now copy other include files
         extern_include = ["marl", "logic"]
         src_root = os.path.dirname(os.path.abspath(__file__))
         for extern_dir in extern_include:
             src = os.path.join(src_root, "extern", extern_dir, "include", extern_dir)
             dst = os.path.join(extdir, "include", extern_dir)
-            shutil.copytree(src, dst)
+            if not os.path.exists(dst):
+                shutil.copytree(src, dst)
         # copy runtime header
         runtime_src = os.path.join(src_root, "src", "runtime")
         runtime_dst = os.path.join(extdir, "include", "runtime")
-        shutil.copytree(runtime_src, runtime_dst)
+        if not os.path.exists(runtime_dst):
+            shutil.copytree(runtime_src, runtime_dst)
         # copy over the build runtime
         runtime_src = os.path.join(self.build_temp, "src", "runtime", "libxsim-runtime.so")
-        runtime_dst = os.path.join(extdir, "bin")
-        shutil.copy(runtime_src, runtime_dst)
+        runtime_dst = os.path.join(extdir, "lib", "libxsim-runtime.so")
+        if not os.path.exists(runtime_dst):
+            shutil.copy(runtime_src, runtime_dst)
+
+        # copy xsim binary
+        xsim_src = os.path.join(self.build_temp, "tools", "xsim")
+        xsim_dst = os.path.join(extdir, "bin", "xsim") 
+        if not os.path.exists(xsim_dst):
+            shutil.copy(xsim_src, xsim_dst)
 
 
 setup(

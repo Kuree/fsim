@@ -35,8 +35,8 @@ jobs:
         if: startsWith(github.ref, 'refs/tags')
         shell: bash
         run: |
-          rm -rf dist
-          mv wheelhouse dist
+          sudo rm -rf dist
+          cp -r wheelhouse dist
       - name: Publish wheel 🎡
         if: startsWith(github.ref, 'refs/tags')
         uses: pypa/gh-action-pypi-publish@master

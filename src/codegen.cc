@@ -445,9 +445,12 @@ public:
             } else {
                 s << xsim_schedule_nba << "(";
                 left.visit(*this);
-                s << ", ";
+                // put extra paraphrases to escape , in macro.
+                // typically, what happens is slice<a, b> is treated as two arguments
+                // since we're no declaring types here, it should be fine
+                s << ", (";
                 right.visit(*this);
-                s << ", " << module_info_.current_process_name() << ")";
+                s << "), " << module_info_.current_process_name() << ")";
             }
         } else {
             auto const &left = expr.left();

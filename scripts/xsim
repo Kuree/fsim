@@ -48,6 +48,7 @@ if glibc_path is None:
     exit(1)
 # find glibc headers
 cpath = find_glibc_header()
-env = {"XSIM_CXX": cxx_bin, "LIBRARY_PATH": glibc_path, "CPATH": cpath}
+env = {"XSIM_CXX": cxx_bin, "LIBRARY_PATH": glibc_path + ":/usr/lib:/usr/lib64:/usr/lib/x86_64-linux-gnu/",
+       "CPATH": cpath}
 env.update(os.environ)
 exit(subprocess.call([xsim_bin] + sys.argv[1:], env=env))

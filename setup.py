@@ -91,14 +91,14 @@ class CMakeBuild(build_ext):
 
         # copy xsim binary
         xsim_src = os.path.join(self.build_temp, "tools", "xsim")
-        xsim_dst = os.path.join(extdir, "bin", "xsim") 
+        xsim_dst = os.path.join(extdir, "bin", "xsim")
         if not os.path.exists(xsim_dst):
             shutil.copy(xsim_src, xsim_dst)
 
 
 setup(
     name='xsim-python',
-    version="0.0.1",
+    version="0.0.2",
     author='Keyi Zhang',
     author_email='keyi@cs.stanford.edu',
     long_description="",

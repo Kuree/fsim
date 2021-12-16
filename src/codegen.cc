@@ -266,6 +266,14 @@ public:
                 s << "++";
                 op.visit(*this);
                 break;
+            case slang::UnaryOperator::LogicalNot:
+                s << "!";
+                op.visit(*this);
+                break;
+            case slang::UnaryOperator::BitwiseNot:
+                s << "~";
+                op.visit(*this);
+                break;
             default:
                 handled = false;
         }
@@ -278,6 +286,10 @@ public:
             case slang::UnaryOperator::BitwiseOr:
                 op.visit(*this);
                 s << ").r_or(";
+                break;
+            case slang::UnaryOperator::BitwiseXor:
+                op.visit(*this);
+                s << ").r_xor(";
                 break;
             case slang::UnaryOperator::Preincrement:
                 s << "++";

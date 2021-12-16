@@ -274,6 +274,14 @@ public:
                 s << "~";
                 op.visit(*this);
                 break;
+            case slang::UnaryOperator::Postdecrement:
+                op.visit(*this);
+                s << "--";
+                break;
+            case slang::UnaryOperator::Postincrement:
+                op.visit(*this);
+                s << "++";
+                break;
             default:
                 handled = false;
         }
@@ -291,21 +299,17 @@ public:
                 op.visit(*this);
                 s << ").r_xor(";
                 break;
-            case slang::UnaryOperator::Preincrement:
-                s << "++";
+            case slang::UnaryOperator::BitwiseNor:
                 op.visit(*this);
+                s << ").r_nor(";
                 break;
-            case slang::UnaryOperator::Predecrement:
-                s << "--";
+            case slang::UnaryOperator::BitwiseNand:
                 op.visit(*this);
+                s << ").nand(";
                 break;
-            case slang::UnaryOperator::Postdecrement:
+            case slang::UnaryOperator::BitwiseXnor:
                 op.visit(*this);
-                s << "--";
-                break;
-            case slang::UnaryOperator::Postincrement:
-                op.visit(*this);
-                s << "++";
+                s << ").r_xnor(";
                 break;
             default:
                 if (!handled)
@@ -325,6 +329,15 @@ public:
         switch (expr.op) {
             case slang::BinaryOperator::Add:
                 s << " + ";
+                break;
+            case slang::BinaryOperator::Subtract:
+                s << " - ";
+                break;
+            case slang::BinaryOperator::Multiply:
+                s << " * ";
+                break;
+            case slang::BinaryOperator::Mod:
+                s << " % ";
                 break;
             case slang::BinaryOperator::ArithmeticShiftLeft:
                 s << ".ashl(";
@@ -366,6 +379,12 @@ public:
                 break;
             case slang::BinaryOperator::GreaterThanEqual:
                 s << " >= ";
+                break;
+            case slang::BinaryOperator::LogicalShiftLeft:
+                s << " << ";
+                break;
+            case slang::BinaryOperator::LogicalShiftRight:
+                s << " >> ";
                 break;
             default:
                 throw std::runtime_error(

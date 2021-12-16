@@ -988,7 +988,7 @@ void output_header_file(const std::filesystem::path &filename, const Module *mod
           << std::endl;
     }
 
-    if (!mod->comb_processes.empty()) {
+    if (!mod->comb_processes.empty() || !mod->child_instances.empty()) {
         s << get_indent(indent_level) << "void comb(xsim::runtime::Scheduler *) override;"
           << std::endl;
     }

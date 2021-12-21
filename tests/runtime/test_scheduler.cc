@@ -672,3 +672,86 @@ TEST(runtime, forever_loop) {  // NOLINT
         EXPECT_EQ(scheduler.sim_time, 2);
     }
 }
+
+class BothEdgeTimingControl : public Module {
+    /*
+     * module top;
+     * logic clk;
+     *
+     * initial begin
+     * clk = 0;
+     * clk = #5 1;
+     * clk = #5 0;
+     * clk = #5 1;
+     * end
+     *
+     * initial begin
+     *     @(posedge clk);
+     *     $display("time is %t", $time);
+     *     @(negedge clk);
+     *     $display("time is %t", $time);
+     *     @(clk)
+     *     $display("time is %t", $time);
+     * end
+     *
+     * endmodule
+     */
+public:
+    BothEdgeTimingControl() : Module("both_timing_control") {}
+
+    logic_t<0> clk;
+
+    void init(Scheduler *scheduler) override {
+        {
+            auto init_ptr = scheduler->create_init_process();
+            init_ptr->func = [init_ptr, scheduler, this]() {
+                clk = 0_bit;
+                SCHEDULE_DELAY(init_ptr, 5, scheduler, n);
+                clk = 1_bit;
+                SCHEDULE_DELAY(init_ptr, 5, scheduler, n);
+                clk = 0_bit;
+                SCHEDULE_DELAY(init_ptr, 5, scheduler, n);
+                clk = 1_bit;
+                // done with this init
+                END_PROCESS(init_ptr);
+            };
+            Scheduler::schedule_init(init_ptr);
+        }
+
+        {
+            auto init_ptr = scheduler->create_init_process();
+            init_ptr->func = [init_ptr, scheduler, this]() {
+                clk.add_posedge_process(init_ptr);
+                init_ptr->cond.signal();
+                init_ptr->delay.wait();
+                init_ptr->running = true;
+                display(this, "time is %t", scheduler->sim_time);
+                clk.add_negedge_process(init_ptr);
+                init_ptr->cond.signal();
+                init_ptr->delay.wait();
+                init_ptr->running = true;
+                display(this, "time is %t", scheduler->sim_time);
+                clk.add_edge_process(init_ptr);
+                init_ptr->cond.signal();
+                init_ptr->delay.wait();
+                init_ptr->running = true;
+                display(this, "time is %t", scheduler->sim_time);
+                // done with this init
+                END_PROCESS(init_ptr);
+            };
+            clk.track_edge = true;
+            Scheduler::schedule_init(init_ptr);
+        }
+    }
+};
+
+TEST(runtime, edge_control) {  // NOLINT
+    for (auto i = 0; i < 1000; i++) {
+        Scheduler scheduler;
+        BothEdgeTimingControl m;
+        testing::internal::CaptureStdout();
+        scheduler.run(&m);
+        std::string output = testing::internal::GetCapturedStdout();
+        EXPECT_NE(output.find("time is 5\ntime is 10\ntime is 15\n"), std::string::npos);
+    }
+}

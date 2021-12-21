@@ -1,11 +1,14 @@
 #ifndef XSIM_VARIABLE_HH
 #define XSIM_VARIABLE_HH
 
+#include <mutex>
+
 #include "logic/logic.hh"
 
 namespace xsim::runtime {
 struct CombProcess;
 struct FFProcess;
+struct Process;
 
 bool trigger_posedge(const logic::logic<0> &old, const logic::logic<0> &new_);
 bool trigger_negedge(const logic::logic<0> &old, const logic::logic<0> &new_);
@@ -20,6 +23,10 @@ public:
     std::vector<FFProcess *> ff_posedge_processes;
     std::vector<FFProcess *> ff_negedge_processes;
 
+    void add_posedge_process(Process *process);
+    void add_negedge_process(Process *process);
+    void add_edge_process(Process *process);
+
     // no copy constructor
     TrackedVar(const TrackedVar &) = delete;
     TrackedVar &operator=(const TrackedVar &) = delete;
@@ -29,6 +36,15 @@ public:
 protected:
     void trigger_process();
     void update_edge_trigger(const logic::logic<0> &old, const logic::logic<0> &new_);
+
+    // other @events
+    std::vector<Process *> posedge_process_;
+    std::vector<Process *> negedge_processes_;
+    std::vector<Process *> edge_process_;
+    // mutex to protect the processes
+    // a mutex is fine since we don't expect this to be called very often, since it's only used
+    // for test bench
+    std::mutex process_lock_;
 };
 
 template <int msb, int lsb = msb, bool signed_ = false>

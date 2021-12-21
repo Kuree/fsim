@@ -386,6 +386,14 @@ public:
             case slang::BinaryOperator::LogicalShiftRight:
                 s << " >> ";
                 break;
+            case slang::BinaryOperator::CaseEquality:
+                s << ".match(";
+                closing_p = true;
+                break;
+            case slang::BinaryOperator::CaseInequality:
+                s << ".nmatch(";
+                closing_p = true;
+                break;
             default:
                 throw std::runtime_error(
                     fmt::format("Unsupported operator {0}", slang::toString(expr.op)));

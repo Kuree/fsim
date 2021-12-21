@@ -950,6 +950,9 @@ void output_ctor(std::ostream &s, int &indent_level, const Module *module) {
         s << "#include \"" << iter.second->name << ".hh\"" << std::endl;
     }
 
+    // output name space
+    s << "namespace xsim {" << std::endl;
+
     // then output the class ctor
     s << module->name << "::" << module->name << "(): xsim::runtime::Module(\"" << module->name
       << "\") {" << std::endl;
@@ -979,6 +982,9 @@ void output_header_file(const std::filesystem::path &filename, const Module *mod
     int indent_level = 0;
     s << "#pragma once" << std::endl;
     s << raw_header_include;
+
+    // output namespace
+    s << "namespace xsim {" << std::endl;
 
     // forward declaration
     bool has_ctor = !mod->child_instances.empty();
@@ -1043,13 +1049,16 @@ void output_header_file(const std::filesystem::path &filename, const Module *mod
     // child instances
     for (auto const &[name, inst] : mod->child_instances) {
         // we use shared ptr instead of unique ptr to avoid import the class header
-        s << get_indent(indent_level) << "std::shared_ptr<" << inst->name << "> " << name << ";"
-          << std::endl;
+        s << get_indent(indent_level) << "std::shared_ptr<xsim::" << inst->name << "> " << name
+          << ";" << std::endl;
     }
 
     indent_level--;
 
-    s << get_indent(indent_level) << "};";
+    s << get_indent(indent_level) << "};" << std::endl;
+
+    // namespace
+    s << "} // namespace xsim" << std::endl;
 
     write_to_file(filename, s);
 }
@@ -1068,6 +1077,9 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
     bool has_ctor = !mod->child_instances.empty();
     if (has_ctor) {
         output_ctor(s, indent_level, mod);
+    } else {
+        // output name space
+        s << "namespace xsim {" << std::endl;
     }
 
     // initial block
@@ -1146,6 +1158,9 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
         s << get_indent(indent_level) << "}" << std::endl;
     }
 
+    // namespace
+    s << "} // namespace xsim" << std::endl;
+
     write_to_file(filename, s);
 }
 
@@ -1161,7 +1176,7 @@ void output_main_file(const std::string &filename, const Module *top) {
     s << "int main(int argc, char *argv[]) {" << std::endl;
 
     s << "    xsim::runtime::Scheduler scheduler;" << std::endl
-      << "    " << top->name << " top;" << std::endl
+      << "    xsim::" << top->name << " top;" << std::endl
       << "    scheduler.run(&top);" << std::endl
       << "}";
 

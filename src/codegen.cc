@@ -174,9 +174,7 @@ public:
     ExprCodeGenVisitor(std::ostream &s, CodeGenModuleInformation &module_info)
         : s(s), module_info_(module_info) {}
 
-    [[maybe_unused]] void handle(const slang::StringLiteral &str) {
-        s << '\"' << str.getValue() << '\"';
-    }
+    [[maybe_unused]] void handle(const slang::StringLiteral &str) { s << str.getRawValue(); }
 
     [[maybe_unused]] void handle(const slang::IntegerLiteral &i) {
         auto v = i.getValue();

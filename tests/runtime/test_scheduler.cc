@@ -736,25 +736,13 @@ public:
         {
             auto init_ptr = scheduler->create_init_process();
             init_ptr->func = [init_ptr, scheduler, this]() {
-                init_ptr->edge_control.var = &clk;
-                init_ptr->edge_control.type = Process::EdgeControlType::posedge;
-                init_ptr->cond.signal();
-                init_ptr->delay.wait();
-                init_ptr->edge_control.var = nullptr;
+                SCHEDULE_EDGE(init_ptr, clk, Process::EdgeControlType::posedge);
                 display(this, "time is %t", scheduler->sim_time);
 
-                init_ptr->edge_control.var = &clk;
-                init_ptr->edge_control.type = Process::EdgeControlType::negedge;
-                init_ptr->cond.signal();
-                init_ptr->delay.wait();
-                init_ptr->edge_control.var = nullptr;
+                SCHEDULE_EDGE(init_ptr, clk, Process::EdgeControlType::negedge);
                 display(this, "time is %t", scheduler->sim_time);
 
-                init_ptr->edge_control.var = &clk;
-                init_ptr->edge_control.type = Process::EdgeControlType::both;
-                init_ptr->cond.signal();
-                init_ptr->delay.wait();
-                init_ptr->edge_control.var = nullptr;
+                SCHEDULE_EDGE(init_ptr, clk, Process::EdgeControlType::both);
                 display(this, "time is %t", scheduler->sim_time);
                 // done with this init
                 END_PROCESS(init_ptr);

@@ -28,4 +28,13 @@
         }                                                             \
     } while (0)
 
+#define SCHEDULE_EDGE(process, variable, edge_type) \
+    do {                                            \
+        process->edge_control.var = &variable;      \
+        process->edge_control.type = edge_type;     \
+        process->cond.signal();                     \
+        process->delay.wait();                      \
+        process->edge_control.var = nullptr;        \
+    } while (0)
+
 #endif  // XSIM_MACRO_HH

@@ -742,6 +742,8 @@ void codegen_init(std::ostream &s, int &indent_level, const Process *process,
     s << get_indent(indent_level) << "};" << std::endl;
     s << get_indent(indent_level)
       << fmt::format("xsim::runtime::Scheduler::schedule_init({0});", ptr_name) << std::endl;
+    s << get_indent(indent_level) << fmt::format("init_processes_.emplace_back({0});", ptr_name)
+      << std::endl;
 
     indent_level--;
     info.exit_process();

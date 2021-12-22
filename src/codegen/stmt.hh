@@ -17,12 +17,16 @@ public:
 
     [[maybe_unused]] void handle(const slang::VariableDeclStatement &stmt);
 
+    [[maybe_unused]] void handle(const slang::InstanceSymbol &inst);
+
 private:
     std::ostream &s;
     int &indent_level;
     const CXXCodeGenOptions &options;
     CodeGenModuleInformation &module_info;
     ExprCodeGenVisitor &expr_v;
+
+    const slang::InstanceSymbol *inst_ = nullptr;
 
     [[nodiscard]] std::string_view get_var_type(const slang::Type &t, std::string_view name) const;
 };

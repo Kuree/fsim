@@ -5,6 +5,79 @@ namespace xsim {
 auto constexpr xsim_next_time = "xsim_next_time";
 auto constexpr xsim_schedule_delay = "SCHEDULE_DELAY";
 
+VarDeclarationVisitor::VarDeclarationVisitor(std::ostream &s, int &indent_level,
+                                             const CXXCodeGenOptions &options,
+                                             CodeGenModuleInformation &module_info,
+                                             ExprCodeGenVisitor &expr_v)
+    : s(s),
+      indent_level(indent_level),
+      options(options),
+      module_info(module_info),
+      expr_v(expr_v) {}
+
+void VarDeclarationVisitor::handle(const slang::VariableSymbol &var) {
+    // output variable definition
+    auto const &t = var.getDeclaredType()->getType();
+    auto type_name = get_var_type(t, var.name);
+    auto range = t.getFixedRange();
+    s << get_indent(indent_level) << type_name << "<" << range.left << ", " << range.right << "> "
+      << var.name;
+
+    auto *init = var.getInitializer();
+    if (init) {
+        s << " = ";
+        init->visit(expr_v);
+    }
+
+    s << ";" << std::endl;
+    // add it to tracked names
+    module_info.add_used_names(var.name);
+}
+
+[[maybe_unused]] void VarDeclarationVisitor::handle(const slang::NetSymbol &var) {
+    // output variable definition
+    auto const &t = var.getDeclaredType()->getType();
+    auto type_name = get_var_type(t, var.name);
+    auto range = t.getFixedRange();
+    s << get_indent(indent_level) << type_name << "<" << range.left << ", " << range.right << "> "
+      << var.name << ";" << std::endl;
+    module_info.add_used_names(var.name);
+}
+
+[[maybe_unused]] void VarDeclarationVisitor::handle(const slang::VariableDeclStatement &stmt) {
+    s << std::endl;
+    auto const &v = stmt.symbol;
+    handle(v);
+}
+
+[[maybe_unused]] void VarDeclarationVisitor::handle(const slang::InstanceSymbol &inst) {
+    auto const &def = inst.getDefinition();
+    if (def.definitionKind == slang::DefinitionKind::Module) {
+        if (!inst_) {
+            inst_ = &inst;
+            this->template visitDefault(inst);
+        } else {
+            // don't go deeper
+            return;
+        }
+    }
+}
+
+std::string_view VarDeclarationVisitor::get_var_type(const slang::Type &t,
+                                                     std::string_view name) const {
+    if (options.use_4state) {
+        auto four_state = t.isFourState();
+        if (four_state) {
+            return module_info.var_tracked(name) ? "xsim::runtime::logic_t" : "logic::logic";
+        } else {
+            return module_info.var_tracked(name) ? "xsim::runtime::bit_t" : "logic::bit";
+        }
+    } else {
+        // force the simulator to use two state even though the original type maybe 4-state
+        return module_info.var_tracked(name) ? "xsim::runtime::bit_t" : "logic::bit";
+    }
+}
+
 StmtCodeGenVisitor::StmtCodeGenVisitor(std::ostream &s, int &indent_level,
                                        const CXXCodeGenOptions &options,
                                        CodeGenModuleInformation &module_info)
@@ -171,66 +244,6 @@ StmtCodeGenVisitor::StmtCodeGenVisitor(std::ostream &s, int &indent_level,
             // don't go deeper
             return;
         }
-    }
-}
-
-VarDeclarationVisitor::VarDeclarationVisitor(std::ostream &s, int &indent_level,
-                                             const CXXCodeGenOptions &options,
-                                             CodeGenModuleInformation &module_info,
-                                             ExprCodeGenVisitor &expr_v)
-    : s(s),
-      indent_level(indent_level),
-      options(options),
-      module_info(module_info),
-      expr_v(expr_v) {}
-
-void VarDeclarationVisitor::handle(const slang::VariableSymbol &var) {
-    // output variable definition
-    auto const &t = var.getDeclaredType()->getType();
-    auto type_name = get_var_type(t, var.name);
-    auto range = t.getFixedRange();
-    s << get_indent(indent_level) << type_name << "<" << range.left << ", " << range.right << "> "
-      << var.name;
-
-    auto *init = var.getInitializer();
-    if (init) {
-        s << " = ";
-        init->visit(expr_v);
-    }
-
-    s << ";" << std::endl;
-    // add it to tracked names
-    module_info.add_used_names(var.name);
-}
-
-[[maybe_unused]] void VarDeclarationVisitor::handle(const slang::NetSymbol &var) {
-    // output variable definition
-    auto const &t = var.getDeclaredType()->getType();
-    auto type_name = get_var_type(t, var.name);
-    auto range = t.getFixedRange();
-    s << get_indent(indent_level) << type_name << "<" << range.left << ", " << range.right << "> "
-      << var.name << ";" << std::endl;
-    module_info.add_used_names(var.name);
-}
-
-[[maybe_unused]] void VarDeclarationVisitor::handle(const slang::VariableDeclStatement &stmt) {
-    s << std::endl;
-    auto const &v = stmt.symbol;
-    handle(v);
-}
-
-std::string_view VarDeclarationVisitor::get_var_type(const slang::Type &t,
-                                                     std::string_view name) const {
-    if (options.use_4state) {
-        auto four_state = t.isFourState();
-        if (four_state) {
-            return module_info.var_tracked(name) ? "xsim::runtime::logic_t" : "logic::logic";
-        } else {
-            return module_info.var_tracked(name) ? "xsim::runtime::bit_t" : "logic::bit";
-        }
-    } else {
-        // force the simulator to use two state even though the original type maybe 4-state
-        return module_info.var_tracked(name) ? "xsim::runtime::bit_t" : "logic::bit";
     }
 }
 

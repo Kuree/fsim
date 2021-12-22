@@ -336,7 +336,7 @@ endmodule
     EXPECT_NE(output.find("2\n2\n4\n4\n"), std::string::npos);
 }
 
-TEST(code, slice) { // NOLINT
+TEST(code, slice) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module m;
 logic[5:0] a;
@@ -363,7 +363,7 @@ endmodule
     EXPECT_NE(output.find("PASS"), std::string::npos);
 }
 
-TEST(code, concat) {    // NOLINT
+TEST(code, concat) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module m;
 logic[5:0] a;
@@ -400,7 +400,7 @@ endmodule
     EXPECT_NE(output.find("3a=101010 3b=0"), std::string::npos);
 }
 
-TEST(code, escape) {    // NOLINT
+TEST(code, escape) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module m;
 initial begin
@@ -423,7 +423,7 @@ endmodule
     EXPECT_NE(output.find("B\tB\n"), std::string::npos);
 }
 
-TEST(code, single_event) {    // NOLINT
+TEST(code, single_event) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module top;
 logic clk;
@@ -457,4 +457,36 @@ endmodule
     builder.build(&compilation);
     std::string output = testing::internal::GetCapturedStdout();
     EXPECT_NE(output.find("time is 5\ntime is 10\ntime is 15\n"), std::string::npos);
+}
+
+TEST(code, delay_rhs) {  // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+module top;
+logic [31:0] a, b;
+
+initial begin
+    #0;
+    a = #2 b;
+end
+
+initial begin
+    b = 1;
+    #1 b = 2;
+    #2;
+    $display("a = %0d", a);
+end
+
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    BuildOptions options;
+    options.debug_build = true;
+    options.run_after_build = true;
+    Builder builder(options);
+    testing::internal::CaptureStdout();
+    builder.build(&compilation);
+    std::string output = testing::internal::GetCapturedStdout();
+    EXPECT_NE(output.find("a = 1\n"), std::string::npos);
 }

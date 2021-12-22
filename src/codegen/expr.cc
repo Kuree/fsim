@@ -338,7 +338,9 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
             // typically, what happens is slice<a, b> is treated as two arguments
             // since we're no declaring types here, it should be fine
             s << ", (";
-            if (right_name.empty()) {
+            if (timing) {
+                s << right_name;
+            } else {
                 right.visit(*this);
             }
             s << "), " << module_info_.current_process_name() << ")";
@@ -346,11 +348,25 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
     } else {
         auto const &left = expr.left();
         auto const &right = expr.right();
+        std::string right_name;
+        if (timing) {
+            right_name = "wire";
+            s << "{ auto " << right_name << " = ";
+            right.visit(*this);
+            s << ";";
+            output_timing(*timing);
+            s << " ";
+        }
         // detect unpacking syntax
         if (left.kind == slang::ExpressionKind::Concatenation) {
             // this is unpack
+
             s << "(";
-            right.visit(*this);
+            if (timing) {
+                s << right_name;
+            } else {
+                right.visit(*this);
+            }
             s << ").unpack(";
             auto const &concat = left.as<slang::ConcatenationExpression>();
             output_concat(concat);
@@ -359,8 +375,13 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
             left.visit(*this);
             left_ptr = &left;
             s << " = ";
-            right.visit(*this);
+            if (timing) {
+                s << right_name;
+            } else {
+                right.visit(*this);
+            }
         }
+        if (timing) s << "; }";
     }
 }
 

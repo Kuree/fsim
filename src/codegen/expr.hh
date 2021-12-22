@@ -41,7 +41,24 @@ private:
     CodeGenModuleInformation &module_info_;
     const slang::Expression *left_ptr = nullptr;
     void output_concat(const slang::ConcatenationExpression &concat);
+
+    void output_timing(const slang::TimingControl &timing);
 };
+
+class TimingControlCodeGen {
+public:
+    TimingControlCodeGen(std::ostream &s, int indent_level, CodeGenModuleInformation &module_info,
+                         ExprCodeGenVisitor &expr_v);
+
+    void handle(const slang::TimingControl &timing);
+
+private:
+    std::ostream &s;
+    int indent_level;
+    CodeGenModuleInformation &module_info_;
+    ExprCodeGenVisitor &expr_v;
+};
+
 }  // namespace xsim
 
 #endif  // XSIM_EXPR_HH

@@ -2,9 +2,6 @@
 
 namespace xsim {
 
-auto constexpr xsim_next_time = "xsim_next_time";
-auto constexpr xsim_schedule_delay = "SCHEDULE_DELAY";
-
 VarDeclarationVisitor::VarDeclarationVisitor(std::ostream &s, int &indent_level,
                                              const CXXCodeGenOptions &options,
                                              CodeGenModuleInformation &module_info,
@@ -100,47 +97,9 @@ StmtCodeGenVisitor::StmtCodeGenVisitor(std::ostream &s, int &indent_level,
 [[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::TimedStatement &stmt) {
     s << std::endl;
     auto const &timing = stmt.timing;
-    switch (timing.kind) {
-        case slang::TimingControlKind::Delay: {
-            // we first release the current condition holds
-            auto const &delay = timing.as<slang::DelayControl>();
-
-            s << get_indent(indent_level)
-              << fmt::format("{0}({1}, (", xsim_schedule_delay, module_info.current_process_name());
-            delay.expr.visit(expr_v);
-            s << fmt::format(").to_uint64(), {0}, {1});", module_info.scheduler_name(),
-                             module_info.get_new_name(xsim_next_time, false));
-
-            stmt.stmt.visit(*this);
-            break;
-        }
-        case slang::TimingControlKind::SignalEvent: {
-            auto const &single_event = timing.as<slang::SignalEventControl>();
-            s << get_indent(indent_level)
-              << fmt::format("SCHEDULE_EDGE({0}, ", module_info.current_process_name());
-            single_event.expr.visit(expr_v);
-            s << ", xsim::runtime::Process::EdgeControlType::";
-            switch (single_event.edge) {
-                case slang::EdgeKind::PosEdge:
-                    s << "posedge";
-                    break;
-                case slang::EdgeKind::NegEdge:
-                    s << "negedge";
-                    break;
-                case slang::EdgeKind::None:
-                case slang::EdgeKind::BothEdges:
-                    s << "both";
-                    break;
-            }
-            s << ");";
-            stmt.stmt.visit(*this);
-            break;
-        }
-        default: {
-            throw std::runtime_error(
-                fmt::format("Unsupported timing control {0}", slang::toString(timing.kind)));
-        }
-    }
+    TimingControlCodeGen timing_codegen(s, indent_level, module_info, expr_v);
+    timing_codegen.handle(timing);
+    stmt.stmt.visit(*this);
 }
 
 [[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::StatementBlockSymbol &) {

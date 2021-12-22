@@ -3,6 +3,8 @@
 namespace xsim {
 
 auto constexpr xsim_schedule_nba = "SCHEDULE_NBA";
+auto constexpr xsim_next_time = "xsim_next_time";
+auto constexpr xsim_schedule_delay = "SCHEDULE_DELAY";
 
 const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
                                        std::vector<std::string_view> &paths) {
@@ -299,6 +301,7 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
 }
 
 [[maybe_unused]] void ExprCodeGenVisitor::handle(const slang::AssignmentExpression &expr) {
+    auto const *timing = expr.timingControl;
     if (expr.isNonBlocking()) {
         auto const &left = expr.left();
         auto const &right = expr.right();
@@ -310,19 +313,34 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
 
             right.visit(*this);
             s << "; ";
+            // need to take care of timing
+            if (timing) {
+                output_timing(*timing);
+            }
+
             s << module_info_.current_process_name() << "->schedule_nba([this, wire]() { ";
             s << "wire.unpack(";
             auto const &concat = left.as<slang::ConcatenationExpression>();
             output_concat(concat);
             s << "); }); }";
         } else {
+            std::string right_name;
+            if (timing) {
+                right_name = "wire";
+                s << "{ auto " << right_name << " = ";
+                right.visit(*this);
+                s << ";";
+                output_timing(*timing);
+            }
             s << xsim_schedule_nba << "(";
             left.visit(*this);
             // put extra paraphrases to escape , in macro.
             // typically, what happens is slice<a, b> is treated as two arguments
             // since we're no declaring types here, it should be fine
             s << ", (";
-            right.visit(*this);
+            if (right_name.empty()) {
+                right.visit(*this);
+            }
             s << "), " << module_info_.current_process_name() << ")";
         }
     } else {
@@ -356,4 +374,58 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
         }
     }
 }
+
+void ExprCodeGenVisitor::output_timing(const slang::TimingControl &timing) {
+    TimingControlCodeGen t(s, 1, module_info_, *this);
+    t.handle(timing);
+    s << " ";
+}
+
+TimingControlCodeGen::TimingControlCodeGen(std::ostream &s, int indent_level,
+                                           CodeGenModuleInformation &module_info,
+                                           ExprCodeGenVisitor &expr_v)
+    : s(s), indent_level(indent_level), module_info_(module_info), expr_v(expr_v) {}
+
+void TimingControlCodeGen::handle(const slang::TimingControl &timing) {
+    switch (timing.kind) {
+        case slang::TimingControlKind::Delay: {
+            // we first release the current condition holds
+            auto const &delay = timing.as<slang::DelayControl>();
+
+            s << get_indent(indent_level)
+              << fmt::format("{0}({1}, (", xsim_schedule_delay,
+                             module_info_.current_process_name());
+            delay.expr.visit(expr_v);
+            s << fmt::format(").to_uint64(), {0}, {1});", module_info_.scheduler_name(),
+                             module_info_.get_new_name(xsim_next_time, false));
+            break;
+        }
+        case slang::TimingControlKind::SignalEvent: {
+            auto const &single_event = timing.as<slang::SignalEventControl>();
+            s << get_indent(indent_level)
+              << fmt::format("SCHEDULE_EDGE({0}, ", module_info_.current_process_name());
+            single_event.expr.visit(expr_v);
+            s << ", xsim::runtime::Process::EdgeControlType::";
+            switch (single_event.edge) {
+                case slang::EdgeKind::PosEdge:
+                    s << "posedge";
+                    break;
+                case slang::EdgeKind::NegEdge:
+                    s << "negedge";
+                    break;
+                case slang::EdgeKind::None:
+                case slang::EdgeKind::BothEdges:
+                    s << "both";
+                    break;
+            }
+            s << ");";
+            break;
+        }
+        default: {
+            throw std::runtime_error(
+                fmt::format("Unsupported timing control {0}", slang::toString(timing.kind)));
+        }
+    }
+}
+
 }  // namespace xsim

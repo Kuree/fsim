@@ -1,5 +1,6 @@
 #include "ir.hh"
 
+#include <set>
 #include <stack>
 #include <unordered_set>
 
@@ -112,6 +113,35 @@ std::string Module::analyze_connections() {
     }
 
     return {};
+}
+
+class EdgeEventControlVisitor : public slang::ASTVisitor<EdgeEventControlVisitor, true, true> {
+public:
+    [[maybe_unused]] void handle(const slang::TimedStatement &stmt) {
+        auto const &timing = stmt.timing;
+        if (timing.kind == slang::TimingControlKind::SignalEvent) {
+            auto const &event = timing.as<slang::SignalEventControl>();
+            auto const &expr = event.expr;
+            if (expr.kind != slang::ExpressionKind::NamedValue) {
+                throw std::runtime_error("Only single named value event supported");
+            }
+            auto const &named_value = expr.as<slang::NamedValueExpression>();
+            auto const &var = named_value.symbol;
+            vars.emplace(std::make_pair(&var, event.edge));
+        }
+    }
+
+    std::set<std::pair<const slang::ValueSymbol *, const slang::EdgeKind>> vars;
+};
+
+void analyze_edge_event_control(Process *process) {
+    EdgeEventControlVisitor visitor;
+    for (auto const *stmt : process->stmts) {
+        stmt->visit(visitor);
+    }
+
+    process->edge_event_controls = std::vector<std::pair<const slang::Symbol *, slang::EdgeKind>>(
+        visitor.vars.begin(), visitor.vars.end());
 }
 
 bool is_assignment(const slang::Symbol *symbol) {
@@ -233,6 +263,10 @@ std::string Module::analyze_comb() {
         comb_processes.emplace_back(std::move(p));
     }
 
+    for (auto const &p : comb_processes) {
+        analyze_edge_event_control(p.get());
+    }
+
     return {};
 }
 
@@ -251,6 +285,9 @@ std::string Module::analyze_init() {
     // we don't do anything to init block
     // since we just treat it as an actual fiber thread and let it do stuff
     extract_procedure_blocks(init_processes, def_, slang::ProceduralBlockKind::Initial);
+    for (auto const &p : init_processes) {
+        analyze_edge_event_control(p.get());
+    }
     return {};
 }
 
@@ -329,6 +366,10 @@ std::string Module::analyze_ff() {
         }
     }
 
+    for (auto const &p : ff_processes) {
+        analyze_edge_event_control(p.get());
+    }
+
     return {};
 }
 
@@ -384,6 +425,13 @@ std::unordered_set<const Module *> Module::get_defs() const {
     return result;
 }
 
+void add_edge_control_tracked_var(const Process *process,
+                                  std::unordered_set<std::string_view> &result) {
+    for (auto const &[v, _] : process->edge_event_controls) {
+        result.emplace(v->name);
+    }
+}
+
 std::unordered_set<std::string_view> Module::get_tracked_vars() const {
     std::unordered_set<std::string_view> result;
     for (auto const &comb : comb_processes) {
@@ -391,12 +439,18 @@ std::unordered_set<std::string_view> Module::get_tracked_vars() const {
         for (auto const *sym : comb->sensitive_list) {
             result.emplace(sym->name);
         }
+        add_edge_control_tracked_var(comb.get(), result);
     }
 
     for (auto const &ff : ff_processes) {
         for (auto const &[_, v] : ff->edges) {
             result.emplace(v->name);
         }
+        add_edge_control_tracked_var(ff.get(), result);
+    }
+
+    for (auto const &init : init_processes) {
+        add_edge_control_tracked_var(init.get(), result);
     }
 
     // any outputs need to be tracked

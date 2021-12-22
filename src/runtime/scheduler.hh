@@ -89,7 +89,7 @@ public:
     void schedule_delay(const ScheduledTimeslot &event);
     void schedule_finish(int code);
     void schedule_nba(const std::function<void()> &func);
-    void add_tracked_var(TrackedVar *var) { tracked_vars_.emplace_back(var); }
+    void add_tracked_var(TrackedVar *var) { tracked_vars_.emplace(var); }
     void add_process_edge_control(Process *process);
 
     [[nodiscard]] bool finished() const { return finish_flag_.load(); }
@@ -120,7 +120,7 @@ private:
 
     // used for track event controls that requires a stabilized synchronization
     // no mutex lock since it's computed during initialization time, which is serial
-    std::vector<TrackedVar *> tracked_vars_;
+    std::unordered_set<TrackedVar *> tracked_vars_;
     std::vector<Process *> process_edge_controls_;
 
     std::atomic<uint64_t> id_count_ = 0;

@@ -562,24 +562,49 @@ public:
     }
 
     [[maybe_unused]] void handle(const slang::TimedStatement &stmt) {
-        auto const &timing = stmt.timing;
-        if (timing.kind != slang::TimingControlKind::Delay) {
-            // only care about delay so far
-            stmt.stmt.visit(*this);
-            return;
-        }
         s << std::endl;
-        // we first release the current condition holds
+        auto const &timing = stmt.timing;
+        switch (timing.kind) {
+            case slang::TimingControlKind ::Delay: {
+                // we first release the current condition holds
+                auto const &delay = timing.as<slang::DelayControl>();
 
-        auto const &delay = timing.as<slang::DelayControl>();
+                s << get_indent(indent_level)
+                  << fmt::format("{0}({1}, (", xsim_schedule_delay,
+                                 module_info.current_process_name());
+                delay.expr.visit(expr_v);
+                s << fmt::format(").to_uint64(), {0}, {1});", module_info.scheduler_name(),
+                                 module_info.get_new_name(xsim_next_time, false));
 
-        s << get_indent(indent_level)
-          << fmt::format("{0}({1}, (", xsim_schedule_delay, module_info.current_process_name());
-        delay.expr.visit(expr_v);
-        s << fmt::format(").to_uint64(), {0}, {1});", module_info.scheduler_name(),
-                         module_info.get_new_name(xsim_next_time, false));
-
-        stmt.stmt.visit(*this);
+                stmt.stmt.visit(*this);
+                break;
+            }
+            case slang::TimingControlKind::SignalEvent: {
+                auto const &single_event = timing.as<slang::SignalEventControl>();
+                s << get_indent(indent_level)
+                  << fmt::format("SCHEDULE_EDGE({0}, ", module_info.current_process_name());
+                single_event.expr.visit(expr_v);
+                s << ", xsim::runtime::Process::EdgeControlType::";
+                switch (single_event.edge) {
+                    case slang::EdgeKind::PosEdge:
+                        s << "posedge";
+                        break;
+                    case slang::EdgeKind::NegEdge:
+                        s << "negedge";
+                        break;
+                    case slang::EdgeKind::None:
+                    case slang::EdgeKind::BothEdges:
+                        s << "both";
+                        break;
+                }
+                s << ");";
+                break;
+            }
+            default: {
+                throw std::runtime_error("Unsupported timing control " +
+                                         slang::toString(timing.kind));
+            }
+        }
     }
 
     [[maybe_unused]] void handle(const slang::StatementBlockSymbol &) {
@@ -718,6 +743,25 @@ void codegen_sym(std::ostream &s, int &indent_level, const slang::Symbol *sym,
     sym->visit(v);
 }
 
+void codegen_edge_control(std::ostream &s, int &indent_level, const Process *process,
+                          const CXXCodeGenOptions &options, CodeGenModuleInformation &info) {
+    CodeGenVisitor v(s, indent_level, options, info);
+    if (!process->edge_event_controls.empty()) {
+        for (auto const &[var, _] : process->edge_event_controls) {
+            s << get_indent(indent_level);
+            var->visit(v);
+            s << ".track_edge = true;" << std::endl;
+
+            s << get_indent(indent_level) << info.scheduler_name() << "->add_tracked_var(&";
+            var->visit(v);
+            s << ");" << std::endl;
+        }
+        s << get_indent(indent_level)
+          << fmt::format("scheduler->add_process_edge_control({0});", info.current_process_name())
+          << std::endl;
+    }
+}
+
 void codegen_init(std::ostream &s, int &indent_level, const Process *process,
                   const CXXCodeGenOptions &options, CodeGenModuleInformation &info) {
     s << get_indent(indent_level) << "{" << std::endl;
@@ -744,6 +788,8 @@ void codegen_init(std::ostream &s, int &indent_level, const Process *process,
       << fmt::format("xsim::runtime::Scheduler::schedule_init({0});", ptr_name) << std::endl;
     s << get_indent(indent_level) << fmt::format("init_processes_.emplace_back({0});", ptr_name)
       << std::endl;
+
+    codegen_edge_control(s, indent_level, process, options, info);
 
     indent_level--;
     info.exit_process();
@@ -829,6 +875,8 @@ void codegen_always(std::ostream &s, int &indent_level, const CombProcess *proce
     s << get_indent(indent_level) << fmt::format("comb_processes_.emplace_back({0});", ptr_name)
       << std::endl;
 
+    codegen_edge_control(s, indent_level, process, options, info);
+
     indent_level--;
     info.exit_process();
     s << get_indent(indent_level) << "}" << std::endl;
@@ -882,6 +930,8 @@ void codegen_ff(std::ostream &s, int &indent_level, const FFProcess *process,
     for (auto const &name : vars) {
         s << get_indent(indent_level) << name << ".track_edge = true;" << std::endl;
     }
+
+    codegen_edge_control(s, indent_level, process, options, info);
 
     indent_level--;
     info.exit_process();

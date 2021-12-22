@@ -96,3 +96,26 @@ endmodule
     EXPECT_EQ(child->inputs.size(), 2);
     EXPECT_EQ(child->outputs.size(), 1);
 }
+
+TEST(ir, edge_control) {    // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+module top;
+logic clk;
+initial begin
+@(clk);
+@(posedge clk) clk = 1;
+end
+endmodule
+)");
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    ModuleDefinitionVisitor vis;
+    compilation.getRoot().visit(vis);
+    auto *def = vis.modules.at("top");
+    Module m(def);
+    auto error = m.analyze();
+    EXPECT_TRUE(error.empty());
+
+    auto const &init = m.init_processes[0];
+    EXPECT_EQ(init->edge_event_controls.size(), 2);
+}

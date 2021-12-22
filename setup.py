@@ -70,6 +70,9 @@ class CMakeBuild(build_ext):
             dst = os.path.join(extdir, dirname)
             if not os.path.exists(dst):
                 shutil.copytree(src, dst)
+        # need to delete unnecessary stuff to make the wheel smaller
+        os.remove(os.path.join(extdir, "bin", "lto-dump-11.2.0"))
+        shutil.rmtree(os.path.join(extdir, "share"))
         # now copy other include files
         extern_include = ["marl", "logic"]
         src_root = os.path.dirname(os.path.abspath(__file__))

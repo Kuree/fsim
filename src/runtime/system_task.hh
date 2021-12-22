@@ -87,6 +87,8 @@ inline void finish(Scheduler *scheduler, T code) {
 
 [[maybe_unused]] inline void finish(Scheduler *scheduler) { scheduler->schedule_finish(0); }
 
+[[maybe_unused]] inline uint64_t time(Scheduler *scheduler) { return scheduler->sim_time; }
+
 }  // namespace xsim::runtime
 
 #endif  // XSIM_SYSTEM_TASK_HH

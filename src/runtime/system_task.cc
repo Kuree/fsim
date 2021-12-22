@@ -15,14 +15,17 @@ std::string preprocess_display_fmt(const Module *module, std::string_view format
     uint64_t i = 0;
     while (i < format.size()) {
         auto c = format[i];
-        // we only need to modify it make it consistent with the fmt lib string
-        // also need to take into account of other weird things
+        // need to take into account of other weird things
         // for now we transform %m
         if (pre[0] == '%' && c == 'm') {
             // pop out the last %
             result.pop_back();
             // use the instance name
             result.append(module->hierarchy_name());
+            c = '\0';
+        } else if (pre[0] == '%' && c == 't') {
+            // we change it to %d
+            result.append("d");
             c = '\0';
         }
         pre[0] = c;

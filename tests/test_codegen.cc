@@ -422,3 +422,39 @@ endmodule
     EXPECT_NE(output.find("A\n\n"), std::string::npos);
     EXPECT_NE(output.find("B\tB\n"), std::string::npos);
 }
+
+TEST(code, single_event) {    // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+module top;
+logic clk;
+
+initial begin
+clk = 0;
+#5 clk = 1;
+#5 clk = 0;
+#5 clk = 1;
+end
+
+initial begin
+    @(posedge clk);
+    $display("time is %t", $time);
+    @(negedge clk);
+    $display("time is %t", $time);
+    @(clk)
+    $display("time is %t", $time);
+end
+
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    BuildOptions options;
+    options.debug_build = true;
+    options.run_after_build = true;
+    Builder builder(options);
+    testing::internal::CaptureStdout();
+    builder.build(&compilation);
+    std::string output = testing::internal::GetCapturedStdout();
+    EXPECT_NE(output.find("time is 5\ntime is 10\ntime is 15\n"), std::string::npos);
+}

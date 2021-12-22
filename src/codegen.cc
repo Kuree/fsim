@@ -431,7 +431,7 @@ public:
             auto func_name = fmt::format("xsim::runtime::{0}", name);
             s << func_name << "(";
             // depends on the context, we may or may not insert additional arguments
-            if (name == "finish") {
+            if (name == "finish" || name == "time") {
                 s << module_info_.scheduler_name();
             } else {
                 s << "this";
@@ -565,7 +565,7 @@ public:
         s << std::endl;
         auto const &timing = stmt.timing;
         switch (timing.kind) {
-            case slang::TimingControlKind ::Delay: {
+            case slang::TimingControlKind::Delay: {
                 // we first release the current condition holds
                 auto const &delay = timing.as<slang::DelayControl>();
 
@@ -598,11 +598,12 @@ public:
                         break;
                 }
                 s << ");";
+                stmt.stmt.visit(*this);
                 break;
             }
             default: {
-                throw std::runtime_error("Unsupported timing control " +
-                                         slang::toString(timing.kind));
+                throw std::runtime_error(
+                    fmt::format("Unsupported timing control {0}", slang::toString(timing.kind)));
             }
         }
     }
@@ -744,16 +745,18 @@ void codegen_sym(std::ostream &s, int &indent_level, const slang::Symbol *sym,
 }
 
 void codegen_edge_control(std::ostream &s, int &indent_level, const Process *process,
-                          const CXXCodeGenOptions &options, CodeGenModuleInformation &info) {
-    CodeGenVisitor v(s, indent_level, options, info);
+                          CodeGenModuleInformation &info) {
+    ExprCodeGenVisitor v(s, info);
     if (!process->edge_event_controls.empty()) {
+        slang::SourceRange sr;
         for (auto const &[var, _] : process->edge_event_controls) {
             s << get_indent(indent_level);
-            var->visit(v);
+            auto name = slang::NamedValueExpression(*var, sr);
+            name.visit(v);
             s << ".track_edge = true;" << std::endl;
 
             s << get_indent(indent_level) << info.scheduler_name() << "->add_tracked_var(&";
-            var->visit(v);
+            name.visit(v);
             s << ");" << std::endl;
         }
         s << get_indent(indent_level)
@@ -789,7 +792,7 @@ void codegen_init(std::ostream &s, int &indent_level, const Process *process,
     s << get_indent(indent_level) << fmt::format("init_processes_.emplace_back({0});", ptr_name)
       << std::endl;
 
-    codegen_edge_control(s, indent_level, process, options, info);
+    codegen_edge_control(s, indent_level, process, info);
 
     indent_level--;
     info.exit_process();
@@ -875,7 +878,7 @@ void codegen_always(std::ostream &s, int &indent_level, const CombProcess *proce
     s << get_indent(indent_level) << fmt::format("comb_processes_.emplace_back({0});", ptr_name)
       << std::endl;
 
-    codegen_edge_control(s, indent_level, process, options, info);
+    codegen_edge_control(s, indent_level, process, info);
 
     indent_level--;
     info.exit_process();
@@ -931,7 +934,7 @@ void codegen_ff(std::ostream &s, int &indent_level, const FFProcess *process,
         s << get_indent(indent_level) << name << ".track_edge = true;" << std::endl;
     }
 
-    codegen_edge_control(s, indent_level, process, options, info);
+    codegen_edge_control(s, indent_level, process, info);
 
     indent_level--;
     info.exit_process();

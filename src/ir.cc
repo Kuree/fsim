@@ -140,8 +140,9 @@ void analyze_edge_event_control(Process *process) {
         stmt->visit(visitor);
     }
 
-    process->edge_event_controls = std::vector<std::pair<const slang::Symbol *, slang::EdgeKind>>(
-        visitor.vars.begin(), visitor.vars.end());
+    process->edge_event_controls =
+        std::vector<std::pair<const slang::ValueSymbol *, slang::EdgeKind>>(visitor.vars.begin(),
+                                                                            visitor.vars.end());
 }
 
 bool is_assignment(const slang::Symbol *symbol) {

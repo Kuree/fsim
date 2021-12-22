@@ -22,7 +22,7 @@ public:
     explicit Process(slang::ProceduralBlockKind type) : type(type) {}
 
     // may have event control inside the statements as well, e.g. @(posedge clk)
-    std::vector<std::pair<const slang::Symbol *, slang::EdgeKind>> edge_event_controls;
+    std::vector<std::pair<const slang::ValueSymbol *, slang::EdgeKind>> edge_event_controls;
 };
 
 class CombProcess : public Process {

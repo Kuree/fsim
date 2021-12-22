@@ -1,60 +1,30 @@
 #include "stmt.hh"
 
 namespace xsim {
-std::string_view get_indent(int indent_level) {
-    static std::unordered_map<int, std::string> cache;
-    if (cache.find(indent_level) == cache.end()) {
-        std::stringstream ss;
-        for (auto i = 0; i < indent_level; i++) ss << "    ";
-        cache.emplace(indent_level, ss.str());
-    }
-    return cache.at(indent_level);
-}
 
-CodeGenVisitor::CodeGenVisitor(std::ostream &s, int &indent_level, const CXXCodeGenOptions &options,
-                               CodeGenModuleInformation &module_info)
+auto constexpr xsim_next_time = "xsim_next_time";
+auto constexpr xsim_schedule_delay = "SCHEDULE_DELAY";
+
+StmtCodeGenVisitor::StmtCodeGenVisitor(std::ostream &s, int &indent_level,
+                                       const CXXCodeGenOptions &options,
+                                       CodeGenModuleInformation &module_info)
     : s(s),
       indent_level(indent_level),
-      options(options),
       module_info(module_info),
-      expr_v(s, module_info) {}
+      expr_v(s, module_info),
+      decl_v(s, indent_level, options, module_info, expr_v) {}
 
-void CodeGenVisitor::handle(const slang::VariableSymbol &var) {
-    // output variable definition
-    auto const &t = var.getDeclaredType()->getType();
-    auto type_name = get_var_type(t, var.name);
-    auto range = t.getFixedRange();
-    s << get_indent(indent_level) << type_name << "<" << range.left << ", " << range.right << "> "
-      << var.name;
-
-    auto *init = var.getInitializer();
-    if (init) {
-        s << " = ";
-        init->visit(expr_v);
-    }
-
-    s << ";" << std::endl;
-    // add it to tracked names
-    module_info.add_used_names(var.name);
+[[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::VariableSymbol &var) {
+    var.visit(decl_v);
 }
 
-void CodeGenVisitor::handle(const slang::NetSymbol &var) {
-    // output variable definition
-    auto const &t = var.getDeclaredType()->getType();
-    auto type_name = get_var_type(t, var.name);
-    auto range = t.getFixedRange();
-    s << get_indent(indent_level) << type_name << "<" << range.left << ", " << range.right << "> "
-      << var.name << ";" << std::endl;
-    module_info.add_used_names(var.name);
+[[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::NetSymbol &var) { var.visit(decl_v); }
+
+[[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::VariableDeclStatement &stmt) {
+    stmt.visit(decl_v);
 }
 
-void CodeGenVisitor::handle(const slang::VariableDeclStatement &stmt) {
-    s << std::endl;
-    auto const &v = stmt.symbol;
-    handle(v);
-}
-
-void CodeGenVisitor::handle(const slang::TimedStatement &stmt) {
+[[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::TimedStatement &stmt) {
     s << std::endl;
     auto const &timing = stmt.timing;
     switch (timing.kind) {
@@ -100,11 +70,11 @@ void CodeGenVisitor::handle(const slang::TimedStatement &stmt) {
     }
 }
 
-void CodeGenVisitor::handle(const slang::StatementBlockSymbol &) {
+[[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::StatementBlockSymbol &) {
     // we ignore this one for now
 }
 
-void CodeGenVisitor::handle(const slang::StatementList &list) {
+[[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::StatementList &list) {
     // entering a scope
     s << get_indent(indent_level) << "{";
     indent_level++;
@@ -113,13 +83,13 @@ void CodeGenVisitor::handle(const slang::StatementList &list) {
     s << std::endl << get_indent(indent_level) << "}" << std::endl;
 }
 
-void CodeGenVisitor::handle(const slang::ExpressionStatement &stmt) {
+[[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::ExpressionStatement &stmt) {
     s << std::endl << get_indent(indent_level);
     stmt.expr.visit(expr_v);
     s << ";";
 }
 
-void CodeGenVisitor::handle(const slang::ConditionalStatement &stmt) {
+[[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::ConditionalStatement &stmt) {
     s << std::endl << get_indent(indent_level);
     auto const &cond = stmt.cond;
     s << "if (";
@@ -132,13 +102,13 @@ void CodeGenVisitor::handle(const slang::ConditionalStatement &stmt) {
     }
 }
 
-void CodeGenVisitor::handle(const slang::ContinuousAssignSymbol &sym) {
+[[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::ContinuousAssignSymbol &sym) {
     s << get_indent(indent_level);
     sym.visitExprs(expr_v);
     s << ";" << std::endl;
 }
 
-void CodeGenVisitor::handle(const slang::ForLoopStatement &loop) {
+[[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::ForLoopStatement &loop) {
     s << get_indent(indent_level) << "for (";
     for (uint64_t i = 0; i < loop.initializers.size(); i++) {
         auto const *expr = loop.initializers[i];
@@ -162,7 +132,7 @@ void CodeGenVisitor::handle(const slang::ForLoopStatement &loop) {
     loop.body.visit(*this);
 }
 
-void CodeGenVisitor::handle(const slang::RepeatLoopStatement &repeat) {
+[[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::RepeatLoopStatement &repeat) {
     // we use repeat as a variable since it won't appear in the code
     s << std::endl << get_indent(indent_level) << "for (auto repeat = 0";
     if (repeat.count.type->isFourState()) {
@@ -181,7 +151,7 @@ void CodeGenVisitor::handle(const slang::RepeatLoopStatement &repeat) {
     s << std::endl << get_indent(indent_level) << "}";
 }
 
-void CodeGenVisitor::handle(const slang::ForeverLoopStatement &forever) {
+[[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::ForeverLoopStatement &forever) {
     s << std::endl << get_indent(indent_level) << "while (true) {" << std::endl;
     indent_level++;
 
@@ -191,7 +161,7 @@ void CodeGenVisitor::handle(const slang::ForeverLoopStatement &forever) {
     s << std::endl << get_indent(indent_level) << "}";
 }
 
-void CodeGenVisitor::handle(const slang::InstanceSymbol &inst) {
+[[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::InstanceSymbol &inst) {
     auto const &def = inst.getDefinition();
     if (def.definitionKind == slang::DefinitionKind::Module) {
         if (!inst_) {
@@ -204,7 +174,53 @@ void CodeGenVisitor::handle(const slang::InstanceSymbol &inst) {
     }
 }
 
-std::string_view CodeGenVisitor::get_var_type(const slang::Type &t, std::string_view name) const {
+VarDeclarationVisitor::VarDeclarationVisitor(std::ostream &s, int &indent_level,
+                                             const CXXCodeGenOptions &options,
+                                             CodeGenModuleInformation &module_info,
+                                             ExprCodeGenVisitor &expr_v)
+    : s(s),
+      indent_level(indent_level),
+      options(options),
+      module_info(module_info),
+      expr_v(expr_v) {}
+
+void VarDeclarationVisitor::handle(const slang::VariableSymbol &var) {
+    // output variable definition
+    auto const &t = var.getDeclaredType()->getType();
+    auto type_name = get_var_type(t, var.name);
+    auto range = t.getFixedRange();
+    s << get_indent(indent_level) << type_name << "<" << range.left << ", " << range.right << "> "
+      << var.name;
+
+    auto *init = var.getInitializer();
+    if (init) {
+        s << " = ";
+        init->visit(expr_v);
+    }
+
+    s << ";" << std::endl;
+    // add it to tracked names
+    module_info.add_used_names(var.name);
+}
+
+[[maybe_unused]] void VarDeclarationVisitor::handle(const slang::NetSymbol &var) {
+    // output variable definition
+    auto const &t = var.getDeclaredType()->getType();
+    auto type_name = get_var_type(t, var.name);
+    auto range = t.getFixedRange();
+    s << get_indent(indent_level) << type_name << "<" << range.left << ", " << range.right << "> "
+      << var.name << ";" << std::endl;
+    module_info.add_used_names(var.name);
+}
+
+[[maybe_unused]] void VarDeclarationVisitor::handle(const slang::VariableDeclStatement &stmt) {
+    s << std::endl;
+    auto const &v = stmt.symbol;
+    handle(v);
+}
+
+std::string_view VarDeclarationVisitor::get_var_type(const slang::Type &t,
+                                                     std::string_view name) const {
     if (options.use_4state) {
         auto four_state = t.isFourState();
         if (four_state) {

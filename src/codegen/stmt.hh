@@ -5,11 +5,32 @@
 #include "expr.hh"
 
 namespace xsim {
-class CodeGenVisitor : public slang::ASTVisitor<CodeGenVisitor, true, true> {
-    // the ultimate visitor
+
+class VarDeclarationVisitor : public slang::ASTVisitor<VarDeclarationVisitor, false, false> {
 public:
-    CodeGenVisitor(std::ostream &s, int &indent_level, const CXXCodeGenOptions &options,
-                   CodeGenModuleInformation &module_info);
+    VarDeclarationVisitor(std::ostream &s, int &indent_level, const CXXCodeGenOptions &options,
+                          CodeGenModuleInformation &module_info, ExprCodeGenVisitor &expr_v);
+
+    [[maybe_unused]] void handle(const slang::VariableSymbol &var);
+
+    [[maybe_unused]] void handle(const slang::NetSymbol &var);
+
+    [[maybe_unused]] void handle(const slang::VariableDeclStatement &stmt);
+
+private:
+    std::ostream &s;
+    int &indent_level;
+    const CXXCodeGenOptions &options;
+    CodeGenModuleInformation &module_info;
+    ExprCodeGenVisitor &expr_v;
+
+    [[nodiscard]] std::string_view get_var_type(const slang::Type &t, std::string_view name) const;
+};
+
+class StmtCodeGenVisitor : public slang::ASTVisitor<StmtCodeGenVisitor, true, true> {
+public:
+    StmtCodeGenVisitor(std::ostream &s, int &indent_level, const CXXCodeGenOptions &options,
+                       CodeGenModuleInformation &module_info);
 
     [[maybe_unused]] void handle(const slang::VariableSymbol &var);
 
@@ -40,14 +61,13 @@ public:
 private:
     std::ostream &s;
     int &indent_level;
-    const CXXCodeGenOptions &options;
     CodeGenModuleInformation &module_info;
-
-    [[nodiscard]] std::string_view get_var_type(const slang::Type &t, std::string_view name) const;
 
     const slang::InstanceSymbol *inst_ = nullptr;
     ExprCodeGenVisitor expr_v;
+    VarDeclarationVisitor decl_v;
 };
+
 }  // namespace xsim
 
 #endif  // XSIM_STMT_HH

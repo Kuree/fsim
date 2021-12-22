@@ -9,8 +9,6 @@
 
 namespace xsim {
 
-auto constexpr xsim_next_time = "xsim_next_time";
-auto constexpr xsim_schedule_delay = "SCHEDULE_DELAY";
 auto constexpr xsim_end_process = "END_PROCESS";
 
 // need to generate header information about module declaration
@@ -34,19 +32,9 @@ using namespace logic::literals;
 
 )";
 
-std::string_view get_indent(int indent_level) {
-    static std::unordered_map<int, std::string> cache;
-    if (cache.find(indent_level) == cache.end()) {
-        std::stringstream ss;
-        for (auto i = 0; i < indent_level; i++) ss << "    ";
-        cache.emplace(indent_level, ss.str());
-    }
-    return cache.at(indent_level);
-}
-
 void codegen_sym(std::ostream &s, int &indent_level, const slang::Symbol *sym,
                  const CXXCodeGenOptions &options, CodeGenModuleInformation &info) {
-    CodeGenVisitor v(s, indent_level, options, info);
+    StmtCodeGenVisitor v(s, indent_level, options, info);
     sym->visit(v);
 }
 
@@ -380,8 +368,9 @@ void output_header_file(const std::filesystem::path &filename, const Module *mod
 
     // all variables are public
     {
-        CodeGenVisitor<false, false> v(s, indent_level, options, info);
-        mod->def()->visit(v);
+        ExprCodeGenVisitor expr_v(s, info);
+        VarDeclarationVisitor decl_v(s, indent_level, options, info, expr_v);
+        mod->def()->visit(decl_v);
     }
 
     // init function

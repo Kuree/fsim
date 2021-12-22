@@ -56,5 +56,7 @@ private:
     std::string scheduler_name_;
 };
 
+std::string_view get_indent(int indent_level);
+
 }  // namespace xsim
 #endif  // XSIM_CODEGEN_UTIL_HH

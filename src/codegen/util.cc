@@ -73,4 +73,14 @@ void CodeGenModuleInformation::exit_process() {
     process_names_.pop();
 }
 
+std::string_view get_indent(int indent_level) {
+    static std::unordered_map<int, std::string> cache;
+    if (cache.find(indent_level) == cache.end()) {
+        std::stringstream ss;
+        for (auto i = 0; i < indent_level; i++) ss << "    ";
+        cache.emplace(indent_level, ss.str());
+    }
+    return cache.at(indent_level);
+}
+
 }  // namespace xsim

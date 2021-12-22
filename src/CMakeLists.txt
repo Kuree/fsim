@@ -6,7 +6,9 @@ function(add_warning target)
     endif()
 endfunction()
 
-add_library(xsim ast.cc ir.cc codegen.cc builder.cc)
+set(CODEGEN_SRC codegen/cxx.cc codegen/expr.cc codegen/ninja.cc codegen/stmt.cc codegen/util.cc)
+
+add_library(xsim ast.cc ir.cc builder.cc ${CODEGEN_SRC})
 target_link_libraries(xsim PUBLIC slangcompiler)
 # use some libraries already used for slang to avoid linking errors
 target_include_directories(xsim PUBLIC

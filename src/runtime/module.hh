@@ -11,6 +11,7 @@ namespace xsim::runtime {
 class Scheduler;
 struct CombProcess;
 struct FFProcess;
+struct InitialProcess;
 class CombinationalGraph;
 
 class Module {
@@ -42,6 +43,7 @@ public:
 protected:
     std::vector<CombProcess *> comb_processes_;
     std::vector<FFProcess *> ff_process_;
+    std::vector<InitialProcess *> init_processes_;
 
     // child instances
     std::vector<Module *> child_instances_;

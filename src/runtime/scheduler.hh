@@ -14,13 +14,14 @@ namespace xsim::runtime {
 
 class Module;
 class Scheduler;
+class TrackedVar;
 
 struct Process {
     uint64_t id = 0;
     bool finished = false;
     // by default a process is always running. it is only false
     // when it is waiting for some time slot in the future
-    bool running = true;
+    std::atomic<bool> running = true;
     marl::Event cond = marl::Event(marl::Event::Mode::Auto);
     std::function<void()> func;
 
@@ -31,6 +32,14 @@ struct Process {
 
     // used by trigger-based processes
     bool should_trigger = false;
+
+    enum class EdgeControlType { posedge, negedge, both };
+    struct EdgeControl {
+        EdgeControlType type = EdgeControlType::posedge;
+        TrackedVar *var = nullptr;
+    };
+
+    EdgeControl edge_control;
 };
 
 struct InitialProcess : public Process {};
@@ -80,6 +89,8 @@ public:
     void schedule_delay(const ScheduledTimeslot &event);
     void schedule_finish(int code);
     void schedule_nba(const std::function<void()> &func);
+    void add_tracked_var(TrackedVar *var) { tracked_vars_.emplace_back(var); }
+    void add_process_edge_control(Process *process);
 
     [[nodiscard]] bool finished() const { return finish_flag_.load(); }
 
@@ -107,12 +118,21 @@ private:
     std::atomic<bool> finish_flag_ = false;
     FinishInfo finish_ = {};
 
+    // used for track event controls that requires a stabilized synchronization
+    // no mutex lock since it's computed during initialization time, which is serial
+    std::vector<TrackedVar *> tracked_vars_;
+    std::vector<Process *> process_edge_controls_;
+
     std::atomic<uint64_t> id_count_ = 0;
 
     [[nodiscard]] bool loop_stabilized() const;
     [[nodiscard]] bool terminate() const;
-    void execute_nba();
+    [[nodiscard]] bool execute_nba();
     void terminate_processes();
+
+    void active();
+    void stabilize_process();
+    void handle_edge_triggering();
 
     Module *top_ = nullptr;
 };

@@ -136,6 +136,9 @@ bool Module::stabilized() const {  // NOLINT
     r = r && std::all_of(ff_process_.begin(), ff_process_.end(),
                          [](auto *p) { return p->finished || !p->running; });
 
+    r = r && std::all_of(init_processes_.begin(), init_processes_.end(),
+                         [](auto *p) { return p->finished || !p->running; });
+
     if (!r) return r;
 
     return std::all_of(child_instances_.begin(), child_instances_.end(),

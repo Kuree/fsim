@@ -19,6 +19,7 @@ public:
             END_PROCESS(init_ptr);
         };
         Scheduler::schedule_init(init_ptr);
+        init_processes_.emplace_back(init_ptr);
     }
 };
 
@@ -44,6 +45,7 @@ public:
             END_PROCESS(init_ptr);
         };
         Scheduler::schedule_init(init_ptr);
+        init_processes_.emplace_back(init_ptr);
     }
 };
 
@@ -69,6 +71,7 @@ public:
                 END_PROCESS(init_ptr);
             };
             Scheduler::schedule_init(init_ptr);
+            init_processes_.emplace_back(init_ptr);
         }
         {
             auto init_ptr = scheduler->create_init_process();
@@ -80,6 +83,7 @@ public:
                 END_PROCESS(init_ptr);
             };
             Scheduler::schedule_init(init_ptr);
+            init_processes_.emplace_back(init_ptr);
         }
     }
 };
@@ -104,6 +108,7 @@ public:
             END_PROCESS(init_ptr);
         };
         Scheduler::schedule_init(init_ptr);
+        init_processes_.emplace_back(init_ptr);
     }
 };
 
@@ -166,6 +171,7 @@ public:
             END_PROCESS(init_ptr);
         };
         Scheduler::schedule_init(init_ptr);
+        init_processes_.emplace_back(init_ptr);
     }
 
     void comb(Scheduler *scheduler) override {
@@ -234,6 +240,7 @@ public:
             END_PROCESS(init_ptr);
         };
         Scheduler::schedule_init(init_ptr);
+        init_processes_.emplace_back(init_ptr);
     }
 
     void comb(Scheduler *scheduler) override {
@@ -323,6 +330,7 @@ public:
             END_PROCESS(init_ptr);
         };
         Scheduler::schedule_init(init_ptr);
+        init_processes_.emplace_back(init_ptr);
     }
 };
 
@@ -398,6 +406,7 @@ public:
             END_PROCESS(init_ptr);
         };
         Scheduler::schedule_init(init_ptr);
+        init_processes_.emplace_back(init_ptr);
     }
 };
 
@@ -518,6 +527,7 @@ public:
             END_PROCESS(init_ptr);
         };
         Scheduler::schedule_init(init_ptr);
+        init_processes_.emplace_back(init_ptr);
 
         Module::init(scheduler);
     }
@@ -580,6 +590,7 @@ public:
                 END_PROCESS(init_ptr);
             };
             Scheduler::schedule_init(init_ptr);
+            init_processes_.emplace_back(init_ptr);
         }
 
         {
@@ -595,6 +606,7 @@ public:
                 END_PROCESS(init_ptr);
             };
             Scheduler::schedule_init(init_ptr);
+            init_processes_.emplace_back(init_ptr);
         }
     }
 
@@ -646,6 +658,7 @@ public:
                 END_PROCESS(init_ptr);
             };
             Scheduler::schedule_init(init_ptr);
+            init_processes_.emplace_back(init_ptr);
         }
 
         {
@@ -657,6 +670,7 @@ public:
                 END_PROCESS(init_ptr);
             };
             Scheduler::schedule_init(init_ptr);
+            init_processes_.emplace_back(init_ptr);
         }
     }
 };
@@ -716,37 +730,46 @@ public:
                 END_PROCESS(init_ptr);
             };
             Scheduler::schedule_init(init_ptr);
+            init_processes_.emplace_back(init_ptr);
         }
 
         {
             auto init_ptr = scheduler->create_init_process();
             init_ptr->func = [init_ptr, scheduler, this]() {
-                clk.add_posedge_process(init_ptr);
+                init_ptr->edge_control.var = &clk;
+                init_ptr->edge_control.type = Process::EdgeControlType::posedge;
                 init_ptr->cond.signal();
                 init_ptr->delay.wait();
-                init_ptr->running = true;
+                init_ptr->edge_control.var = nullptr;
                 display(this, "time is %t", scheduler->sim_time);
-                clk.add_negedge_process(init_ptr);
+
+                init_ptr->edge_control.var = &clk;
+                init_ptr->edge_control.type = Process::EdgeControlType::negedge;
                 init_ptr->cond.signal();
                 init_ptr->delay.wait();
-                init_ptr->running = true;
+                init_ptr->edge_control.var = nullptr;
                 display(this, "time is %t", scheduler->sim_time);
-                clk.add_edge_process(init_ptr);
+
+                init_ptr->edge_control.var = &clk;
+                init_ptr->edge_control.type = Process::EdgeControlType::both;
                 init_ptr->cond.signal();
                 init_ptr->delay.wait();
-                init_ptr->running = true;
+                init_ptr->edge_control.var = nullptr;
                 display(this, "time is %t", scheduler->sim_time);
                 // done with this init
                 END_PROCESS(init_ptr);
             };
             clk.track_edge = true;
             Scheduler::schedule_init(init_ptr);
+            init_processes_.emplace_back(init_ptr);
+            scheduler->add_tracked_var(&clk);
+            scheduler->add_process_edge_control(init_ptr);
         }
     }
 };
 
 TEST(runtime, edge_control) {  // NOLINT
-    for (auto i = 0; i < 1000; i++) {
+    for (auto i = 0; i < 420; i++) {
         Scheduler scheduler;
         BothEdgeTimingControl m;
         testing::internal::CaptureStdout();

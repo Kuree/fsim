@@ -4,6 +4,7 @@
 #include <utility>
 
 #include "module.hh"
+#include "variable.hh"
 
 namespace xsim::runtime {
 
@@ -49,19 +50,13 @@ void Scheduler::run(Module *top) {
     // either wait for the finish or wait for the complete from init
     while (true) {
         do {
-            for (auto &init : init_processes_) {
-                // process finished. don't care anymore
-                if (init->finished) continue;
-                if (!init->running) continue;
-                init->cond.wait();
-                init->running = false;
-            }
             // active
-            top->active();
+            active();
             // nba
-            execute_nba();
-            // activate again
-            top->active();
+            bool has_changed = execute_nba();
+            if (has_changed) [[likely]] {
+                active();
+            }
         } while (!loop_stabilized());
 
         if (terminate()) {
@@ -81,8 +76,8 @@ void Scheduler::run(Module *top) {
                 //  release all of them at once
                 while (!event_queue_.empty() && event_queue_.top().time == next_slot_time) {
                     auto const &event = event_queue_.top();
-                    event.process->delay.signal();
                     event.process->running = true;
+                    event.process->delay.signal();
                     event_queue_.pop();
                 }
             }
@@ -174,6 +169,10 @@ void Scheduler::schedule_nba(const std::function<void()> &func) {
     nbas_.emplace_back(func);
 }
 
+void Scheduler::add_process_edge_control(Process *process) {
+    process_edge_controls_.emplace_back(process);
+}
+
 Scheduler::~Scheduler() {
     nbas_.clear();
     marl_scheduler_.unbind();  // NOLINT
@@ -189,12 +188,14 @@ bool Scheduler::terminate() const {
            (!has_init_left(init_processes_) && top_->stabilized() && event_queue_.empty());
 }
 
-void Scheduler::execute_nba() {
+bool Scheduler::execute_nba() {
     // maybe split it up into multiple fiber threads?
+    bool has_nba = !nbas_.empty();
     for (auto const &f : nbas_) {
         f();
     }
     nbas_.clear();
+    return has_nba;
 }
 
 void Scheduler::terminate_processes() {
@@ -216,6 +217,62 @@ void Scheduler::terminate_processes() {
         if (!process->finished) {
             process->delay.signal();
         }
+    }
+}
+
+template <typename T>
+requires(std::is_base_of<Process, T>::value) void settle_processes(
+    const std::vector<std::unique_ptr<T>> &processes) {
+    for (auto &p : processes) {
+        // process finished. don't care anymore
+        if (p->finished) continue;
+        if (!p->running) continue;
+        p->cond.wait();
+        p->running = false;
+    }
+}
+
+void Scheduler::active() {
+    // need to wait for all processes settled
+    stabilize_process();
+    top_->active();
+    stabilize_process();
+
+    handle_edge_triggering();
+    stabilize_process();
+}
+
+void Scheduler::stabilize_process() {
+    settle_processes(init_processes_);
+    settle_processes(comb_processes_);
+    settle_processes(ff_processes_);
+}
+
+void Scheduler::handle_edge_triggering() {
+    for (auto *process : process_edge_controls_) {
+        if (process->edge_control.var) {
+            auto const *var = process->edge_control.var;
+            bool trigger = false;
+            switch (process->edge_control.type) {
+                case Process::EdgeControlType::posedge:
+                    trigger = var->should_trigger_posedge;
+                    break;
+                case Process::EdgeControlType::negedge:
+                    trigger = var->should_trigger_negedge;
+                    break;
+                case Process::EdgeControlType::both:
+                    trigger = var->should_trigger_negedge || var->should_trigger_posedge;
+                    break;
+            }
+            if (trigger) {
+                process->running = true;
+                process->delay.signal();
+            }
+        }
+    }
+    // this is necessary due to the out of ordering of execution
+    for (auto *tracked_var : tracked_vars_) {
+        tracked_var->reset();
     }
 }
 

@@ -10,7 +10,6 @@
         process->cond.signal();                                                          \
         if (scheduler->finished()) return;                                               \
         process->delay.wait();                                                           \
-        process->running = true;                                                         \
     } while (0)
 
 #define END_PROCESS(process)             \

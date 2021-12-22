@@ -94,6 +94,7 @@ DependencyAnalysisVisitor::DependencyAnalysisVisitor(const slang::Symbol *target
     graph = graph_.get();
 }
 
+// NOLINTNEXTLINE
 [[maybe_unused]] void DependencyAnalysisVisitor::handle(const slang::ContinuousAssignSymbol &stmt) {
     auto const &assign = stmt.getAssignment().as<slang::AssignmentExpression>();
 

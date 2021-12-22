@@ -1,4 +1,4 @@
-#include "../src/ast.hh"
+#include "../src/ir/ast.hh"
 #include "gtest/gtest.h"
 #include "slang/syntax/SyntaxTree.h"
 

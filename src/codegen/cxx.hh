@@ -1,7 +1,7 @@
 #ifndef XSIM_CXX_HH
 #define XSIM_CXX_HH
 
-#include "../ir.hh"
+#include "../ir/ir.hh"
 
 namespace xsim {
 struct CXXCodeGenOptions {

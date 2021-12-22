@@ -2,7 +2,7 @@
 #define XSIM_CODEGEN_UTIL_HH
 #include <sstream>
 
-#include "../ir.hh"
+#include "../ir/ir.hh"
 #include "fmt/format.h"
 
 namespace xsim {

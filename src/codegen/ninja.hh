@@ -1,7 +1,7 @@
 #ifndef XSIM_NINJA_HH
 #define XSIM_NINJA_HH
 
-#include "../ir.hh"
+#include "../ir/ir.hh"
 
 namespace xsim {
 struct NinjaCodeGenOptions {

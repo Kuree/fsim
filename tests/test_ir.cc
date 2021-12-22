@@ -1,5 +1,5 @@
-#include "../src/ast.hh"
-#include "../src/ir.hh"
+#include "../src/ir/ast.hh"
+#include "../src/ir/ir.hh"
 #include "gtest/gtest.h"
 #include "slang/syntax/SyntaxTree.h"
 

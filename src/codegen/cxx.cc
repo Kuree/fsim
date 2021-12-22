@@ -3,7 +3,7 @@
 #include <filesystem>
 #include <set>
 
-#include "../ast.hh"
+#include "../ir/ast.hh"
 #include "stmt.hh"
 #include "util.hh"
 

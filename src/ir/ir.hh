@@ -8,12 +8,6 @@
 
 namespace xsim {
 
-struct Variable {
-    const slang::VariableSymbol *sym;
-};
-
-struct Port {};
-
 class Process {
 public:
     slang::ProceduralBlockKind type;

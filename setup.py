@@ -1,6 +1,7 @@
 import os
 import subprocess
 import shutil
+import platform
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 
@@ -45,13 +46,14 @@ class CMakeBuild(build_ext):
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
 
-        # need to download the pre-built slang
-        slang_dir = os.path.join(self.build_temp, "slang-dist")
-        if not os.path.exists(slang_dir):
-            os.makedirs(slang_dir, exist_ok=True)
-            subprocess.check_call(["curl", "-OL", SLANG_URL], cwd=slang_dir)
-            subprocess.check_call("tar xzf slang-linux.tar.gz --strip-components 1".split(), cwd=slang_dir)
-            shutil.rmtree(os.path.join(slang_dir, "slang-linux.tar.gz"), ignore_errors=True)
+        # need to download the pre-built slang if on linux
+        if platform.system() == "Linux":
+            slang_dir = os.path.join(self.build_temp, "slang-dist")
+            if not os.path.exists(slang_dir):
+                os.makedirs(slang_dir, exist_ok=True)
+                subprocess.check_call(["curl", "-OL", SLANG_URL], cwd=slang_dir)
+                subprocess.check_call("tar xzf slang-linux.tar.gz --strip-components 1".split(), cwd=slang_dir)
+                shutil.rmtree(os.path.join(slang_dir, "slang-linux.tar.gz"), ignore_errors=True)
 
         subprocess.check_call(
             ["cmake", ext.sourcedir] + cmake_args, cwd=self.build_temp
@@ -62,17 +64,18 @@ class CMakeBuild(build_ext):
             ["cmake", "--build", ".", "--target"] + make_targets + build_args, cwd=self.build_temp
         )
         # need to copy stuff over
-        # first copy GCC
+        # first copy GCC, if exists
         gcc_dir = "/usr/local/gcc-" + GCC_VERSION
-        gcc_dirs = next(os.walk(gcc_dir))[1]
-        for dirname in gcc_dirs:
-            src = os.path.join(gcc_dir, dirname)
-            dst = os.path.join(extdir, dirname)
-            if not os.path.exists(dst):
-                shutil.copytree(src, dst)
-        # need to delete unnecessary stuff to make the wheel smaller
-        os.remove(os.path.join(extdir, "bin", "lto-dump-11.2.0"))
-        shutil.rmtree(os.path.join(extdir, "share"))
+        if os.path.exists(gcc_dir):
+            gcc_dirs = next(os.walk(gcc_dir))[1]
+            for dirname in gcc_dirs:
+                src = os.path.join(gcc_dir, dirname)
+                dst = os.path.join(extdir, dirname)
+                if not os.path.exists(dst):
+                    shutil.copytree(src, dst)
+            # need to delete unnecessary stuff to make the wheel smaller
+            os.remove(os.path.join(extdir, "bin", "lto-dump-11.2.0"))
+            shutil.rmtree(os.path.join(extdir, "share"))
         # now copy other include files
         extern_include = ["marl", "logic"]
         src_root = os.path.dirname(os.path.abspath(__file__))
@@ -80,6 +83,7 @@ class CMakeBuild(build_ext):
             src = os.path.join(src_root, "extern", extern_dir, "include", extern_dir)
             dst = os.path.join(extdir, "include", extern_dir)
             if not os.path.exists(dst):
+                os.makedirs(os.path.dirname(dst), exist_ok=True)
                 shutil.copytree(src, dst)
         # copy runtime header
         runtime_src = os.path.join(src_root, "src", "runtime")
@@ -90,12 +94,14 @@ class CMakeBuild(build_ext):
         runtime_src = os.path.join(self.build_temp, "src", "runtime", "libxsim-runtime.so")
         runtime_dst = os.path.join(extdir, "lib", "libxsim-runtime.so")
         if not os.path.exists(runtime_dst):
+            os.makedirs(os.path.dirname(runtime_dst), exist_ok=True)
             shutil.copy(runtime_src, runtime_dst)
 
         # copy xsim binary
         xsim_src = os.path.join(self.build_temp, "tools", "xsim")
         xsim_dst = os.path.join(extdir, "bin", "xsim")
         if not os.path.exists(xsim_dst):
+            os.makedirs(os.path.dirname(xsim_dst), exist_ok=True)
             shutil.copy(xsim_src, xsim_dst)
 
 

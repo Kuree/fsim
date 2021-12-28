@@ -17,9 +17,6 @@ jobs:
       - name: Build xsim 🎡
         shell: bash
         run: bash scripts/build_wheel.sh
-      - name: Install deps
-        shell: bash
-        run: sudo apt-get install -y libc6-dev-i386 gcc-multilib
       - name: Run tests ⚙️
         shell: bash
         run: |

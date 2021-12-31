@@ -5,3 +5,5 @@ target_include_directories(xsim-runtime PUBLIC
 target_link_libraries(xsim-runtime PUBLIC fmt marl -Wl,--whole-archive logic -Wl,--no-whole-archive ${STATIC_CXX_FLAG})
 set_property(TARGET xsim-runtime PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_compile_options(xsim-runtime PRIVATE -Wall -Werror -Wpedantic -Wno-gnu-zero-variadic-macro-arguments)
+# force the extension to be so regardless of the platform
+set_target_properties(xsim-runtime PROPERTIES SUFFIX ".so")

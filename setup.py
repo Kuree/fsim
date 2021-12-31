@@ -8,7 +8,7 @@ from setuptools.command.build_ext import build_ext
 # the script should only be called within keyiz/manylinux2010 container
 
 GCC_VERSION = "11.2.0"
-SLANG_URL = "https://github.com/MikePopoloski/slang/releases/download/nightly/slang-linux.tar.gz"
+SLANG_URL = "https://github.com/MikePopoloski/slang/releases/download/nightly/{0}"
 
 
 class CMakeExtension(Extension):
@@ -46,14 +46,22 @@ class CMakeBuild(build_ext):
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
 
+        is_linux = platform.system() == "Linux"
+        is_macos = platform.system() == "Darwin"
+
         # need to download the pre-built slang if on linux
-        if platform.system() == "Linux":
-            slang_dir = os.path.join(self.build_temp, "slang-dist")
-            if not os.path.exists(slang_dir):
-                os.makedirs(slang_dir, exist_ok=True)
-                subprocess.check_call(["curl", "-OL", SLANG_URL], cwd=slang_dir)
-                subprocess.check_call("tar xzf slang-linux.tar.gz --strip-components 1".split(), cwd=slang_dir)
-                shutil.rmtree(os.path.join(slang_dir, "slang-linux.tar.gz"), ignore_errors=True)
+        slang_dir = os.path.join(self.build_temp, "slang-dist")
+        if not os.path.exists(slang_dir):
+            os.makedirs(slang_dir, exist_ok=True)
+            if is_linux:
+                tar_name = "slang-linux.tar.gz"
+            elif is_macos:
+                tar_name = "slang-macos.tar.gz"
+            else:
+                raise Exception("Unsupported platform " + platform.system())
+            subprocess.check_call(["curl", "-OL", SLANG_URL.format(tar_name)], cwd=slang_dir)
+            subprocess.check_call("tar xzf {0} --strip-components 1".format(tar_name).split(), cwd=slang_dir)
+            shutil.rmtree(os.path.join(slang_dir, tar_name), ignore_errors=True)
 
         subprocess.check_call(
             ["cmake", ext.sourcedir] + cmake_args, cwd=self.build_temp

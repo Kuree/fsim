@@ -9,6 +9,7 @@ GCC_VERSION = "11.2.0"
 
 
 def find_glibc_location():
+    # only valid for linux
     ls_path = shutil.which("ls")
     raw_output = subprocess.check_output(["ldd", ls_path]).decode("ascii")
     lines = raw_output.split("\n")
@@ -41,14 +42,15 @@ if root_dir is None:
 bin_dir = os.path.join(root_dir, "bin")
 xsim_bin = os.path.join(bin_dir, "xsim")
 cxx_bin = os.path.join(bin_dir, "g++-" + GCC_VERSION)
-# also need to find out the library path for crt1.o etc
-glibc_path = find_glibc_location()
-if glibc_path is None:
-    print("unable to find glibc", file=sys.stderr)
-    exit(1)
-# find glibc headers
-cpath = find_glibc_header()
+
 if os.path.exists(cxx_bin):
+    # also need to find out the library path for crt1.o etc
+    glibc_path = find_glibc_location()
+    if glibc_path is None:
+        print("unable to find glibc", file=sys.stderr)
+        exit(1)
+    # find glibc headers
+    cpath = find_glibc_header()
     env = {"XSIM_CXX": cxx_bin, "LIBRARY_PATH": glibc_path + ":/usr/lib:/usr/lib64:/usr/lib/x86_64-linux-gnu/",
            "CPATH": cpath}
 else:

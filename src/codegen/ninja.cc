@@ -43,8 +43,10 @@ void NinjaCodeGen::output(const std::string &dir) {
     if (options_.debug_build) {
         stream << "-O0 -g ";
     } else {
-        stream << "-O3";
+        stream << "-O3 ";
     }
+    // ignore warning flags for apple clang
+    stream << "-Wno-unknown-attributes ";
     stream << std::endl << std::endl;
     stream << "rule cc" << std::endl;
     stream << "  depfile = $out.d" << std::endl;

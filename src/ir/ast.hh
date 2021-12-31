@@ -1,6 +1,7 @@
 #ifndef XSIM_AST_HH
 #define XSIM_AST_HH
 
+#include <unordered_map>
 #include <unordered_set>
 
 #include "slang/compilation/Compilation.h"

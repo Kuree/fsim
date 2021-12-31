@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <unordered_map>
 
 namespace xsim {
 void write_to_file(const std::string &filename, std::stringstream &stream) {

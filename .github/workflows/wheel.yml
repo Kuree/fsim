@@ -1,4 +1,4 @@
-name: Build linux wheel
+name: Build Python wheels
 
 on: [push, pull_request]
 
@@ -47,6 +47,14 @@ jobs:
       - name: Build xsim 🎡
         shell: bash
         run: bash scripts/build_wheel.sh
+      - name: Prepare wheels
+        shell: bash
+        run: |
+          pip3 install wheeltools
+          curl -OL https://github.com/Kuree/hgdb/raw/master/scripts/fix_wheel.py
+          mkdir -p wheelhouse && python3 fix_wheel.py dist/*.whl -w wheelhouse
+          rm -rf dist
+          cp -r wheelhouse dist
       - name: Run tests ⚙️
         shell: bash
         run: |

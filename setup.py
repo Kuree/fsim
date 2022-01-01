@@ -113,12 +113,15 @@ class CMakeBuild(build_ext):
             shutil.copy(xsim_src, xsim_dst)
 
 
+with open("README.rst") as f:
+    long_description = f.read()
+
 setup(
     name='xsim-python',
     version="0.0.2",
     author='Keyi Zhang',
     author_email='keyi@cs.stanford.edu',
-    long_description="",
+    long_description=long_description,
     long_description_content_type='text/x-rst',
     url="https://github.com/Kuree/xsim",
     scripts=[os.path.join("scripts", "xsim")],

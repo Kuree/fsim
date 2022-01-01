@@ -10,7 +10,7 @@ as a frontend to parse any SystemVerilog files. ``xsim`` is guided by the follow
 
 
 How to install
--------------
+--------------
 The easiest way to install is via ``pip``. Simply do
 
 .. code:: bash

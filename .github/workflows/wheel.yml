@@ -81,8 +81,12 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: MACOS_PYTHON_WHEEL
+      - name: Create dist folder
+        shell: bash
+        run: |
+          mkdir dist
+          mv *.whl dist
       - name: Publish wheel 🎡
-        if: startsWith(github.ref, 'refs/tags')
         uses: pypa/gh-action-pypi-publish@master
         with:
           user: keyi

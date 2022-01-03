@@ -3,7 +3,7 @@
  */
 #include <fstream>
 
-#include "../src/builder.hh"
+#include "../src/builder/builder.hh"
 #include "slang/compilation/Compilation.h"
 #include "slang/diagnostics/DeclarationsDiags.h"
 #include "slang/diagnostics/DiagnosticEngine.h"

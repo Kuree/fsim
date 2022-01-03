@@ -4,8 +4,8 @@
 #include <iostream>
 #include <unordered_set>
 
-#include "codegen/ninja.hh"
-#include "codegen/cxx.hh"
+#include "../codegen/ninja.hh"
+#include "../codegen/cxx.hh"
 #include "fmt/format.h"
 #include "slang/compilation/Compilation.h"
 #include "subprocess.hpp"

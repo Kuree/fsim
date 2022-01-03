@@ -1,4 +1,4 @@
-#include "../src/builder.hh"
+#include "../src/builder/builder.hh"
 #include "gtest/gtest.h"
 #include "slang/compilation/Compilation.h"
 #include "slang/syntax/SyntaxTree.h"

@@ -8,8 +8,9 @@ endfunction()
 
 set(CODEGEN_SRC codegen/cxx.cc codegen/expr.cc codegen/ninja.cc codegen/stmt.cc codegen/util.cc)
 set(IR_SRC ir/ast.cc ir/ir.cc)
+set(BUILDER_SRC builder/builder.cc)
 
-add_library(xsim builder.cc ${CODEGEN_SRC} ${IR_SRC})
+add_library(xsim ${BUILDER_SRC} ${CODEGEN_SRC} ${IR_SRC})
 target_link_libraries(xsim PUBLIC slangcompiler)
 # use some libraries already used for slang to avoid linking errors
 target_include_directories(xsim PUBLIC

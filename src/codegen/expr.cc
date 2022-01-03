@@ -11,11 +11,7 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
     auto scope = symbol->getParentScope();
     auto current = symbol;
     if (scope && symbol->kind == slang::SymbolKind::InstanceBody) {
-        auto parents =
-            scope->getCompilation().getParentInstances(symbol->as<slang::InstanceBodySymbol>());
-        if (parents.empty()) return nullptr;
-
-        current = parents[0];
+        current = symbol->as<slang::InstanceBodySymbol>().parentInstance;
         scope = current->getParentScope();
         paths.emplace_back(current->name);
     }

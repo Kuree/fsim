@@ -8,6 +8,8 @@ struct NinjaCodeGenOptions {
     bool debug_build = false;
     std::string cxx_path;
     std::string binary_name;
+
+    std::vector<std::string> sv_libs;
 };
 
 class NinjaCodeGen {

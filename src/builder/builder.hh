@@ -2,6 +2,7 @@
 #define XSIM_BUILDER_HH
 
 #include <string>
+#include <vector>
 
 namespace slang {
 class Compilation;
@@ -21,6 +22,8 @@ struct BuildOptions {
     std::string cxx_path;
     std::string binary_name;
     std::string top_name;
+
+    std::vector<std::string> sv_libs;
 };
 
 class Builder {

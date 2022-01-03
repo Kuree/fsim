@@ -10,12 +10,12 @@ public:
     DPILocator();
 
     void add_dpi_lib(const std::string &lib_path);
-    [[nodsicatd]] bool resolve_lib(const std::string &func_name) const;
+    [[nodiscard]] bool resolve_lib(std::string_view func_name) const;
 
 private:
     std::set<std::string> lib_search_dirs_;
     std::set<std::string> libs_paths_;
 };
-}
+}  // namespace xsim
 
 #endif  // XSIM_DPI_HH

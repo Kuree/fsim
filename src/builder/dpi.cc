@@ -50,14 +50,14 @@ void DPILocator::add_dpi_lib(const std::string &lib_path) {
     }
 }
 
-bool DPILocator::resolve_lib(const std::string &func_name) const {
+bool DPILocator::resolve_lib(std::string_view func_name) const {
     // C function doesn't have parameter types
     for (auto const &lib_path : libs_paths_) {
-        auto *r = ::dlopen(lib_path.c_str(), RTLD_LAZY);
+        auto *r = ::dlopen(lib_path.data(), RTLD_LAZY);
         if (!r) {
             return false;
         }
-        auto *s = ::dlsym(r, func_name.c_str());
+        auto *s = ::dlsym(r, func_name.data());
         if (!s) return false;
         dlclose(r);
         return true;

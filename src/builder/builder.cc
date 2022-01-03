@@ -4,10 +4,12 @@
 #include <iostream>
 #include <unordered_set>
 
-#include "../codegen/ninja.hh"
 #include "../codegen/cxx.hh"
+#include "../codegen/ninja.hh"
+#include "dpi.hh"
 #include "fmt/format.h"
 #include "slang/compilation/Compilation.h"
+#include "slang/symbols/ASTVisitor.h"
 #include "subprocess.hpp"
 
 namespace xsim {
@@ -86,6 +88,48 @@ void symlink_folders(const std::string &output_dir, const std::string &simv_path
     }
 }
 
+class DPIFunctionVisitor : public slang::ASTVisitor<DPIFunctionVisitor, true, false> {
+public:
+    [[maybe_unused]] void handle(const slang::CallExpression &expr) {
+        auto kind = expr.getSubroutineKind();
+        if (kind == slang::SubroutineKind::Function) {
+            // dpi can only be function
+            slang::bitmask<slang::MethodFlags> flags;
+            if (expr.subroutine.index() == 0) {
+                auto const *sym = std::get<0>(expr.subroutine);
+                flags = sym->flags;
+            } else {
+                // this could be VPI
+            }
+            if (flags.has(slang::MethodFlags::DPIImport)) {
+                names.emplace(expr.getSubroutineName());
+            }
+            if (flags.has(slang::MethodFlags::DPIContext)) {
+                throw std::runtime_error("Context DPI function not supported");
+            }
+        }
+    }
+
+    std::unordered_set<std::string_view> names;
+};
+
+void verify_dpi_functions(const Module *module, const BuildOptions &options) {
+    DPIFunctionVisitor v;
+    module->def()->visit(v);
+    auto const &names = v.names;
+    DPILocator dpi;
+    for (auto const &p : options.sv_libs) {
+        dpi.add_dpi_lib(p);
+    }
+    for (auto const &func : names) {
+        auto func_name = std::string(func);
+        auto exists = dpi.resolve_lib(func_name);
+        if (!exists) {
+            throw std::runtime_error(fmt::format("DPI function {0} cannot be found", func_name));
+        }
+    }
+}
+
 Builder::Builder(BuildOptions options) : options_(std::move(options)) {
     // filling up empty information
     if (options_.working_dir.empty()) {
@@ -102,6 +146,9 @@ void Builder::build(const Module *module) const {
     n_options.debug_build = options_.debug_build;
     n_options.cxx_path = options_.cxx_path;
     n_options.binary_name = options_.binary_name;
+    n_options.sv_libs = options_.sv_libs;
+    // check all the DPI functions to see if they are valid
+    verify_dpi_functions(module, options_);
 
     NinjaCodeGen ninja(module, n_options);
     ninja.output(options_.working_dir);

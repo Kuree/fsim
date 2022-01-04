@@ -102,6 +102,7 @@ endmodule
     builder.build(&compilation);
     std::string output = testing::internal::GetCapturedStdout();
     EXPECT_NE(output.find("TESTING\nPASS\n$finish(1) called at 42"), std::string::npos);
+    printf("%s\n", output.c_str());
 }
 
 TEST(codegen, final) {  // NOLINT

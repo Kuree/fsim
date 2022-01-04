@@ -11,7 +11,7 @@ set(IR_SRC ir/ast.cc ir/ir.cc)
 set(BUILDER_SRC builder/builder.cc builder/dpi.cc builder/util.cc)
 
 add_library(xsim ${BUILDER_SRC} ${CODEGEN_SRC} ${IR_SRC})
-target_link_libraries(xsim PUBLIC slangcompiler)
+target_link_libraries(xsim PUBLIC slangcompiler ${CMAKE_DL_LIBS})
 # use some libraries already used for slang to avoid linking errors
 target_include_directories(xsim PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/../extern/slang/external

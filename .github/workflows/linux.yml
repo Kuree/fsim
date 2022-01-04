@@ -30,7 +30,7 @@ jobs:
       run: |
         mkdir -p build
         cd build
-        cmake .. -DCMAKE_BUILT_TYPE=Debug
+        cmake .. -DCMAKE_BUILD_TYPE=Release
         make -j2
         make test
       env:

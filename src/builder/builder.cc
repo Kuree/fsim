@@ -22,7 +22,8 @@ void symlink_folders(const std::string &output_dir, const std::string &simv_path
     std::filesystem::path runtime, logic, marl, runtime_path;
     if (simv_path.empty()) {
         std::filesystem::path current_file = __FILE__;
-        auto src = current_file.parent_path();
+        // builder is in its own folder
+        auto src = current_file.parent_path().parent_path();
         runtime = src / "runtime";
         auto root = src.parent_path();
         auto extern_ = root / "extern";

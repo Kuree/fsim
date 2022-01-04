@@ -10,7 +10,7 @@ else ()
 endif ()
 # remove trailing space if any
 string(STRIP "${RUNTIME_FLAGS}" RUNTIME_FLAGS)
-target_link_libraries(xsim-runtime PUBLIC fmt marl logic ${RUNTIME_FLAGS})
+target_link_libraries(xsim-runtime PUBLIC fmt -Wl,--whole-archive marl -Wl,--no-whole-archive logic ${RUNTIME_FLAGS})
 set_property(TARGET xsim-runtime PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_compile_options(xsim-runtime PRIVATE -Wall -Werror -Wpedantic -Wno-gnu-zero-variadic-macro-arguments
         -Wno-unknown-attributes -Wno-unknown-warning-option)

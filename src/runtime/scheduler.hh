@@ -92,7 +92,7 @@ public:
     void add_tracked_var(TrackedVar *var) { tracked_vars_.emplace(var); }
     void add_process_edge_control(Process *process);
 
-    [[nodiscard]] bool finished() const { return finish_flag_.load(); }
+    [[nodiscard]] bool finished() const { return finish_flag_.load() || terminate_; }
 
     ~Scheduler();
 
@@ -116,6 +116,7 @@ private:
 
     // finish info
     std::atomic<bool> finish_flag_ = false;
+    bool terminate_ = false;
     FinishInfo finish_ = {};
 
     // used for track event controls that requires a stabilized synchronization

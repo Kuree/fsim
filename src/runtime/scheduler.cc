@@ -199,6 +199,7 @@ bool Scheduler::execute_nba() {
 }
 
 void Scheduler::terminate_processes() {
+    terminate_ = true;
     for (auto &process : init_processes_) {
         if (!process->finished) {
             // cancel the delay immediately. notice that the finish flag has been set

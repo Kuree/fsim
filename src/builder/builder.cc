@@ -89,7 +89,7 @@ void symlink_folders(const std::string &output_dir, const std::string &simv_path
     }
 }
 
-class DPIFunctionVisitor : public slang::ASTVisitor<DPIFunctionVisitor, true, false> {
+class DPIFunctionVisitor : public slang::ASTVisitor<DPIFunctionVisitor, true, true> {
 public:
     [[maybe_unused]] void handle(const slang::CallExpression &expr) {
         auto kind = expr.getSubroutineKind();
@@ -100,10 +100,10 @@ public:
                 auto const *sym = std::get<0>(expr.subroutine);
                 flags = sym->flags;
             } else {
-                // this could be VPI
+                // this could be VPI, or regular system call
             }
             if (flags.has(slang::MethodFlags::DPIImport)) {
-                names.emplace(expr.getSubroutineName());
+                names.emplace(expr.getSubroutineName(), &expr);
             }
             if (flags.has(slang::MethodFlags::DPIContext)) {
                 throw std::runtime_error("Context DPI function not supported");
@@ -111,19 +111,24 @@ public:
         }
     }
 
-    std::unordered_set<std::string_view> names;
+    std::unordered_map<std::string_view, const slang::CallExpression *> names;
 };
 
-void verify_dpi_functions(const Module *module, const BuildOptions &options) {
+std::unordered_map<std::string_view, const slang::CallExpression *> get_all_dpi_calls(
+    const Module *module) {
     DPIFunctionVisitor v;
     module->def()->visit(v);
     auto const &names = v.names;
+    return names;
+}
+
+void verify_dpi_functions(const Module *module, const BuildOptions &options) {
+    auto names = get_all_dpi_calls(module);
     DPILocator dpi;
     for (auto const &p : options.sv_libs) {
         dpi.add_dpi_lib(p);
     }
-    for (auto const &func : names) {
-        auto func_name = std::string(func);
+    for (auto const &[func_name, func] : names) {
         auto exists = dpi.resolve_lib(func_name);
         if (!exists) {
             throw std::runtime_error(fmt::format("DPI function {0} cannot be found", func_name));

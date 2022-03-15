@@ -1,5 +1,5 @@
-#ifndef XSIM_DPI_HH
-#define XSIM_DPI_HH
+#ifndef XSIM_BUILDER_DPI_HH
+#define XSIM_BUILDER_DPI_HH
 
 #include <set>
 #include <string>
@@ -18,4 +18,4 @@ private:
 };
 }  // namespace xsim
 
-#endif  // XSIM_DPI_HH
+#endif  // XSIM_BUILDER_DPI_HH

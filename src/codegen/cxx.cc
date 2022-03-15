@@ -4,6 +4,7 @@
 #include <set>
 
 #include "../ir/ast.hh"
+#include "dpi.hh"
 #include "stmt.hh"
 #include "util.hh"
 
@@ -421,6 +422,9 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
     s << "#include \"runtime/macro.hh\"" << std::endl;
 
     int indent_level = 0;
+
+    // dpi
+    codegen_dpi_header(mod, s, indent_level);
 
     bool has_ctor = !mod->child_instances.empty();
     if (has_ctor) {

@@ -6,7 +6,7 @@ function(add_warning target)
     endif ()
 endfunction()
 
-set(CODEGEN_SRC codegen/cxx.cc codegen/expr.cc codegen/ninja.cc codegen/stmt.cc codegen/util.cc)
+set(CODEGEN_SRC codegen/cxx.cc codegen/expr.cc codegen/ninja.cc codegen/stmt.cc codegen/util.cc codegen/dpi.cc)
 set(IR_SRC ir/ast.cc ir/ir.cc)
 set(BUILDER_SRC builder/builder.cc builder/dpi.cc builder/util.cc)
 

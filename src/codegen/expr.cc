@@ -291,8 +291,31 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
         }
         s << ")";
     } else {
-        const auto &symbol = *std::get<0>(expr.subroutine);
-        throw std::runtime_error(fmt::format("Not yet implemented for symbol {0}", symbol.name));
+        const auto *function = std::get<0>(expr.subroutine);
+        auto flags = function->flags;
+        if (flags.has(slang::MethodFlags::DPIImport)) {
+            // DPI calls
+            // for now we only support inputs
+            s << function->name << "(";
+            auto const &func_args = function->getArguments();
+            auto const &call_args = expr.arguments();
+            for (auto i = 0u; i < func_args.size(); i++) {
+                auto const *func_arg = func_args[i];
+                if (func_arg->direction != slang::ArgumentDirection::In) {
+                    throw std::runtime_error("Output direction in DPI not yet implemented");
+                }
+                auto const *call_arg = call_args[i];
+                // maybe need type conversion?
+                // recursive code gen
+                ExprCodeGenVisitor arg_expr(s, module_info_);
+                call_arg->visit(arg_expr);
+                if (i != (func_args.size() - 1)) s << ", ";
+            }
+            s << ")";
+            return;
+        }
+        throw std::runtime_error(
+            fmt::format("Not yet implemented for function {0}", function->name));
     }
 }
 

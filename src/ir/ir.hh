@@ -2,6 +2,7 @@
 #define XSIM_IR_HH
 
 #include <memory>
+#include <unordered_map>
 #include <unordered_set>
 
 #include "slang/symbols/ASTVisitor.h"
@@ -55,8 +56,10 @@ public:
     std::vector<std::unique_ptr<Process>> init_processes;
     std::vector<std::unique_ptr<Process>> final_processes;
 
-    std::vector<std::pair<const slang::PortSymbol *, const slang::Expression *>> inputs;
-    std::vector<std::pair<const slang::PortSymbol *, const slang::Expression *>> outputs;
+    using PortDef = std::pair<const slang::PortSymbol *, const slang::Expression *>;
+    std::vector<PortDef> inputs;
+    std::vector<PortDef> outputs;
+    std::unordered_map<std::string_view, const slang::VariableSymbol *> port_vars;
 
     std::string analyze();
 

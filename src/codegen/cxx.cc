@@ -5,6 +5,7 @@
 
 #include "../ir/ast.hh"
 #include "dpi.hh"
+#include "slang/symbols/VariableSymbols.h"
 #include "stmt.hh"
 #include "util.hh"
 
@@ -251,7 +252,9 @@ void codegen_port_connections(std::ostream &s, int &indent_level, const Module *
 
     for (auto const &[port, var] : module->inputs) {
         // inputs is var assigned to port, so it's port = var
-        auto name = std::make_unique<slang::NamedValueExpression>(*port, sr);
+        // get the variable symbol given the port name
+        auto port_var = module->port_vars.at(port->name);
+        auto name = std::make_unique<slang::NamedValueExpression>(*port_var, sr);
         auto expr = std::make_unique<slang::AssignmentExpression>(
             std::nullopt, false, port->getType(), *name, *const_cast<slang::Expression *>(var),
             nullptr, sr);
@@ -272,7 +275,8 @@ void codegen_port_connections(std::ostream &s, int &indent_level, const Module *
     // for output as well
     for (auto const &[port, var] : module->outputs) {
         // inputs is var assigned to port, so it's var = port
-        auto name = std::make_unique<slang::NamedValueExpression>(*port, sr);
+        auto port_var = module->port_vars.at(port->name);
+        auto name = std::make_unique<slang::NamedValueExpression>(*port_var, sr);
         auto expr = std::make_unique<slang::AssignmentExpression>(
             std::nullopt, false, *var->type, *const_cast<slang::Expression *>(var), *name, nullptr,
             sr);
@@ -282,7 +286,7 @@ void codegen_port_connections(std::ostream &s, int &indent_level, const Module *
         comb_process.stmts.emplace_back(stmt.get());
         stmts.emplace_back(std::move(stmt));
 
-        sensitivities.emplace(port);
+        sensitivities.emplace(port_var);
     }
 
     for (auto const *n : sensitivities) {

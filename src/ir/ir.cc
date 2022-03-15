@@ -88,6 +88,39 @@ std::string Module::analyze() {
     return error;
 }
 
+class PortVariableSymbolCollector
+    : public slang::ASTVisitor<PortVariableSymbolCollector, false, false> {
+public:
+    PortVariableSymbolCollector(const std::vector<Module::PortDef> &in,
+                                const std::vector<Module::PortDef> &out) {
+        for (auto const &[p, _] : in) {
+            names_.emplace(p->name);
+        }
+        for (auto const &[p, _] : out) {
+            names_.emplace(p->name);
+        }
+    }
+
+    [[maybe_unused]] void handle(const slang::VariableSymbol &sym) {
+        if (names_.find(sym.name) != names_.end()) {
+            port_vars.emplace(sym.name, &sym);
+        }
+    }
+
+    [[maybe_unused]] void handle(const slang::InstanceBodySymbol &sym) {
+        if (!names_.empty() && !instance_) {
+            instance_ = &sym;
+            visitDefault(sym);
+        }
+    }
+
+    std::unordered_map<std::string_view, const slang::VariableSymbol *> port_vars;
+
+private:
+    std::unordered_set<std::string_view> names_;
+    const slang::InstanceBodySymbol *instance_ = nullptr;
+};
+
 std::string Module::analyze_connections() {
     // we only care about ports for now
     auto const &port_list = def_->body.getPortList();
@@ -95,7 +128,7 @@ std::string Module::analyze_connections() {
         if (slang::PortSymbol::isKind(sym->kind)) {
             auto const &port = sym->as<slang::PortSymbol>();
             auto connection = def_->getPortConnection(port);
-            auto const *expr = connection->expr;
+            auto const *expr = connection->getExpression();
             switch (port.direction) {
                 case slang::ArgumentDirection::In: {
                     inputs.emplace_back(std::make_pair(&port, expr));
@@ -112,6 +145,10 @@ std::string Module::analyze_connections() {
         }
     }
 
+    // need to collect port variable symbols. slang treat port and variable symbols differently
+    PortVariableSymbolCollector visitor(inputs, outputs);
+    def_->body.visit(visitor);
+    port_vars = std::move(visitor.port_vars);
     return {};
 }
 

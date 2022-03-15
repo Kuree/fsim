@@ -163,12 +163,29 @@ void Module::schedule_ff() {  // NOLINT
     if (ff_process_.empty()) return;
 
     // this is just to make sure we call each functions
+    // 1. first pass to compute the number of process to trigger
+    std::vector<FFProcess *> processes;
+    processes.reserve(ff_process_.size());
     for (auto *p : ff_process_) {
         if (should_trigger_process(p)) {
-            start_process(p);
-            // non-blocking since we will check it at the end
-            marl::schedule([p]() { p->func(); });
+            processes.emplace_back(p);
         }
+    }
+
+    // 2. actually trigger the function if necessary
+    if (!processes.empty()) {
+        marl::WaitGroup trigger_control(processes.size());
+
+        for (auto *p : processes) {
+            start_process(p);
+            marl::schedule([p, trigger_control]() {
+                trigger_control.done();
+                // non-blocking. we only use the wait group to make sure that the function
+                // actually gets scheduled before we return the call
+                p->func();
+            });
+        }
+        trigger_control.wait();
     }
 }
 

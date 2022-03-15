@@ -57,7 +57,8 @@ bool DPILocator::resolve_lib(std::string_view func_name) const {
         if (!r) {
             return false;
         }
-        auto *s = ::dlsym(r, func_name.data());
+        std::string name = std::string(func_name);
+        auto *s = ::dlsym(r, name.c_str());
         if (!s) return false;
         dlclose(r);
         return true;

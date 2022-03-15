@@ -2,6 +2,7 @@
 #include "gtest/gtest.h"
 #include "slang/compilation/Compilation.h"
 #include "slang/syntax/SyntaxTree.h"
+#include "util.hh"
 
 using namespace xsim;
 using namespace slang;
@@ -493,4 +494,42 @@ endmodule
     builder.build(&compilation);
     std::string output = testing::internal::GetCapturedStdout();
     EXPECT_NE(output.find("a = 1\n"), std::string::npos);
+}
+
+TEST(code, dpi) {  // NOLINT
+    auto dpi_c = R"(
+int add(int a, int b) {
+    return a + b;
+}
+)";
+
+    // build the shared library first
+    constexpr auto dpi_c_lib = "xsim_dir/dpi_c.so";
+    build_c_shared_lib(dpi_c, dpi_c_lib);
+
+    auto tree = SyntaxTree::fromText(R"(
+module top;
+import "DPI-C" function int add(int a, int b);
+logic [4:0] a, b, c;
+
+initial begin
+    a = 1;
+    b = 2;
+    c = add(a, b);
+    $display("c = %0d", c);
+end
+
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    BuildOptions options;
+    options.sv_libs.emplace_back(dpi_c_lib);
+
+    options.optimization_level = optimization_level;
+    options.run_after_build = true;
+    Builder builder(options);
+    //testing::internal::CaptureStdout();
+    builder.build(&compilation);
 }

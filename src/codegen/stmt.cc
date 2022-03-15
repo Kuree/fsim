@@ -13,6 +13,8 @@ VarDeclarationVisitor::VarDeclarationVisitor(std::ostream &s, int &indent_level,
       expr_v(expr_v) {}
 
 void VarDeclarationVisitor::handle(const slang::VariableSymbol &var) {
+    // not interested in formal argument for now
+    if (var.kind == slang::SymbolKind::FormalArgument) return;
     // output variable definition
     auto const &t = var.getDeclaredType()->getType();
     auto type_name = get_var_type(t, var.name);

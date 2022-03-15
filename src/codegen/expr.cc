@@ -63,22 +63,44 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
 }
 
 [[maybe_unused]] void ExprCodeGenVisitor::handle(const slang::ConversionExpression &c) {
-    auto const &t = *c.type;
-    s << "(";
-    c.operand().visit(*this);
-    s << ")";
-    if (c.operand().kind != slang::ExpressionKind::IntegerLiteral) {
-        if (c.operand().type->getBitWidth() > t.getBitWidth()) {
+    auto const &target_type = *c.type;
+    auto const target_bit_width = target_type.getBitWidth();
+    auto const target_is_signed = target_type.isSigned();
+    auto const &operand_type = *c.operand().type;
+
+    if (operand_type.isSimpleType() && !target_type.isSimpleType()) {
+        // convert operand to logic/bits
+        if (target_type.isFourState()) {
+            s << "logic::logic<";
+        } else {
+            s << "logic::bit<";
+        }
+        s << target_bit_width - 1 << ", " << 0 << ">(";
+        c.operand().visit(*this);
+        s << ")";
+    } else if (!operand_type.isSimpleType() && target_type.isSimpleType() &&
+               c.operand().kind != slang::ExpressionKind::IntegerLiteral) {
+        // convert to num
+        c.operand().visit(*this);
+        s << ".to_num()";
+    } else {
+        s << "(";
+        c.operand().visit(*this);
+        s << ")";
+
+        if (c.operand().type->getBitWidth() > target_bit_width) {
             // this is a slice
-            s << ".slice<" << t.getFixedRange().left << ", " << t.getFixedRange().right << ">()";
-        } else if (c.operand().type->getBitWidth() < t.getBitWidth()) {
+            s << ".slice<" << target_type.getFixedRange().left << ", "
+              << target_type.getFixedRange().right << ">()";
+        } else if (c.operand().type->getBitWidth() < target_bit_width) {
             // it's an extension
-            auto size = std::abs(t.getFixedRange().left - t.getFixedRange().right) + 1;
+            auto size =
+                std::abs(target_type.getFixedRange().left - target_type.getFixedRange().right) + 1;
             s << ".extend<" << size << ">()";
         }
-        if (c.operand().type->isSigned() && !t.isSigned()) {
+        if (c.operand().type->isSigned() && !target_is_signed) {
             s << ".to_unsigned()";
-        } else if (!c.operand().type->isSigned() && t.isSigned()) {
+        } else if (!c.operand().type->isSigned() && target_is_signed) {
             s << ".to_signed()";
         }
     }

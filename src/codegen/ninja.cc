@@ -40,10 +40,10 @@ void NinjaCodeGen::output(const std::string &dir) {
     auto lib_path = runtime_dir / "lib";
     auto runtime_lib_path = lib_path / "libxsim-runtime.so";
     stream << "cflags = -I" << include_dir << " -std=c++20 -march=native -m64 ";
-    if (options_.debug_build) {
-        stream << "-O0 -g ";
-    } else {
-        stream << "-O3 ";
+    auto level = std::clamp<uint32_t>(options_.optimization_level, 0, 3);
+    stream << "-O" << level << " ";
+    if (level == 0) {
+        stream << "-g ";
     }
     // ignore warning flags for apple clang
     stream << "-Wno-unknown-attributes ";

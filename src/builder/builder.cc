@@ -149,7 +149,7 @@ void Builder::build(const Module *module) const {
     }
     // generate ninja first
     NinjaCodeGenOptions n_options;
-    n_options.debug_build = options_.debug_build;
+    n_options.optimization_level = options_.optimization_level;
     n_options.cxx_path = options_.cxx_path;
     n_options.binary_name = options_.binary_name;
     n_options.sv_libs = options_.sv_libs;

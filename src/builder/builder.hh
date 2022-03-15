@@ -16,7 +16,8 @@ struct BuildOptions {
     std::string working_dir;
     std::string simv_path;
     bool run_after_build = false;
-    bool debug_build = false;
+    // this is the same as GCC, which uses -O0
+    uint8_t optimization_level = 0;
     bool use_4state = true;
     bool add_vpi = false;
     std::string cxx_path;

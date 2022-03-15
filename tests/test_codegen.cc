@@ -6,6 +6,9 @@
 using namespace xsim;
 using namespace slang;
 
+// -O3
+constexpr uint8_t optimization_level = 3;
+
 TEST(codegen, declaration) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module m;
@@ -20,7 +23,7 @@ endmodule
     Compilation compilation;
     compilation.addSyntaxTree(tree);
     BuildOptions options;
-    options.debug_build = true;
+    options.optimization_level = optimization_level;
     options.run_after_build = true;
     Builder builder(options);
     testing::internal::CaptureStdout();
@@ -47,7 +50,7 @@ endmodule
     Compilation compilation;
     compilation.addSyntaxTree(tree);
     BuildOptions options;
-    options.debug_build = true;
+    options.optimization_level = optimization_level;
     options.run_after_build = true;
     Builder builder(options);
     testing::internal::CaptureStdout();
@@ -69,7 +72,7 @@ endmodule
     Compilation compilation;
     compilation.addSyntaxTree(tree);
     BuildOptions options;
-    options.debug_build = true;
+    options.optimization_level = optimization_level;
     options.run_after_build = true;
     Builder builder(options);
     testing::internal::CaptureStdout();
@@ -95,7 +98,7 @@ endmodule
     Compilation compilation;
     compilation.addSyntaxTree(tree);
     BuildOptions options;
-    options.debug_build = true;
+    options.optimization_level = optimization_level;
     options.run_after_build = true;
     Builder builder(options);
     testing::internal::CaptureStdout();
@@ -117,7 +120,7 @@ endmodule
     Compilation compilation;
     compilation.addSyntaxTree(tree);
     BuildOptions options;
-    options.debug_build = true;
+    options.optimization_level = optimization_level;
     options.run_after_build = true;
     Builder builder(options);
     testing::internal::CaptureStdout();
@@ -150,7 +153,7 @@ endmodule
     Compilation compilation;
     compilation.addSyntaxTree(tree);
     BuildOptions options;
-    options.debug_build = true;
+    options.optimization_level = optimization_level;
     options.run_after_build = true;
     Builder builder(options);
     testing::internal::CaptureStdout();
@@ -192,7 +195,7 @@ endmodule
     Compilation compilation;
     compilation.addSyntaxTree(tree);
     BuildOptions options;
-    options.debug_build = true;
+    options.optimization_level = optimization_level;
     options.run_after_build = true;
     Builder builder(options);
     testing::internal::CaptureStdout();
@@ -233,7 +236,7 @@ endmodule
     Compilation compilation;
     compilation.addSyntaxTree(tree);
     BuildOptions options;
-    options.debug_build = true;
+    options.optimization_level = optimization_level;
     options.run_after_build = true;
     Builder builder(options);
     testing::internal::CaptureStdout();
@@ -258,7 +261,7 @@ endmodule
     Compilation compilation;
     compilation.addSyntaxTree(tree);
     BuildOptions options;
-    options.debug_build = true;
+    options.optimization_level = optimization_level;
     options.run_after_build = true;
     Builder builder(options);
     testing::internal::CaptureStdout();
@@ -299,7 +302,7 @@ endmodule
     Compilation compilation;
     compilation.addSyntaxTree(tree);
     BuildOptions options;
-    options.debug_build = true;
+    options.optimization_level = optimization_level;
     options.run_after_build = true;
     Builder builder(options);
     testing::internal::CaptureStdout();
@@ -328,7 +331,7 @@ endmodule
     Compilation compilation;
     compilation.addSyntaxTree(tree);
     BuildOptions options;
-    options.debug_build = true;
+    options.optimization_level = optimization_level;
     options.run_after_build = true;
     Builder builder(options);
     testing::internal::CaptureStdout();
@@ -355,7 +358,7 @@ endmodule
     Compilation compilation;
     compilation.addSyntaxTree(tree);
     BuildOptions options;
-    options.debug_build = true;
+    options.optimization_level = optimization_level;
     options.run_after_build = true;
     Builder builder(options);
     testing::internal::CaptureStdout();
@@ -389,7 +392,7 @@ endmodule
     Compilation compilation;
     compilation.addSyntaxTree(tree);
     BuildOptions options;
-    options.debug_build = true;
+    options.optimization_level = optimization_level;
     options.run_after_build = true;
     Builder builder(options);
     testing::internal::CaptureStdout();
@@ -414,7 +417,7 @@ endmodule
     Compilation compilation;
     compilation.addSyntaxTree(tree);
     BuildOptions options;
-    options.debug_build = true;
+    options.optimization_level = optimization_level;
     options.run_after_build = true;
     Builder builder(options);
     testing::internal::CaptureStdout();
@@ -451,7 +454,7 @@ endmodule
     Compilation compilation;
     compilation.addSyntaxTree(tree);
     BuildOptions options;
-    options.debug_build = true;
+    options.optimization_level = optimization_level;
     options.run_after_build = true;
     Builder builder(options);
     testing::internal::CaptureStdout();
@@ -483,7 +486,7 @@ endmodule
     Compilation compilation;
     compilation.addSyntaxTree(tree);
     BuildOptions options;
-    options.debug_build = true;
+    options.optimization_level = optimization_level;
     options.run_after_build = true;
     Builder builder(options);
     testing::internal::CaptureStdout();

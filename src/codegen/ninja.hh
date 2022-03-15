@@ -5,7 +5,7 @@
 
 namespace xsim {
 struct NinjaCodeGenOptions {
-    bool debug_build = false;
+    uint8_t optimization_level = 3;
     std::string cxx_path;
     std::string binary_name;
 

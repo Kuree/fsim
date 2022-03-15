@@ -475,7 +475,7 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
             // compile simulation
             xsim::BuildOptions b_opt;
             if (optimizationLevel) {
-                b_opt.debug_build = (*optimizationLevel) == 0;
+                b_opt.optimization_level = *optimizationLevel;
             }
             if (runAfterCompilation) {
                 b_opt.run_after_build = true;

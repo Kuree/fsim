@@ -14,7 +14,7 @@ class Module;
 
 struct BuildOptions {
     std::string working_dir;
-    std::string simv_path;
+    std::string working_directory;
     bool run_after_build = false;
     // this is the same as GCC, which uses -O0
     uint8_t optimization_level = 0;

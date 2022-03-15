@@ -177,7 +177,7 @@ void Builder::build(const Module *module) const {
     }
 
     // need to symlink stuff over
-    symlink_folders(options_.working_dir, options_.simv_path);
+    symlink_folders(options_.working_dir, options_.working_directory);
 
     // call ninja to build the stuff
     {

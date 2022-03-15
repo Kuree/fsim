@@ -266,6 +266,12 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
                 "is skipped",
                 "<count>");
 
+    // DPI
+    std::vector<std::string> svLibs;
+    cmdLine.add("--sv-lib", svLibs,
+                "DPI libraries, which can either be a path or a name"
+                "locatable using the system's configuration");
+
     // Compilation
     optional<std::string> minTypMax;
     std::vector<std::string> topModules;
@@ -483,7 +489,8 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
             if (twoState) {
                 b_opt.use_4state = false;
             }
-            b_opt.simv_path = std::filesystem::weakly_canonical(argv[0]);
+            b_opt.sv_libs = svLibs;
+            b_opt.working_directory = std::filesystem::weakly_canonical(argv[0]);
             xsim::Builder builder(b_opt);
             builder.build(&compilation);
         }

@@ -5,6 +5,7 @@
 #include <unordered_set>
 
 #include "ast.hh"
+#include "except.hh"
 #include "fmt/format.h"
 
 namespace xsim {
@@ -160,7 +161,8 @@ public:
             auto const &event = timing.as<slang::SignalEventControl>();
             auto const &expr = event.expr;
             if (expr.kind != slang::ExpressionKind::NamedValue) {
-                throw std::runtime_error("Only single named value event supported");
+                throw NotSupportedException("Only single named value event supported",
+                                            timing.syntax->sourceRange().start());
             }
             auto const &named_value = expr.as<slang::NamedValueExpression>();
             auto const &var = named_value.symbol;

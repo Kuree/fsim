@@ -6,10 +6,12 @@
 
 #include "../codegen/cxx.hh"
 #include "../codegen/ninja.hh"
+#include "../ir/except.hh"
 #include "dpi.hh"
 #include "fmt/format.h"
 #include "slang/compilation/Compilation.h"
 #include "slang/symbols/ASTVisitor.h"
+#include "slang/syntax/AllSyntax.h"
 #include "subprocess.hpp"
 
 namespace xsim {
@@ -105,17 +107,19 @@ public:
         if (kind == slang::SubroutineKind::Function) {
             // dpi can only be function
             slang::bitmask<slang::MethodFlags> flags;
+            const slang::SubroutineSymbol *sym;
             if (expr.subroutine.index() == 0) {
-                auto const *sym = std::get<0>(expr.subroutine);
+                sym = std::get<0>(expr.subroutine);
                 flags = sym->flags;
             } else {
                 // this could be VPI, or regular system call
+                return;
             }
             if (flags.has(slang::MethodFlags::DPIImport)) {
                 names.emplace(expr.getSubroutineName(), &expr);
             }
             if (flags.has(slang::MethodFlags::DPIContext)) {
-                throw std::runtime_error("Context DPI function not supported");
+                throw NotSupportedException("Context DPI function not supported", sym->location);
             }
         }
     }
@@ -139,7 +143,11 @@ void verify_dpi_functions(DPILocator *dpi, const Module *module, const BuildOpti
     for (auto const &[func_name, func] : names) {
         auto exists = dpi->resolve_lib(func_name);
         if (!exists) {
-            throw std::runtime_error(fmt::format("DPI function {0} cannot be found", func_name));
+            auto *sym = std::get<0>(func->subroutine);
+            throw InvalidSyntaxException(fmt::format("DPI function {0} cannot be resolved given "
+                                                     "current shared library setup",
+                                                     func_name),
+                                         sym->location);
         }
     }
 }

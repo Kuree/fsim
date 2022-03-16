@@ -4,6 +4,7 @@
 #include <fstream>
 
 #include "../src/builder/builder.hh"
+#include "../src/ir/except.hh"
 #include "slang/compilation/Compilation.h"
 #include "slang/diagnostics/DeclarationsDiags.h"
 #include "slang/diagnostics/DiagnosticEngine.h"
@@ -492,7 +493,14 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
             b_opt.sv_libs = svLibs;
             b_opt.working_directory = std::filesystem::weakly_canonical(argv[0]);
             xsim::Builder builder(b_opt);
-            builder.build(&compilation);
+            // clear diag
+            diag.clear();
+            try {
+                builder.build(&compilation);
+            } catch (const xsim::Exception& e) {
+                e.report(compiler.diagClient);
+                slang::OS::printE("{}", compiler.diagClient->getString());
+            }
         }
 
     } catch (const std::exception& e) {

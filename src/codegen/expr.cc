@@ -1,5 +1,6 @@
 #include "expr.hh"
 
+#include "../ir/except.hh"
 #include "util.hh"
 
 namespace xsim {
@@ -108,8 +109,9 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
     }
 }
 
-[[maybe_unused]] void ExprCodeGenVisitor::handle(const slang::LValueReferenceExpression &) {
-    if (!left_ptr) throw std::runtime_error("Unable to determine LValue");
+[[maybe_unused]] void ExprCodeGenVisitor::handle(const slang::LValueReferenceExpression &expr) {
+    if (!left_ptr)
+        throw InvalidSyntaxException("Unable to determine LValue", expr.sourceRange.start());
     left_ptr->visit(*this);
 }
 
@@ -182,8 +184,9 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
             break;
         default:
             if (!handled)
-                throw std::runtime_error(
-                    fmt::format("Unsupported operator {0}", slang::toString(expr.op)));
+                throw NotSupportedException(
+                    fmt::format("Unsupported operator {0}", slang::toString(expr.op)),
+                    expr.sourceRange.start());
     }
     // the one with special function calls
     s << ")";
@@ -264,8 +267,9 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
             closing_p = true;
             break;
         default:
-            throw std::runtime_error(
-                fmt::format("Unsupported operator {0}", slang::toString(expr.op)));
+            throw NotSupportedException(
+                fmt::format("Unsupported operator {0}", slang::toString(expr.op)),
+                expr.sourceRange.start());
     }
     right.visit(*this);
     if (closing_p) s << ")";
@@ -335,7 +339,8 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
             for (auto i = 0u; i < func_args.size(); i++) {
                 auto const *func_arg = func_args[i];
                 if (func_arg->direction != slang::ArgumentDirection::In) {
-                    throw std::runtime_error("Output direction in DPI not yet implemented");
+                    throw NotSupportedException("Output direction in DPI not yet implemented",
+                                                func_arg->location);
                 }
                 auto const *call_arg = call_args[i];
                 // maybe need type conversion?
@@ -347,8 +352,9 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
             s << ")";
             return;
         }
-        throw std::runtime_error(
-            fmt::format("Not yet implemented for function {0}", function->name));
+        throw NotSupportedException(
+            fmt::format("Export not yet implemented for function {0}", function->name),
+            function->location);
     }
 }
 
@@ -495,8 +501,9 @@ void TimingControlCodeGen::handle(const slang::TimingControl &timing) {
             break;
         }
         default: {
-            throw std::runtime_error(
-                fmt::format("Unsupported timing control {0}", slang::toString(timing.kind)));
+            throw NotSupportedException(
+                fmt::format("Unsupported timing control {0}", slang::toString(timing.kind)),
+                timing.syntax->sourceRange().start());
         }
     }
 }

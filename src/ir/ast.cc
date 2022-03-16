@@ -2,6 +2,7 @@
 
 #include <unordered_set>
 
+#include "except.hh"
 #include "fmt/format.h"
 
 namespace xsim {
@@ -82,8 +83,8 @@ DependencyAnalysisVisitor::Node *DependencyAnalysisVisitor::Graph::get_node(
             return get_node_(this, symbol);
         }
         default: {
-            throw std::runtime_error(
-                fmt::format("Unsupported node {0}", slang::toString(symbol.kind)));
+            throw NotSupportedException(
+                fmt::format("Unsupported node {0}", slang::toString(symbol.kind)), symbol.location);
         }
     }
 }

@@ -20,7 +20,16 @@ void symlink_folders(const std::string &output_dir, const std::string &simv_path
     // need to locate where the files are
     // for now we look for stuff based on the current file
     std::filesystem::path runtime, logic, marl, runtime_path;
-    if (simv_path.empty()) {
+    bool in_tree_build = simv_path.empty();
+    if (!in_tree_build) {
+        // if it's in the tools folder
+        std::filesystem::path exe = simv_path;
+        auto root = exe.parent_path().filename();
+        if (root == "tools") {
+            in_tree_build = true;
+        }
+    }
+    if (in_tree_build) {
         std::filesystem::path current_file = __FILE__;
         // builder is in its own folder
         auto src = current_file.parent_path().parent_path();

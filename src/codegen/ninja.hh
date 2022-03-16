@@ -4,6 +4,8 @@
 #include "../ir/ir.hh"
 
 namespace xsim {
+class DPILocator;
+
 struct NinjaCodeGenOptions {
     uint8_t optimization_level = 3;
     std::string cxx_path;
@@ -15,13 +17,15 @@ struct NinjaCodeGenOptions {
 class NinjaCodeGen {
     // generates native ninja code (bypass cmake)
 public:
-    NinjaCodeGen(const Module *top, NinjaCodeGenOptions &option) : top_(top), options_(option) {}
+    NinjaCodeGen(const Module *top, NinjaCodeGenOptions &options, const DPILocator *dpi)
+        : top_(top), options_(options), dpi_(dpi) {}
 
     void output(const std::string &dir);
 
 private:
     const Module *top_;
     NinjaCodeGenOptions &options_;
+    const DPILocator *dpi_ = nullptr;
 };
 }  // namespace xsim
 

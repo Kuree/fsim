@@ -530,6 +530,8 @@ endmodule
     options.optimization_level = optimization_level;
     options.run_after_build = true;
     Builder builder(options);
-    //testing::internal::CaptureStdout();
+    testing::internal::CaptureStdout();
     builder.build(&compilation);
+    std::string output = testing::internal::GetCapturedStdout();
+    EXPECT_NE(output.find("c = 3\n"), std::string::npos);
 }

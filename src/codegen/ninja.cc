@@ -3,8 +3,10 @@
 #include <filesystem>
 #include <set>
 
+#include "../builder/dpi.hh"
 #include "fmt/format.h"
 #include "util.hh"
+
 namespace xsim {
 
 std::set<std::string_view> get_defs(const Module *module) {
@@ -14,6 +16,21 @@ std::set<std::string_view> get_defs(const Module *module) {
         result.emplace(def->name);
     }
     return result;
+}
+
+std::string get_linker_flags(const DPILocator *dpi) {
+    if (!dpi) return {};
+    auto const &libs = dpi->lib_paths();
+    std::vector<std::string> lib_flags;
+    for (auto const &lib : libs) {
+        if (lib.system_specified) continue;
+        auto res = fmt::format("{0} -Wl,-rpath,{0}", lib.path);
+        lib_flags.emplace_back(res);
+    }
+    auto res = fmt::join(lib_flags, " ");
+    // potentially a bug in the fmt, need to change it from lvalue to rvalue
+    // NOLINTNEXTLINE
+    return fmt::format("{0}", std::move(res));
 }
 
 void NinjaCodeGen::output(const std::string &dir) {
@@ -64,7 +81,9 @@ void NinjaCodeGen::output(const std::string &dir) {
         stream << "build " << obj_name << ": cc " << get_cc_filename(name) << std::endl;
         objs.append(obj_name).append(" ");
     }
-    auto main_linkers = fmt::format("-pthread -lstdc++ -Wl,-rpath,{0}", lib_path.string());
+    auto main_linkers = fmt::format("-pthread -lstdc++ -Wl,-rpath,{0} ", lib_path.string());
+    auto dpi_linkers = get_linker_flags(dpi_);
+    main_linkers.append(dpi_linkers);
     // build the main
     stream << "rule main" << std::endl;
     stream << "  command = " << options_.cxx_path << " $in " << runtime_lib_path << " $cflags "

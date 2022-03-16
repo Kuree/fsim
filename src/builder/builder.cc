@@ -122,21 +122,21 @@ std::unordered_map<std::string_view, const slang::CallExpression *> get_all_dpi_
     return names;
 }
 
-void verify_dpi_functions(const Module *module, const BuildOptions &options) {
+void verify_dpi_functions(DPILocator *dpi, const Module *module, const BuildOptions &options) {
     auto names = get_all_dpi_calls(module);
-    DPILocator dpi;
     for (auto const &p : options.sv_libs) {
-        dpi.add_dpi_lib(p);
+        dpi->add_dpi_lib(p);
     }
     for (auto const &[func_name, func] : names) {
-        auto exists = dpi.resolve_lib(func_name);
+        auto exists = dpi->resolve_lib(func_name);
         if (!exists) {
             throw std::runtime_error(fmt::format("DPI function {0} cannot be found", func_name));
         }
     }
 }
 
-Builder::Builder(BuildOptions options) : options_(std::move(options)) {
+Builder::Builder(BuildOptions options)
+    : options_(std::move(options)), dpi_locator_(std::make_unique<DPILocator>()) {
     // filling up empty information
     if (options_.working_dir.empty()) {
         options_.working_dir = default_working_dir;
@@ -154,9 +154,9 @@ void Builder::build(const Module *module) const {
     n_options.binary_name = options_.binary_name;
     n_options.sv_libs = options_.sv_libs;
     // check all the DPI functions to see if they are valid
-    verify_dpi_functions(module, options_);
+    verify_dpi_functions(dpi_locator_.get(), module, options_);
 
-    NinjaCodeGen ninja(module, n_options);
+    NinjaCodeGen ninja(module, n_options, dpi_locator_.get());
     ninja.output(options_.working_dir);
 
     // then generate the C++ code
@@ -230,5 +230,7 @@ void Builder::build(slang::Compilation *unit) const {
     m.analyze();
     build(&m);
 }
+
+Builder::~Builder() = default;
 
 }  // namespace xsim

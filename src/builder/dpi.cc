@@ -36,24 +36,28 @@ void DPILocator::add_dpi_lib(const std::string &lib_path) {
     // need to make sure it exists
     auto p = fs::path(lib_path);
     if (p.is_relative()) {
-        // if it's a relative path, search based on variables locations
-        for (auto const &dir : lib_search_dirs_) {
-            auto path = dir / p;
-            if (fs::exists(path)) {
-                libs_paths_.emplace(path.string());
+        if (fs::exists(p)) {
+            libs_paths_.emplace(LibInfo{false, fs::absolute(p)});
+        } else {
+            // if it's a relative path, search based on variables locations
+            for (auto const &dir : lib_search_dirs_) {
+                auto path = dir / p;
+                if (fs::exists(path)) {
+                    libs_paths_.emplace(LibInfo{true, path.string()});
+                }
             }
         }
     } else {
         if (fs::exists(p)) {
-            libs_paths_.emplace(lib_path);
+            libs_paths_.emplace(LibInfo{true, lib_path});
         }
     }
 }
 
 bool DPILocator::resolve_lib(std::string_view func_name) const {
     // C function doesn't have parameter types
-    for (auto const &lib_path : libs_paths_) {
-        auto *r = ::dlopen(lib_path.data(), RTLD_LAZY);
+    for (auto const &lib_info : libs_paths_) {
+        auto *r = ::dlopen(lib_info.path.data(), RTLD_LAZY);
         if (!r) {
             return false;
         }

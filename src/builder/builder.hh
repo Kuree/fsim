@@ -1,6 +1,7 @@
 #ifndef XSIM_BUILDER_HH
 #define XSIM_BUILDER_HH
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -11,6 +12,7 @@ class Compilation;
 namespace xsim {
 
 class Module;
+class DPILocator;
 
 struct BuildOptions {
     std::string working_dir;
@@ -34,8 +36,11 @@ public:
     void build(const Module *module) const;
     void build(slang::Compilation *unit) const;
 
+    ~Builder();
+
 private:
     BuildOptions options_;
+    std::unique_ptr<DPILocator> dpi_locator_;
 };
 
 }  // namespace xsim

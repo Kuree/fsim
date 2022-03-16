@@ -104,7 +104,7 @@ public:
     void init(Scheduler *scheduler) override {
         auto init_ptr = scheduler->create_init_process();
         init_ptr->func = [init_ptr, scheduler]() {
-            finish(scheduler, 0);
+            finish(scheduler, 0, "");
             END_PROCESS(init_ptr);
         };
         Scheduler::schedule_init(init_ptr);
@@ -601,7 +601,7 @@ public:
                     display(this, "clk=%0d", clk);
                     SCHEDULE_DELAY(init_ptr, 5, scheduler, n);
                 }
-                finish(scheduler, 0);
+                finish(scheduler, 0, "");
                 // done with this init
                 END_PROCESS(init_ptr);
             };
@@ -665,7 +665,7 @@ public:
             auto init_ptr = scheduler->create_init_process();
             init_ptr->func = [init_ptr, scheduler]() {
                 SCHEDULE_DELAY(init_ptr, 2, scheduler, n);
-                finish(scheduler, 0);
+                finish(scheduler, 0, "");
                 // done with this init
                 END_PROCESS(init_ptr);
             };

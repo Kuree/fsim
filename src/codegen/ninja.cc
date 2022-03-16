@@ -65,10 +65,12 @@ void NinjaCodeGen::output(const std::string &dir) {
     // ignore warning flags for apple clang
     stream << "-Wno-unknown-attributes ";
     stream << std::endl << std::endl;
+    // codegen rules
     stream << "rule cc" << std::endl;
     stream << "  depfile = $out.d" << std::endl;
     stream << "  command = " << options_.cxx_path << " -MD -MF $out.d $cflags -c $in -o $out"
            << std::endl
+           << "  description = $out" << std::endl
            << std::endl;
 
     // output for each module definition
@@ -88,6 +90,7 @@ void NinjaCodeGen::output(const std::string &dir) {
     stream << "rule main" << std::endl;
     stream << "  command = " << options_.cxx_path << " $in " << runtime_lib_path << " $cflags "
            << main_linkers << " -o $out" << std::endl
+           << "  description = $out" << std::endl
            << std::endl;
     stream << "build " << options_.binary_name << ": main " << objs << std::endl;
 

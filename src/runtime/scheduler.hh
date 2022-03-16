@@ -70,6 +70,7 @@ public:
 
 struct FinishInfo {
     int code;
+    std::string_view loc;
 };
 
 class Scheduler {
@@ -92,7 +93,7 @@ public:
     void add_tracked_var(TrackedVar *var) { tracked_vars_.emplace(var); }
     void add_process_edge_control(Process *process);
 
-    [[nodiscard]] bool finished() const { return finish_flag_.load() || terminate_; }
+    [[nodiscard]] bool finished() const { return terminate_; }
 
     ~Scheduler();
 

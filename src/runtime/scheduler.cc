@@ -64,6 +64,7 @@ void Scheduler::run(Module *top) {
         } while (!loop_stabilized());
 
         if (terminate()) {
+            terminate_ = true;
             break;
         }
 
@@ -90,6 +91,7 @@ void Scheduler::run(Module *top) {
 
     // stop any processes that's still running
     // this only happens when a process has infinite loop or waiting for the next event schedule
+    terminate_ = true;
     terminate_processes();
 
     // execute final
@@ -153,17 +155,11 @@ void Scheduler::schedule_delay(const ScheduledTimeslot &event) {
 }
 
 void Scheduler::schedule_finish(int code, std::string_view loc) {
-    finish_.code = code;
-    finish_flag_ = true;
-
-    // going to terminate all the process, if not finished
-    // also need to make sure that we're not doing something crazy while issuing events
-    {
-        std::lock_guard guard(event_queue_lock_);
-        terminate_processes();
+    if (!finish_flag_) {
+        finish_.code = code;
+        finish_.loc = loc;
+        finish_flag_ = true;
     }
-
-    printout_finish(finish_.code, sim_time, loc);
 }
 
 void Scheduler::schedule_nba(const std::function<void()> &func) {
@@ -220,6 +216,9 @@ void Scheduler::terminate_processes() {
         if (!process->finished) {
             process->delay.signal();
         }
+    }
+    if (finish_flag_) {
+        printout_finish(finish_.code, sim_time, finish_.loc);
     }
 }
 

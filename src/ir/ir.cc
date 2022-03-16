@@ -512,4 +512,9 @@ std::unordered_set<std::string_view> Module::get_tracked_vars() const {
     return result;
 }
 
+const slang::Compilation *Module::get_compilation() const {
+    if (!def_) return nullptr;
+    return &def_->getParentScope()->getCompilation();
+}
+
 }  // namespace xsim

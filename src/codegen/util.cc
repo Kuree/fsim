@@ -4,6 +4,9 @@
 #include <fstream>
 #include <unordered_map>
 
+#include "slang/compilation/Compilation.h"
+#include "slang/text/SourceManager.h"
+
 namespace xsim {
 void write_to_file(const std::string &filename, std::stringstream &stream) {
     if (!std::filesystem::exists(filename)) {
@@ -74,6 +77,10 @@ void CodeGenModuleInformation::exit_process() {
     process_names_.pop();
 }
 
+const slang::Compilation *CodeGenModuleInformation::get_compilation() const {
+    return current_module ? current_module->get_compilation() : nullptr;
+}
+
 std::string_view get_indent(int indent_level) {
     static std::unordered_map<int, std::string> cache;
     if (cache.find(indent_level) == cache.end()) {
@@ -82,6 +89,15 @@ std::string_view get_indent(int indent_level) {
         cache.emplace(indent_level, ss.str());
     }
     return cache.at(indent_level);
+}
+
+std::pair<std::string_view, uint32_t> get_loc(const slang::SourceLocation &loc,
+                                              const slang::Compilation *compilation) {
+    if (!compilation) return {};
+    auto const *sm = compilation->getSourceManager();
+    auto filename = sm->getFileName(loc);
+    auto line_num = sm->getLineNumber(loc);
+    return {filename, line_num};
 }
 
 }  // namespace xsim

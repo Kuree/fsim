@@ -1,5 +1,7 @@
 #include "expr.hh"
 
+#include "util.hh"
+
 namespace xsim {
 
 auto constexpr xsim_schedule_nba = "SCHEDULE_NBA";
@@ -310,6 +312,15 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
         for (auto const &arg : arguments) {
             s << ", ";
             arg->visit(*this);
+        }
+        // decide whether to insert location or not
+        if (name == "finish" || name == "assert") {
+            auto [filename, line] =
+                get_loc(expr.sourceRange.start(), module_info_.get_compilation());
+            if (!filename.empty()) {
+                auto loc = fmt::format("{0}:{1}", filename, line);
+                s << ", \"" << loc << "\"";
+            }
         }
         s << ")";
     } else {

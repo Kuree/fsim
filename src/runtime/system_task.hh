@@ -75,17 +75,19 @@ void display(const Module *module, std::string_view format, Args... args) {
 void display(const Module *module, std::string_view format);
 
 template <typename T>
-inline void finish(Scheduler *scheduler, T code) {
+inline void finish(Scheduler *scheduler, T code, std::string_view loc = {}) {
     int finish_code;
     if constexpr (std::is_arithmetic_v<T>) {
         finish_code = code;
     } else {
         finish_code = code.to_uint64();
     }
-    scheduler->schedule_finish(finish_code);
+    scheduler->schedule_finish(finish_code, loc);
 }
 
-[[maybe_unused]] inline void finish(Scheduler *scheduler) { scheduler->schedule_finish(0); }
+[[maybe_unused]] inline void finish(Scheduler *scheduler, std::string_view loc = {}) {
+    scheduler->schedule_finish(0, loc);
+}
 
 [[maybe_unused]] inline uint64_t time(Scheduler *scheduler) { return scheduler->sim_time; }
 

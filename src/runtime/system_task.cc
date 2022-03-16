@@ -8,6 +8,13 @@ cout_lock::cout_lock() { Module::cout_lock(); }
 
 cout_lock::~cout_lock() { Module::cout_unlock(); }
 
+void print_assert_error(std::string_view name, std::string_view loc) {
+    if (!loc.empty()) {
+        std::cout << '(' << loc << ") ";
+    }
+    std::cout << "Assertion failed: " << name << std::endl;
+}
+
 std::string preprocess_display_fmt(const Module *module, std::string_view format) {
     // based on LRM 21.2
     std::string result;

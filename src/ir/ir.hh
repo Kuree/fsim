@@ -72,6 +72,8 @@ public:
 
     [[nodiscard]] std::unordered_set<std::string_view> get_tracked_vars() const;
 
+    [[nodiscard]] const slang::Compilation *get_compilation() const;
+
 private:
     const slang::InstanceSymbol *def_;
 

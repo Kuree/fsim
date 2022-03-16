@@ -34,8 +34,12 @@ inline bool has_init_left(const std::vector<std::unique_ptr<InitialProcess>> &in
     return std::any_of(inits.begin(), inits.end(), [](auto const &i) { return !i->finished; });
 }
 
-void printout_finish(int code, uint64_t time) {
-    std::cout << "$finish(" << code << ") called at " << time << std::endl;
+void printout_finish(int code, uint64_t time, std::string_view loc) {
+    std::cout << "$finish(" << code << ") called at " << time;
+    if (!loc.empty()) {
+        std::cout << " (" << loc << ")";
+    }
+    std::cout << std::endl;
 }
 
 void Scheduler::run(Module *top) {
@@ -87,10 +91,6 @@ void Scheduler::run(Module *top) {
     // stop any processes that's still running
     // this only happens when a process has infinite loop or waiting for the next event schedule
     terminate_processes();
-
-    if (finish_flag_.load()) {
-        printout_finish(finish_.code, sim_time);
-    }
 
     // execute final
     for (auto &final : final_processes_) {
@@ -152,7 +152,7 @@ void Scheduler::schedule_delay(const ScheduledTimeslot &event) {
     event_queue_.emplace(event);
 }
 
-void Scheduler::schedule_finish(int code) {
+void Scheduler::schedule_finish(int code, std::string_view loc) {
     finish_.code = code;
     finish_flag_ = true;
 
@@ -162,6 +162,8 @@ void Scheduler::schedule_finish(int code) {
         std::lock_guard guard(event_queue_lock_);
         terminate_processes();
     }
+
+    printout_finish(finish_.code, sim_time, loc);
 }
 
 void Scheduler::schedule_nba(const std::function<void()> &func) {

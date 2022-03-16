@@ -4,6 +4,7 @@
 #include <fstream>
 
 #include "../src/builder/builder.hh"
+#include "../src/codegen//util.hh"
 #include "../src/ir/except.hh"
 #include "slang/compilation/Compilation.h"
 #include "slang/diagnostics/DeclarationsDiags.h"
@@ -14,7 +15,6 @@
 #include "slang/symbols/ASTSerializer.h"
 #include "slang/symbols/CompilationUnitSymbols.h"
 #include "slang/symbols/InstanceSymbols.h"
-#include "slang/syntax/SyntaxPrinter.h"
 #include "slang/syntax/SyntaxTree.h"
 #include "slang/text/Json.h"
 #include "slang/text/SourceManager.h"
@@ -288,6 +288,14 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
                 "instantiating top-level modules",
                 "<name>=<value>");
 
+    // Output
+    optional<std::string> outputName;
+    cmdLine.add(
+        "-o,--output", outputName,
+        fmt::format("Set output name for compiled simulation executable. By default it's {0}",
+                    xsim::default_output_name),
+        "<output>");
+
     // Diagnostics control
     optional<bool> colorDiags;
     optional<bool> diagColumn;
@@ -490,6 +498,7 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
             if (twoState) {
                 b_opt.use_4state = false;
             }
+            b_opt.binary_name = outputName ? *outputName : xsim::default_output_name;
             b_opt.sv_libs = svLibs;
             b_opt.working_directory = std::filesystem::weakly_canonical(argv[0]);
             xsim::Builder builder(b_opt);
@@ -500,6 +509,7 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
             } catch (const xsim::Exception& e) {
                 e.report(compiler.diagClient);
                 slang::OS::printE("{}", compiler.diagClient->getString());
+                builder.cleanup();
             }
         }
 

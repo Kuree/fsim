@@ -248,6 +248,20 @@ void Builder::build(slang::Compilation *unit) const {
     build(&m);
 }
 
+void Builder::cleanup() const {
+    // need to remove the binary (which could be from previous runs)
+    std::filesystem::path binary_path = options_.binary_name;
+    binary_path = options_.working_dir / binary_path;
+    if (std::filesystem::exists(binary_path)) {
+        std::filesystem::remove(binary_path);
+    }
+    // remove the symbolic one as well
+    binary_path = options_.binary_name;
+    if (std::filesystem::is_symlink(binary_path)) {
+        std::filesystem::remove(binary_path);
+    }
+}
+
 Builder::~Builder() = default;
 
 }  // namespace xsim

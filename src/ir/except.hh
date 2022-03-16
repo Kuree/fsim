@@ -30,7 +30,7 @@ private:
     slang::SourceLocation loc_;
 };
 
-class InvalidSyntaxException: public Exception {
+class InvalidSyntaxException : public Exception {
 public:
     InvalidSyntaxException(const std::string &what, slang::SourceLocation loc)
         : Exception(what), loc_(loc) {}

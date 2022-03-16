@@ -35,6 +35,7 @@ public:
 
     void build(const Module *module) const;
     void build(slang::Compilation *unit) const;
+    void cleanup() const;
 
     ~Builder();
 

@@ -1,5 +1,7 @@
 #include "stmt.hh"
 
+#include "../ir/except.hh"
+
 namespace xsim {
 
 VarDeclarationVisitor::VarDeclarationVisitor(std::ostream &s, int &indent_level,
@@ -16,11 +18,8 @@ void VarDeclarationVisitor::handle(const slang::VariableSymbol &var) {
     // not interested in formal argument for now
     if (var.kind == slang::SymbolKind::FormalArgument) return;
     // output variable definition
-    auto const &t = var.getDeclaredType()->getType();
-    auto type_name = get_var_type(t, var.name);
-    auto range = t.getFixedRange();
-    s << get_indent(indent_level) << type_name << "<" << range.left << ", " << range.right << "> "
-      << var.name;
+    auto var_type_decl = get_var_decl(var);
+    s << get_indent(indent_level) << var_type_decl;
 
     auto *init = var.getInitializer();
     if (init) {
@@ -35,11 +34,9 @@ void VarDeclarationVisitor::handle(const slang::VariableSymbol &var) {
 
 [[maybe_unused]] void VarDeclarationVisitor::handle(const slang::NetSymbol &var) {
     // output variable definition
-    auto const &t = var.getDeclaredType()->getType();
-    auto type_name = get_var_type(t, var.name);
-    auto range = t.getFixedRange();
-    s << get_indent(indent_level) << type_name << "<" << range.left << ", " << range.right << "> "
-      << var.name << ";" << std::endl;
+    auto var_type_decl = get_var_decl(var);
+    s << get_indent(indent_level) << var_type_decl << ";" << std::endl;
+
     module_info.add_used_names(var.name);
 }
 
@@ -62,19 +59,148 @@ void VarDeclarationVisitor::handle(const slang::VariableSymbol &var) {
     }
 }
 
-std::string_view VarDeclarationVisitor::get_var_type(const slang::Type &t,
-                                                     std::string_view name) const {
-    if (options.use_4state) {
-        auto four_state = t.isFourState();
-        if (four_state) {
-            return module_info.var_tracked(name) ? "xsim::runtime::logic_t" : "logic::logic";
-        } else {
-            return module_info.var_tracked(name) ? "xsim::runtime::bit_t" : "logic::bit";
+class TypePrinter {
+public:
+    TypePrinter(const slang::Symbol &sym, const CodeGenModuleInformation &module_info,
+                const CXXCodeGenOptions &options)
+        : sym_(sym), module_info_(module_info), options_(options) {
+        auto const &t = sym.getDeclaredType()->getType();
+        t.visit(*this);
+
+        // CTAD doesn't work with logic::logic
+        // need to bypass that
+        if (t.kind == slang::SymbolKind::ScalarType) {
+            s_ << "<>";
         }
-    } else {
-        // force the simulator to use two state even though the original type maybe 4-state
-        return module_info.var_tracked(name) ? "xsim::runtime::bit_t" : "logic::bit";
     }
+
+    // this is modeled after slang's TypePrinter
+    void visit(const slang::ScalarType &type) {
+        if (options_.use_4state) {
+            auto four_state = type.isFourState;
+            if (four_state) {
+                s_ << (module_info_.var_tracked(sym_.name) ? "xsim::runtime::logic_t"
+                                                           : "logic::logic");
+            } else {
+                s_ << (module_info_.var_tracked(sym_.name) ? "xsim::runtime::bit_t" : "logic::bit");
+            }
+        } else {
+            // force the simulator to use two state even though the original type maybe 4-state
+            s_ << (module_info_.var_tracked(sym_.name) ? "xsim::runtime::bit_t" : "logic::bit");
+        }
+    }
+
+    void visit(const slang::PredefinedIntegerType &type) {
+        // we use bits here to avoid unnecessary conversion
+        auto width = type.getBitWidth();
+        s_ << "logic::bit<" << width - 1 << ", 0, " << (type.isSigned ? "true" : "false") << ">";
+    }
+    void visit(const slang::FloatingType &) { handle_not_supported(); }
+    void visit(const slang::EnumType &) { handle_not_supported(); }
+    void visit(const slang::PackedArrayType &type) {
+        std::vector<slang::ConstantRange> dims;
+        const slang::PackedArrayType *curr = &type;
+        while (true) {
+            dims.emplace_back(curr->range);
+            if (!curr->elementType.isPackedArray()) break;
+
+            curr = &curr->elementType.getCanonicalType().as<slang::PackedArrayType>();
+        }
+
+        // only support one dim packed array so far
+        if (dims.size() > 1) {
+            throw NotSupportedException("Multi-dimension packed array not supported",
+                                        type.location);
+        }
+        curr->elementType.visit(*this);
+        auto const &dim = dims[0];
+        s_ << "<" << dim.left << ", " << dim.right << ", " << (type.isSigned ? '1' : '0') << ">";
+    }
+    void visit(const slang::PackedStructType &) { handle_not_supported(); }
+    void visit(const slang::PackedUnionType &) { handle_not_supported(); }
+    void visit(const slang::FixedSizeUnpackedArrayType &type) {
+        slang::Type const *t = &type;
+        do {
+            t = t->getArrayElementType();
+        } while (t->isUnpackedArray());
+        t->visit(*this);
+
+        if (!var_name_printed_) {
+            s_ << " " << sym_.name;
+            var_name_printed_ = true;
+        }
+
+        print_unpacked_array_dim(type);
+    }
+
+    void visit(const slang::DynamicArrayType &) { handle_not_supported(); }
+    void visit(const slang::AssociativeArrayType &) { handle_not_supported(); }
+    void visit(const slang::QueueType &) { handle_not_supported(); }
+    void visit(const slang::UnpackedStructType &) { handle_not_supported(); }
+    void visit(const slang::UnpackedUnionType &) { handle_not_supported(); }
+    void visit(const slang::VoidType &) { handle_not_supported(); }
+    void visit(const slang::NullType &) { handle_not_supported(); }
+    void visit(const slang::CHandleType &) { handle_not_supported(); }
+    void visit(const slang::StringType &) { handle_not_supported(); }
+    void visit(const slang::EventType &) { handle_not_supported(); }
+    void visit(const slang::UnboundedType &) { handle_not_supported(); }
+    void visit(const slang::TypeRefType &) { handle_not_supported(); }
+    void visit(const slang::UntypedType &) { handle_not_supported(); }
+    void visit(const slang::SequenceType &) { handle_not_supported(); }
+    void visit(const slang::PropertyType &) { handle_not_supported(); }
+    void visit(const slang::VirtualInterfaceType &) { handle_not_supported(); }
+    void visit(const slang::ClassType &) { handle_not_supported(); }
+    void visit(const slang::CovergroupType &) { handle_not_supported(); }
+    void visit(const slang::TypeAliasType &type) { type.targetType.getType().visit(*this); }
+    void visit(const slang::ErrorType &) { handle_not_supported(); }
+
+    template <typename T>
+    void visit(const T &) {}
+
+    std::string str() {
+        if (!var_name_printed_) {
+            s_ << " " << sym_.name;
+        }
+        return s_.str();
+    }
+
+private:
+    const slang::Symbol &sym_;
+    const CodeGenModuleInformation &module_info_;
+    const CXXCodeGenOptions &options_;
+
+    std::stringstream s_;
+    bool var_name_printed_ = false;
+
+    void handle_not_supported() {
+        throw NotSupportedException("Type not supported", sym_.location);
+    }
+
+    // NOLINTNEXTLINE
+    void print_unpacked_array_dim(const slang::Type &type) {
+        switch (type.kind) {
+            case slang::SymbolKind::FixedSizeUnpackedArrayType: {
+                auto &at = type.as<slang::FixedSizeUnpackedArrayType>();
+                auto size = std::abs(at.range.left - at.range.right) + 1;
+                s_ << "[" << size << "]";
+                break;
+            }
+            case slang::SymbolKind::DynamicArrayType:
+            case slang::SymbolKind::AssociativeArrayType:
+            case slang::SymbolKind::QueueType: {
+                throw NotSupportedException("Unsupported type", type.location);
+            }
+            default:
+                return;
+        }
+
+        print_unpacked_array_dim(type.getArrayElementType()->getCanonicalType());
+    }
+};
+
+std::string VarDeclarationVisitor::get_var_decl(const slang::Symbol &sym) const {
+    TypePrinter p(sym, module_info, options);
+    return p.str();
 }
 
 StmtCodeGenVisitor::StmtCodeGenVisitor(std::ostream &s, int &indent_level,

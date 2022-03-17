@@ -36,7 +36,7 @@ protected:
     void update_edge_trigger(const logic::logic<0> &old, const logic::logic<0> &new_);
 };
 
-template <int msb, int lsb = msb, bool signed_ = false>
+template <int msb = 0, int lsb = 0, bool signed_ = false>
 class logic_t : public logic::logic<msb, lsb, signed_>, public TrackedVar {
 public:
     // t for tracking
@@ -90,7 +90,7 @@ public:
     }
 };
 
-template <int msb, int lsb = msb, bool signed_ = false>
+template <int msb = 0, int lsb = 0, bool signed_ = false>
 class bit_t : public logic::bit<msb, lsb, signed_>, public TrackedVar {
 public:
     // t for tracking

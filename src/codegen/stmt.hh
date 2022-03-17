@@ -28,7 +28,7 @@ private:
 
     const slang::InstanceSymbol *inst_ = nullptr;
 
-    [[nodiscard]] std::string_view get_var_type(const slang::Type &t, std::string_view name) const;
+    [[nodiscard]] std::string get_var_decl(const slang::Symbol &sym) const;
 };
 
 class StmtCodeGenVisitor : public slang::ASTVisitor<StmtCodeGenVisitor, true, true> {

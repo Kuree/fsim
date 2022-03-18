@@ -535,3 +535,38 @@ endmodule
     std::string output = testing::internal::GetCapturedStdout();
     EXPECT_NE(output.find("c = 3\n"), std::string::npos);
 }
+
+TEST(code, array)  {    // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+module top;
+logic [31:0] a[3:0];
+logic [1:0] b;
+logic clk;
+
+always_ff @(posedge clk)
+  a[b] = 1;
+
+initial clk = 0;
+always clk = #1 ~clk;
+
+initial begin
+    b = 1;
+    #4;
+    $display("a[1] = %0d", a[1]);
+    $finish();
+end
+
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    BuildOptions options;
+
+    options.optimization_level = optimization_level;
+    options.run_after_build = true;
+    Builder builder(options);
+    //testing::internal::CaptureStdout();
+    builder.build(&compilation);
+    //std::string output = testing::internal::GetCapturedStdout();
+}

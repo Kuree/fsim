@@ -1,6 +1,7 @@
 #include "expr.hh"
 
 #include "../ir/except.hh"
+#include "slang/syntax/AllSyntax.h"
 #include "util.hh"
 
 namespace xsim {
@@ -279,11 +280,36 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
 [[maybe_unused]] void ExprCodeGenVisitor::handle(const slang::ElementSelectExpression &sym) {
     auto const &value = sym.value();
     auto const &selector = sym.selector();
-    // TODO: detect if the selector is constant, then use templated implementation
+
+    auto const is_value_unpacked_array = (*value.type).isUnpackedArray();
+
+    // depends on whether the selector is a constant or not
+    std::optional<uint64_t> select_value;
+    if (selector.constant) {
+        auto const &v = *selector.constant;
+        if (!v.isInteger()) {
+            throw NotSupportedException("Only integer selection is supported",
+                                        selector.syntax->sourceRange().start());
+        }
+        select_value = v.integer().as<uint64_t>();
+    }
     value.visit(*this);
-    s << ".get(";
-    selector.visit(*this);
-    s << ")";
+    if (select_value) {
+        // if it's an array, we do array stuff
+        if (is_value_unpacked_array) {
+            s << '[' << *select_value << ']';
+        } else {
+            s << ".get<" << *select_value << ">()";
+        }
+    } else {
+        if (is_value_unpacked_array) {
+            s << '[' << *select_value << ']';
+        } else {
+            s << ".get(";
+            selector.visit(*this);
+            s << ")";
+        }
+    }
 }
 
 [[maybe_unused]] void ExprCodeGenVisitor::handle(const slang::ConcatenationExpression &sym) {

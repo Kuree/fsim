@@ -10,7 +10,7 @@ using namespace slang;
 // -O3
 constexpr uint8_t optimization_level = 3;
 
-TEST(codegen, declaration) {  // NOLINT
+TEST(code, declaration) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module m;
 logic [3:0] a, b;
@@ -34,7 +34,7 @@ endmodule
     EXPECT_NE(output.find("PASS"), std::string::npos);
 }
 
-TEST(codegen, if_stmt) {  // NOLINT
+TEST(code, if_stmt) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module m;
 logic [3:0] a;
@@ -61,7 +61,7 @@ endmodule
     EXPECT_NE(output.find("PASS"), std::string::npos);
 }
 
-TEST(codegen, delay) {  // NOLINT
+TEST(code, delay) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module m;
 initial begin
@@ -83,7 +83,7 @@ endmodule
     EXPECT_NE(output.find("PASS"), std::string::npos);
 }
 
-TEST(codegen, multi_init) {  // NOLINT
+TEST(code, multi_init) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module m;
 initial begin
@@ -109,7 +109,7 @@ endmodule
     printf("%s\n", output.c_str());
 }
 
-TEST(codegen, final) {  // NOLINT
+TEST(code, final) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module m;
 final begin
@@ -536,7 +536,7 @@ endmodule
     EXPECT_NE(output.find("c = 3\n"), std::string::npos);
 }
 
-TEST(code, array)  {    // NOLINT
+TEST(code, array) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module top;
 logic [31:0] a[3:0];

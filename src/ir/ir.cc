@@ -299,6 +299,19 @@ std::string Module::analyze_comb() {
     // also need to optimize for general purpose block
     for (auto const *sym : v.general_always_stmts) {
         auto p = std::make_unique<CombProcess>(CombProcess::CombKind::GeneralPurpose);
+        // need to get sensitivity list.
+        // FIXME:
+        //  this is not technically correct since we only need to extract the right hand side
+        VariableExtractor ex;
+        sym->visit(ex);
+        std::unordered_set<const slang::Symbol *> vars;
+        for (auto const *named : ex.vars) {
+            vars.emplace(&named->symbol);
+        }
+        p->sensitive_list = std::vector(vars.begin(), vars.end());
+        // sort them to make it deterministic
+        std::sort(p->sensitive_list.begin(), p->sensitive_list.end(),
+                  [](auto const *a, auto const *b) { return a->name < b->name; });
         p->stmts.emplace_back(sym);
         comb_processes.emplace_back(std::move(p));
     }

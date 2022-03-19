@@ -303,7 +303,10 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
         }
     } else {
         if (is_value_unpacked_array) {
-            s << '[' << *select_value << ']';
+            s << '[';
+            selector.visit(*this);
+            s << ".to_num()";
+            s << ']';
         } else {
             s << ".get(";
             selector.visit(*this);

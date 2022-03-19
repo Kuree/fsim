@@ -2,7 +2,8 @@ add_library(xsim-runtime SHARED system_task.cc scheduler.cc module.cc variable.c
 target_include_directories(xsim-runtime PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/../../extern/fmt/include
         ${CMAKE_CURRENT_SOURCE_DIR}/../../extern/marl/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../extern/logic/include)
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../extern/logic/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../extern/vlstd)
 
 if (${APPLE})
     target_link_libraries(xsim-runtime PUBLIC fmt marl logic)

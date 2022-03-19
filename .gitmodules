@@ -16,3 +16,6 @@
 [submodule "extern/cpp-subprocess"]
 	path = extern/cpp-subprocess
 	url = https://github.com/Kuree/cpp-subprocess
+[submodule "extern/vlstd"]
+	path = extern/vlstd
+	url = https://github.com/Kuree/vlstd

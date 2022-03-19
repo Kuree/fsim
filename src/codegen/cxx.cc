@@ -549,11 +549,11 @@ void output_main_file(const std::string &filename, const Module *top,
 
     // vpi
     if (options.add_vpi()) {
-        s << "xsim::runtime::VPIController::get_vpi()->set_args(argc, argv);" << std::endl;
-        s << "scheduler.set_vpi(xsim::runtime::VPIController::get_vpi());" << std::endl;
-        s << "xsim::runtime::VPIController::get_vpi()->set_top(&top);" << std::endl;
+        s << "    xsim::runtime::VPIController::get_vpi()->set_args(argc, argv);" << std::endl;
+        s << "    scheduler.set_vpi(xsim::runtime::VPIController::get_vpi());" << std::endl;
+        s << "    xsim::runtime::VPIController::get_vpi()->set_top(&top);" << std::endl;
         for (auto const &path : options.vpi_libs) {
-            s << "xsim::runtime::VPIController::load(\"" << path << "\");" << std::endl;
+            s << "    xsim::runtime::VPIController::load(\"" << path << "\");" << std::endl;
         }
     }
 

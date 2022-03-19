@@ -1,6 +1,8 @@
 #ifndef XSIM_VPI_HH
 #define XSIM_VPI_HH
 
+#include <set>
+
 #include "module.hh"
 
 namespace xsim::runtime {
@@ -22,9 +24,12 @@ public:
     // load vpi startups
     static void load(std::string_view lib_path);
 
+    ~VPIController();
+
 private:
     std::vector<char *> args_;
     Module *top_;
+    std::set<void *> vpi_libs_;
 
     static std::unique_ptr<VPIController> vpi_;
 };

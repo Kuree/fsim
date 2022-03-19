@@ -33,4 +33,8 @@ void InvalidInput::report(const std::shared_ptr<slang::TextDiagnosticClient> &) 
     std::cerr << "Invalid input: " << std::runtime_error::what() << std::endl;
 }
 
+void InternalError::report(const std::shared_ptr<slang::TextDiagnosticClient> &) const {
+    std::cerr << "Internal error: " << std::runtime_error::what() << std::endl;
+}
+
 }  // namespace xsim

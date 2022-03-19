@@ -11,6 +11,21 @@ namespace fs = std::filesystem;
 
 namespace xsim {
 
+class DLOpenHelper {
+public:
+    explicit DLOpenHelper(const std::string &filename) {
+        ptr = ::dlopen(filename.c_str(), RTLD_LAZY);
+    }
+
+    ~DLOpenHelper() {
+        if (ptr) {
+            dlclose(ptr);
+        }
+    }
+
+    void *ptr = nullptr;
+};
+
 std::set<std::string> get_lib_search_path() {
     std::set<std::string> res;
     auto *ld_lib_path = std::getenv("LD_LIBRARY_PATH");
@@ -62,7 +77,8 @@ void DPILocator::add_dpi_lib(const std::string &lib_path) {
 bool DPILocator::resolve_lib(std::string_view func_name) const {
     // C function doesn't have parameter types
     for (auto const &lib_info : libs_paths_) {
-        auto *r = ::dlopen(lib_info.path.data(), RTLD_LAZY);
+        DLOpenHelper dl(lib_info.path);
+        auto *r = dl.ptr;
         if (!r) {
             return false;
         }
@@ -103,8 +119,9 @@ bool VPILocator::add_vpi_lib(const std::string &lib_path) {
     }
     if (resolved_lib_path.empty()) return false;
     // need to check if the startup routine exists
-    constexpr auto var_name = "resolved_lib_path";
-    auto *r = ::dlopen(resolved_lib_path.c_str(), RTLD_LAZY);
+    constexpr auto var_name = "vlog_startup_routines";
+    DLOpenHelper dl(resolved_lib_path);
+    auto *r = dl.ptr;
     if (!r) {
         return false;
     }

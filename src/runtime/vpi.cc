@@ -33,13 +33,14 @@ void VPIController::start() {}
 
 void VPIController::end() {}
 
-struct vpi_func {
+union vpi_func {
     void (*func)();
+    void *ptr;
 };
 
 void VPIController::load(std::string_view lib_path) {
-    constexpr auto var_name = "resolved_lib_path";
-    auto *r = ::dlopen(lib_path.data(), RTLD_LAZY);
+    constexpr auto var_name = "vlog_startup_routines";
+    auto *r = ::dlopen(lib_path.data(), RTLD_NOW);
     if (!r) [[unlikely]] {
         // print out error
         std::cerr << SIMULATOR_NAME << ": " << lib_path << " does not exists. " << std::endl;
@@ -57,9 +58,16 @@ void VPIController::load(std::string_view lib_path) {
     while (true) {
         auto *ptr = func_ptrs[i++];
         if (!ptr) break;
-        // cast it into a void function
-        auto *vpi = reinterpret_cast<vpi_func *>(ptr);
-        vpi->func();
+        vpi_func vpi = {};
+        vpi.ptr = ptr;
+        vpi.func();
+    }
+    vpi_->vpi_libs_.emplace(r);
+}
+
+VPIController::~VPIController() {
+    for (auto *p : vpi_libs_) {
+        dlclose(p);
     }
 }
 

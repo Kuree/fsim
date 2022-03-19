@@ -229,7 +229,7 @@ void Builder::build(const Module *module) {
         using namespace subprocess;
         auto p = call(fmt::format("./{0}", n_options.binary_name), cwd{options_.working_dir});
         if (p != 0) {
-            return;
+            throw InternalError("Internal simulator error");
         }
     }
 }

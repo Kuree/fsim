@@ -571,3 +571,45 @@ endmodule
     std::string output = testing::internal::GetCapturedStdout();
     EXPECT_NE(output.find("a[1] = 1"), std::string::npos);
 }
+
+TEST(code, vpi) {   // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+module top;
+initial begin
+    $finish();
+end
+endmodule
+)");
+
+    auto vpi_c = R"(
+#include "vpi_user.h"
+
+#include <stdio.h>
+
+void load() {
+    s_vpi_vlog_info info;
+    vpi_get_vlog_info(&info);
+    printf("argc: %d\n", info.argc);
+    printf("argv[0]: %s\n", info.argv[0]);
+}
+void (*vlog_startup_routines[])() = {load, NULL};
+)";
+
+    // build the shared library first
+    constexpr auto vpi_c_lib = "xsim_dir/vpi_c.so";
+    build_c_shared_lib(vpi_c, vpi_c_lib);
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    BuildOptions options;
+    options.vpi_libs.emplace_back(vpi_c_lib);
+
+    options.optimization_level = 0;
+    options.run_after_build = true;
+    Builder builder(options);
+    testing::internal::CaptureStdout();
+    builder.build(&compilation);
+    std::string output = testing::internal::GetCapturedStdout();
+    EXPECT_NE(output.find("argc: 1\n"
+                          "argv[0]: ./xsim.out"), std::string::npos);
+}

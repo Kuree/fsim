@@ -1,0 +1,8 @@
+#ifndef XSIM_RUNTIME_VERSION_HH
+#define XSIM_RUNTIME_VERSION_HH
+
+namespace xsim::runtime {
+auto constexpr VERSION = R"(${XSIM_VERSION})";
+}  // namespace xsim::runtime
+
+#endif  // XSIM_RUNTIME_VERSION_HH

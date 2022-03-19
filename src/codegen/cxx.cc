@@ -152,8 +152,9 @@ void codegen_always(std::ostream &s, int &indent_level, const CombProcess *proce
         codegen_sym(s, indent_level, stmt, options, info);
     }
 
-    // output end process
-    s << get_indent(indent_level) << xsim_end_process << "(" << ptr_name << ");" << std::endl;
+    // general purpose always doesn't have end process since it never ends
+    if (!infinite_loop)
+        s << get_indent(indent_level) << xsim_end_process << "(" << ptr_name << ");" << std::endl;
 
     if (infinite_loop) {
         indent_level--;

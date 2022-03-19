@@ -1,5 +1,7 @@
 #include "except.hh"
 
+#include <iostream>
+
 #include "slang/diagnostics/TextDiagnosticClient.h"
 
 namespace xsim {
@@ -25,6 +27,10 @@ void NotSupportedException::report(
 void InvalidSyntaxException::report(
     const std::shared_ptr<slang::TextDiagnosticClient> &client) const {
     report_code(client, std::runtime_error::what(), InvalidSyntax, loc_);
+}
+
+void InvalidInput::report(const std::shared_ptr<slang::TextDiagnosticClient> &) const {
+    std::cerr << "Invalid input: " << std::runtime_error::what() << std::endl;
 }
 
 }  // namespace xsim

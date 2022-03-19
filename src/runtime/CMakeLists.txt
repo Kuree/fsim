@@ -7,12 +7,12 @@ target_include_directories(xsim-runtime PUBLIC
         ${CMAKE_CURRENT_BINARY_DIR})
 
 if (${APPLE})
-    target_link_libraries(xsim-runtime PUBLIC fmt marl logic)
+    target_link_libraries(xsim-runtime PUBLIC fmt marl logic ${CMAKE_DL_LIBS})
 else ()
     set(LINUX_LINK_FLAGS "-Wl,--whole-archive $<TARGET_FILE:logic> $<TARGET_FILE:marl> -Wl,--no-whole-archive ${STATIC_CXX_FLAG}")
     # remove trailing space if any
     string(STRIP "${LINUX_LINK_FLAGS}" LINUX_LINK_FLAGS)
-    target_link_libraries(xsim-runtime PUBLIC fmt ${LINUX_LINK_FLAGS})
+    target_link_libraries(xsim-runtime PUBLIC fmt  ${CMAKE_DL_LIBS} ${LINUX_LINK_FLAGS})
     # force dependencies
     add_dependencies(xsim-runtime marl logic)
 endif ()

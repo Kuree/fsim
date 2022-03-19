@@ -15,6 +15,13 @@ public:
     void set_top(Module *top) { top_ = top; }
     [[nodiscard]] const std::vector<char *> &get_args() const { return args_; }
 
+    // simulation related control
+    void start();
+    void end();
+
+    // load vpi startups
+    static void load(std::string_view lib_path);
+
 private:
     std::vector<char *> args_;
     Module *top_;

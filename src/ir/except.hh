@@ -41,6 +41,12 @@ private:
     slang::SourceLocation loc_;
 };
 
+class InvalidInput: public Exception {
+public:
+    InvalidInput(const std::string &what) : Exception(what) {}
+    void report(const std::shared_ptr<slang::TextDiagnosticClient> &) const override;
+};
+
 }  // namespace xsim
 
 #endif  // XSIM_EXCEPT_HH

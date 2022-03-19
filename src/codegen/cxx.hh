@@ -6,7 +6,9 @@
 namespace xsim {
 struct CXXCodeGenOptions {
     bool use_4state = true;
-    bool add_vpi = false;
+    std::vector<std::string> vpi_libs;
+
+    [[nodiscard]] bool add_vpi() const { return !vpi_libs.empty(); }
 };
 
 class CXXCodeGen {

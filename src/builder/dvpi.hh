@@ -1,5 +1,5 @@
-#ifndef XSIM_BUILDER_DPI_HH
-#define XSIM_BUILDER_DPI_HH
+#ifndef XSIM_BUILDER_DVPI_HH
+#define XSIM_BUILDER_DVPI_HH
 
 #include <set>
 #include <string>
@@ -25,6 +25,19 @@ private:
     std::set<std::string> lib_search_dirs_;
     std::set<LibInfo> libs_paths_;
 };
+
+class VPILocator {
+public:
+    VPILocator();
+
+    bool add_vpi_lib(const std::string &lib_path);
+    [[nodiscard]] const std::set<std::string> &lib_paths() const { return lib_paths_; }
+
+private:
+    std::set<std::string> lib_search_dirs_;
+    std::set<std::string> lib_paths_;
+};
+
 }  // namespace xsim
 
-#endif  // XSIM_BUILDER_DPI_HH
+#endif  // XSIM_BUILDER_DVPI_HH

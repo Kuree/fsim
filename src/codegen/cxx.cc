@@ -426,6 +426,11 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
     s << "#include \"runtime/scheduler.hh\"" << std::endl;
     s << "#include \"runtime/macro.hh\"" << std::endl;
 
+    // vpi
+    if (options.add_vpi()) {
+        s << "#include \"runtime/vpi.hh\"" << std::endl;
+    }
+
     int indent_level = 0;
 
     // dpi
@@ -521,21 +526,38 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
     write_to_file(filename, s);
 }
 
-void output_main_file(const std::string &filename, const Module *top) {
+void output_main_file(const std::string &filename, const Module *top,
+                      const CXXCodeGenOptions &options) {
     std::stringstream s;
 
     s << raw_header_include;
 
     // include the scheduler
     s << "#include \"runtime/scheduler.hh\"" << std::endl;
+
+    // VPI
+    if (options.add_vpi()) {
+        s << "#include \"runtime/vpi.hh\"" << std::endl;
+    }
+
     // include the top module file
     s << "#include \"" << top->name << ".hh\"" << std::endl << std::endl;
     s << "int main(int argc, char *argv[]) {" << std::endl;
 
     s << "    xsim::runtime::Scheduler scheduler;" << std::endl
-      << "    xsim::" << top->name << " top;" << std::endl
-      << "    scheduler.run(&top);" << std::endl
-      << "}";
+      << "    xsim::" << top->name << " top;" << std::endl;
+
+    // vpi
+    if (options.add_vpi()) {
+        s << "xsim::runtime::VPIController::get_vpi()->set_args(argc, argv);" << std::endl;
+        s << "scheduler.set_vpi(xsim::runtime::VPIController::get_vpi());" << std::endl;
+        s << "xsim::runtime::VPIController::get_vpi()->set_top(&top);" << std::endl;
+        for (auto const &path : options.vpi_libs) {
+            s << "xsim::runtime::VPIController::load(\"" << path << "\");" << std::endl;
+        }
+    }
+
+    s << "    scheduler.run(&top);" << std::endl << "}";
 
     write_to_file(filename, s);
 }
@@ -553,7 +575,7 @@ void CXXCodeGen::output(const std::string &dir) {
 void CXXCodeGen::output_main(const std::string &dir) {
     std::filesystem::path dir_path = dir;
     auto main_filename = dir_path / fmt::format("{0}.cc", main_name);
-    output_main_file(main_filename, top_);
+    output_main_file(main_filename, top_, option_);
 }
 
 }  // namespace xsim

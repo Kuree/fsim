@@ -1,5 +1,10 @@
 #include "vpi.hh"
 
+#include <dlfcn.h>
+
+#include <filesystem>
+#include <iostream>
+
 #include "version.hh"
 #include "vpi_user.h"
 
@@ -24,6 +29,40 @@ void VPIController::set_args(int argc, char **argv) {
     }
 }
 
+void VPIController::start() {}
+
+void VPIController::end() {}
+
+struct vpi_func {
+    void (*func)();
+};
+
+void VPIController::load(std::string_view lib_path) {
+    constexpr auto var_name = "resolved_lib_path";
+    auto *r = ::dlopen(lib_path.data(), RTLD_LAZY);
+    if (!r) [[unlikely]] {
+        // print out error
+        std::cerr << SIMULATOR_NAME << ": " << lib_path << " does not exists. " << std::endl;
+        return;
+    }
+    auto *s = ::dlsym(r, var_name);
+    if (!s) {
+        std::cerr << SIMULATOR_NAME << ": " << lib_path << " is not a valid VPI library. "
+                  << std::endl;
+        return;
+    }
+    // read out the functions and call them
+    auto *func_ptrs = reinterpret_cast<void **>(s);
+    int i = 0;
+    while (true) {
+        auto *ptr = func_ptrs[i++];
+        if (!ptr) break;
+        // cast it into a void function
+        auto *vpi = reinterpret_cast<vpi_func *>(ptr);
+        vpi->func();
+    }
+}
+
 }  // namespace xsim::runtime
 
 extern "C" {
@@ -33,7 +72,7 @@ PLI_INT32 vpi_get_vlog_info(p_vpi_vlog_info vlog_info_p) {
     auto const &args = vpi->get_args();
 
     vlog_info_p->argc = static_cast<int>(args.size());
-    vlog_info_p->argv = const_cast<char**>(args.data());
+    vlog_info_p->argv = const_cast<char **>(args.data());
 
     vlog_info_p->product = const_cast<char *>(xsim::runtime::SIMULATOR_NAME);
     vlog_info_p->version = const_cast<char *>(xsim::runtime::VERSION);

@@ -8,7 +8,7 @@ endfunction()
 
 set(CODEGEN_SRC codegen/cxx.cc codegen/expr.cc codegen/ninja.cc codegen/stmt.cc codegen/util.cc codegen/dpi.cc)
 set(IR_SRC ir/ast.cc ir/ir.cc ir/except.cc)
-set(BUILDER_SRC builder/builder.cc builder/dpi.cc builder/util.cc)
+set(BUILDER_SRC builder/builder.cc builder/dvpi.cc builder/util.cc)
 
 add_library(xsim ${BUILDER_SRC} ${CODEGEN_SRC} ${IR_SRC})
 target_link_libraries(xsim PUBLIC slangcompiler ${CMAKE_DL_LIBS})

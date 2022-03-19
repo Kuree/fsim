@@ -15,6 +15,7 @@ namespace xsim::runtime {
 class Module;
 class Scheduler;
 class TrackedVar;
+class VPIController;
 
 struct Process {
     uint64_t id = 0;
@@ -95,6 +96,9 @@ public:
 
     [[nodiscard]] bool finished() const { return terminate_; }
 
+    // vpi stuff
+    void set_vpi(VPIController *vpi) { vpi_ = vpi; }
+
     ~Scheduler();
 
 private:
@@ -137,6 +141,7 @@ private:
     void handle_edge_triggering();
 
     Module *top_ = nullptr;
+    VPIController *vpi_ = nullptr;
 };
 }  // namespace xsim::runtime
 

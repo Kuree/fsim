@@ -12,7 +12,6 @@ class Compilation;
 namespace xsim {
 
 class Module;
-class DPILocator;
 
 struct BuildOptions {
     std::string working_dir;
@@ -21,27 +20,28 @@ struct BuildOptions {
     // this is the same as GCC, which uses -O0
     uint8_t optimization_level = 0;
     bool use_4state = true;
-    bool add_vpi = false;
     std::string cxx_path;
     std::string binary_name;
     std::string top_name;
 
     std::vector<std::string> sv_libs;
+    std::vector<std::string> vpi_libs;
+
+    [[nodiscard]] bool add_vpi() const { return !vpi_libs.empty(); }
 };
 
 class Builder {
 public:
     explicit Builder(BuildOptions options);
 
-    void build(const Module *module) const;
-    void build(slang::Compilation *unit) const;
+    void build(const Module *module);
+    void build(slang::Compilation *unit);
     void cleanup() const;
 
     ~Builder();
 
 private:
     BuildOptions options_;
-    std::unique_ptr<DPILocator> dpi_locator_;
 };
 
 }  // namespace xsim

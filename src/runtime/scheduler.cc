@@ -5,6 +5,7 @@
 
 #include "module.hh"
 #include "variable.hh"
+#include "vpi.hh"
 
 namespace xsim::runtime {
 
@@ -47,6 +48,10 @@ void Scheduler::run(Module *top) {
     top_ = top;
     top->comb(this);
     top->ff(this);
+
+    // start of the simulation
+    if (vpi_) vpi_->start();
+
     // init will run immediately so need to initialize comb and ff first
     top->init(this);
     top->final(this);
@@ -98,6 +103,9 @@ void Scheduler::run(Module *top) {
     for (auto &final : final_processes_) {
         schedule_final(final.get());
     }
+
+    // end of simulation
+    if (vpi_) vpi_->end();
 }
 
 InitialProcess *Scheduler::create_init_process() {

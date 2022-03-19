@@ -3,7 +3,7 @@
 #include <filesystem>
 #include <set>
 
-#include "../builder/dpi.hh"
+#include "../builder/dvpi.hh"
 #include "fmt/format.h"
 #include "util.hh"
 

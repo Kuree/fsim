@@ -7,7 +7,7 @@
 #include "../codegen/cxx.hh"
 #include "../codegen/ninja.hh"
 #include "../ir/except.hh"
-#include "dpi.hh"
+#include "dvpi.hh"
 #include "fmt/format.h"
 #include "slang/compilation/Compilation.h"
 #include "slang/symbols/ASTVisitor.h"
@@ -152,15 +152,24 @@ void verify_dpi_functions(DPILocator *dpi, const Module *module, const BuildOpti
     }
 }
 
-Builder::Builder(BuildOptions options)
-    : options_(std::move(options)), dpi_locator_(std::make_unique<DPILocator>()) {
+void verify_vpi_functions(VPILocator *vpi, BuildOptions &options) {
+    for (auto const &path : options.vpi_libs) {
+        if (!vpi->add_vpi_lib(path)) {
+            throw InvalidInput(fmt::format("{0} is not a valid VPI library", path));
+        }
+    }
+    auto const &libs = vpi->lib_paths();
+    options.vpi_libs = std::vector(libs.begin(), libs.end());
+}
+
+Builder::Builder(BuildOptions options) : options_(std::move(options)) {
     // filling up empty information
     if (options_.working_dir.empty()) {
         options_.working_dir = default_working_dir;
     }
 }
 
-void Builder::build(const Module *module) const {
+void Builder::build(const Module *module) {
     if (!std::filesystem::exists(options_.working_dir)) {
         std::filesystem::create_directories(options_.working_dir);
     }
@@ -171,14 +180,18 @@ void Builder::build(const Module *module) const {
     n_options.binary_name = options_.binary_name;
     n_options.sv_libs = options_.sv_libs;
     // check all the DPI functions to see if they are valid
-    verify_dpi_functions(dpi_locator_.get(), module, options_);
+    DPILocator dpi_locator;
+    verify_dpi_functions(&dpi_locator, module, options_);
+    // check the vpi
+    VPILocator vpi_locator;
+    verify_vpi_functions(&vpi_locator, options_);
 
-    NinjaCodeGen ninja(module, n_options, dpi_locator_.get());
+    NinjaCodeGen ninja(module, n_options, &dpi_locator);
     ninja.output(options_.working_dir);
 
     // then generate the C++ code
     CXXCodeGenOptions c_options;
-    c_options.add_vpi = options_.add_vpi;
+    c_options.vpi_libs = options_.vpi_libs;
     c_options.use_4state = options_.use_4state;
 
     // could be parallelized here
@@ -221,7 +234,7 @@ void Builder::build(const Module *module) const {
     }
 }
 
-void Builder::build(slang::Compilation *unit) const {
+void Builder::build(slang::Compilation *unit) {
     // figure the top module
     auto const &tops = unit->getRoot().topInstances;
     const slang::InstanceSymbol *inst = nullptr;

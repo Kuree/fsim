@@ -270,8 +270,13 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
     // DPI
     std::vector<std::string> svLibs;
     cmdLine.add("--sv-lib", svLibs,
-                "DPI libraries, which can either be a path or a name"
+                "DPI libraries, which can either be a path or a library name "
                 "locatable using the system's configuration");
+    // VPI
+    std::vector<std::string> vpiLibs;
+    cmdLine.add("--vpi-lib", vpiLibs,
+                "VPI Libraries, which can either be a path or a library "
+                "name locatable using the system's configuration");
 
     // Compilation
     optional<std::string> minTypMax;
@@ -500,6 +505,7 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
             }
             b_opt.binary_name = outputName ? *outputName : xsim::default_output_name;
             b_opt.sv_libs = svLibs;
+            b_opt.vpi_libs = vpiLibs;
             b_opt.working_directory = std::filesystem::weakly_canonical(argv[0]);
             xsim::Builder builder(b_opt);
             // clear diag

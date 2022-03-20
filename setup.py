@@ -37,11 +37,14 @@ class CMakeBuild(build_ext):
         # CMake lets you override the generator - we need to check this.
         # Can be set with Conda-Build, for example.
         is_linux = platform.system() == "Linux"
+        is_windows = platform.system() == "Windows"
         cmake_args = [
             "-DCMAKE_BUILD_TYPE={}".format(cfg),  # not used on MSVC, but no harm
         ]
         if is_linux:
             cmake_args += ["-DSTATIC_BUILD=ON"]
+        if is_windows:
+            cmake_args.append("-DCMAKE_GENERATOR=ninja")
         build_args = []
         num_cpu = multiprocessing.cpu_count()
         build_args += [f"-j{num_cpu}"]
@@ -59,17 +62,21 @@ class CMakeBuild(build_ext):
         )
         # need to copy stuff over
         # first copy GCC, if exists
-        gcc_dir = "/usr/local/gcc-" + GCC_VERSION
-        if os.path.exists(gcc_dir):
-            gcc_dirs = next(os.walk(gcc_dir))[1]
-            for dirname in gcc_dirs:
-                src = os.path.join(gcc_dir, dirname)
-                dst = os.path.join(extdir, dirname)
-                if not os.path.exists(dst):
-                    shutil.copytree(src, dst)
-            # need to delete unnecessary stuff to make the wheel smaller
-            os.remove(os.path.join(extdir, "bin", f"lto-dump-{GCC_VERSION}"))
-            shutil.rmtree(os.path.join(extdir, "share"))
+        if is_linux:
+            gcc_dir = "/usr/local/gcc-" + GCC_VERSION
+            if os.path.exists(gcc_dir):
+                gcc_dirs = next(os.walk(gcc_dir))[1]
+                for dirname in gcc_dirs:
+                    src = os.path.join(gcc_dir, dirname)
+                    dst = os.path.join(extdir, dirname)
+                    if not os.path.exists(dst):
+                        shutil.copytree(src, dst)
+                # need to delete unnecessary stuff to make the wheel smaller
+                os.remove(os.path.join(extdir, "bin", "lto-dump-11.2.0"))
+                shutil.rmtree(os.path.join(extdir, "share"))
+        elif is_windows:
+            # copy windows clang over
+            pass
         # now copy other include files
         extern_include = ["marl", "logic"]
         src_root = os.path.dirname(os.path.abspath(__file__))

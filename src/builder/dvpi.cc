@@ -2,6 +2,7 @@
 
 #ifdef _WIN32
 #include <Windows.h>
+#define RTLD_LAZY 0
 #else
 #include <dlfcn.h>
 #endif
@@ -22,7 +23,7 @@ DLOpenHelper::DLOpenHelper(const std::string &filename, int mode) { load(filenam
 
 void DLOpenHelper::load(const char *name, int mode) {
 #ifdef _WIN32
-    ptr = LoadLibrary(filename.c_str());
+    ptr = LoadLibrary(name);
     (void)mode;
 #else
     ptr = ::dlopen(name, mode);

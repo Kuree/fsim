@@ -502,7 +502,7 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
             b_opt.binary_name = outputName ? *outputName : fsim::default_output_name;
             b_opt.sv_libs = svLibs;
             b_opt.vpi_libs = vpiLibs;
-            b_opt.working_directory = std::filesystem::weakly_canonical(argv[0]);
+            b_opt.working_directory = std::filesystem::weakly_canonical(argv[0]).string();
             fsim::Builder builder(b_opt);
             // clear diag
             diag.clear();

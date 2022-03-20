@@ -2,6 +2,8 @@
 
 #ifdef _WIN32
 #include <Windows.h>
+typedef UINT(CALLBACK *LPFNDLLFUNC1)();
+#define RTLD_NOW 0
 #else
 #include <dlfcn.h>
 #endif
@@ -12,6 +14,17 @@
 #include "util.hh"
 #include "version.hh"
 #include "vpi_user.h"
+
+#if WIN32
+#ifndef PLI_DLLESPEC
+#define PLI_DLLESPEC __declspec(dllexport)
+#define VPI_USER_DEFINED_DLLESPEC 1
+#endif
+#else
+#ifndef PLI_DLLESPEC
+#define PLI_DLLESPEC
+#endif
+#endif
 
 namespace fsim::runtime {
 
@@ -55,14 +68,14 @@ union vpi_func {
 
 void VPIController::load(std::string_view lib_path) {
     constexpr auto var_name = "vlog_startup_routines";
-    platform::DLOpenHelper dl(lib_path.data(), RTLD_NOW);
-    auto *r = dl.ptr;
+    auto dl = std::make_unique<platform::DLOpenHelper>(lib_path.data(), RTLD_NOW);
+    auto *r = dl->ptr;
     if (!r) [[unlikely]] {
         // print out error
         std::cerr << SIMULATOR_NAME << ": " << lib_path << " does not exists. " << std::endl;
         return;
     }
-    auto *s = ::dlsym(r, var_name);
+    auto *s = dl->get_sym(var_name);
     if (!s) {
         std::cerr << SIMULATOR_NAME << ": " << lib_path << " is not a valid VPI library. "
                   << std::endl;
@@ -78,20 +91,14 @@ void VPIController::load(std::string_view lib_path) {
         vpi.ptr = ptr;
         vpi.func();
     }
-    vpi_->vpi_libs_.emplace(r);
-}
-
-VPIController::~VPIController() {
-    for (auto *p : vpi_libs_) {
-        dlclose(p);
-    }
+    vpi_->vpi_libs_.emplace(std::move(dl));
 }
 
 }  // namespace fsim::runtime
 
 extern "C" {
 // raw VPI functions
-PLI_INT32 vpi_get_vlog_info(p_vpi_vlog_info vlog_info_p) {
+PLI_DLLESPEC PLI_INT32 vpi_get_vlog_info(p_vpi_vlog_info vlog_info_p) {
     auto vpi = fsim::runtime::VPIController::get_vpi();
     auto const &args = vpi->get_args();
 

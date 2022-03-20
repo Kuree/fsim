@@ -5,6 +5,7 @@ on: [push, pull_request]
 jobs:
   lint:
     runs-on: ubuntu-22.04
+    if: "!contains(github.event.head_commit.message, 'skip test')"
     steps:
       - uses: actions/checkout@v2
       - name: Checkout submodules 🖥️
@@ -19,6 +20,7 @@ jobs:
 
   build:
     runs-on: ubuntu-22.04
+    if: "!contains(github.event.head_commit.message, 'skip test')"
     needs: lint
     steps:
     - uses: actions/checkout@v2

@@ -21,7 +21,7 @@ endif ()
 
 set_property(TARGET fsim-runtime PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_compile_options(fsim-runtime PRIVATE -Wall -Werror -Wpedantic -Wno-gnu-zero-variadic-macro-arguments
-        -Wno-unknown-attributes -Wno-unknown-warning-option)
+        -Wno-unknown-attributes -Wno-unknown-warning-option -Wno-microsoft-enum-value -Wno-language-extension-token)
 # force the extension to be so regardless of the platform
 set_target_properties(fsim-runtime PROPERTIES SUFFIX ".so")
 

@@ -1,10 +1,11 @@
-name: Build Python wheels
+name: Build wheels
 
 on: [push, pull_request]
 
 jobs:
   linux:
     runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'skip test')"
     steps:
       - uses: actions/checkout@v2
       - name: Checkout submodules 🖥️
@@ -34,6 +35,7 @@ jobs:
 
   macos:
     runs-on: macos-latest
+    if: "!contains(github.event.head_commit.message, 'skip test')"
     steps:
       - uses: actions/checkout@v2
       - name: Checkout submodules 🖥️
@@ -72,14 +74,18 @@ jobs:
         shell: bash
         run: |
           git submodule update --init
-      - name: Setup tmate session
+      - name: Setup python build
         shell: bash
         run: |
-          pacman -Sy --noconfirm tmate
-          tmate -F
+          which clang
+          echo "" | clang++ -E -c - -v -H
+          pip3 install wheel ninja
       - name: Build wheel
         shell: bash
         run: python3 setup.py bdist_wheel
+        env:
+          CC: clang
+          CXX: clang++
       - name: Prepare wheels
         shell: bash
         run: |

@@ -34,10 +34,9 @@ class CMakeBuild(build_ext):
         if "DEBUG" in os.environ:
             cfg = "Debug"
 
-        # CMake lets you override the generator - we need to check this.
-        # Can be set with Conda-Build, for example.
         is_linux = platform.system() == "Linux"
         is_windows = platform.system() == "Windows"
+
         cmake_args = [
             "-DCMAKE_BUILD_TYPE={}".format(cfg),  # not used on MSVC, but no harm
         ]
@@ -45,6 +44,7 @@ class CMakeBuild(build_ext):
             cmake_args += ["-DSTATIC_BUILD=ON"]
         if is_windows:
             cmake_args.append("-DCMAKE_GENERATOR=ninja")
+
         build_args = []
         num_cpu = multiprocessing.cpu_count()
         build_args += [f"-j{num_cpu}"]
@@ -76,7 +76,24 @@ class CMakeBuild(build_ext):
                 shutil.rmtree(os.path.join(extdir, "share"))
         elif is_windows:
             # copy windows clang over
-            pass
+            raw_output = subprocess.check_output("echo "" | clang++ -E -c - -v -H", shell=True).decode("ascii")
+            print(raw_output)
+            lines = raw_output.split('\n')
+            include_path = ""
+            for i in range(len(lines)):
+                if "#include <...> search" in lines[i]:
+                    include_path = lines[i + 1].strip()
+                    break
+            assert include_path, "Unable to find clang"
+            clang_dir = os.path.dirname(include_path)
+            clang_dirs = next(os.walk(clang_dir))[1]
+            for dirname in clang_dirs:
+                src = os.path.join(clang_dir, dirname)
+                dst = os.path.join(extdir, dirname)
+                if not os.path.exists(dst):
+                    shutil.copytree(src, dst)
+                # need to delete unnecessary stuff to make the wheel smaller
+            shutil.rmtree(os.path.join(extdir, "share"))
         # now copy other include files
         extern_include = ["marl", "logic"]
         src_root = os.path.dirname(os.path.abspath(__file__))

@@ -2,7 +2,7 @@
 
 #include "scheduler.hh"
 
-namespace xsim::runtime {
+namespace fsim::runtime {
 
 void TrackedVar::reset() {
     should_trigger_negedge = false;
@@ -43,4 +43,4 @@ void TrackedVar::trigger_process() {
         }
     }
 }
-}  // namespace xsim::runtime
+}  // namespace fsim::runtime

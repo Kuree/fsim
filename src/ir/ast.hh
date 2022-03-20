@@ -1,5 +1,5 @@
-#ifndef XSIM_AST_HH
-#define XSIM_AST_HH
+#ifndef FSIM_AST_HH
+#define FSIM_AST_HH
 
 #include <unordered_map>
 #include <unordered_set>
@@ -7,7 +7,7 @@
 #include "slang/compilation/Compilation.h"
 #include "slang/symbols/ASTVisitor.h"
 
-namespace xsim {
+namespace fsim {
 
 // visit slang AST nodes
 class ModuleDefinitionVisitor : public slang::ASTVisitor<ModuleDefinitionVisitor, false, false> {
@@ -106,6 +106,6 @@ private:
     slang::ProceduralBlockKind kind_;
 };
 
-}  // namespace xsim
+}  // namespace fsim
 
-#endif  // XSIM_AST_HH
+#endif  // FSIM_AST_HH

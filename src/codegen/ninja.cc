@@ -7,7 +7,7 @@
 #include "fmt/format.h"
 #include "util.hh"
 
-namespace xsim {
+namespace fsim {
 
 std::set<std::string_view> get_defs(const Module *module) {
     auto defs = module->get_defs();
@@ -41,7 +41,7 @@ void NinjaCodeGen::output(const std::string &dir) {
     // use the output dir as the runtime dir
     if (options_.cxx_path.empty()) {
         // hope for the best?
-        auto const *cxx = std::getenv("XSIM_CXX");
+        auto const *cxx = std::getenv("FSIM_CXX");
         if (cxx) {
             options_.cxx_path = cxx;
         } else {
@@ -55,7 +55,7 @@ void NinjaCodeGen::output(const std::string &dir) {
     std::filesystem::path runtime_dir = std::filesystem::absolute(dir);
     auto include_dir = runtime_dir / "include";
     auto lib_path = runtime_dir / "lib";
-    auto runtime_lib_path = lib_path / "libxsim-runtime.so";
+    auto runtime_lib_path = lib_path / "libfsim-runtime.so";
     stream << "cflags = -I" << include_dir << " -std=c++20 -march=native -m64 ";
     auto level = std::clamp<uint32_t>(options_.optimization_level, 0, 3);
     stream << "-O" << level << " ";
@@ -96,4 +96,4 @@ void NinjaCodeGen::output(const std::string &dir) {
 
     write_to_file(ninja_filename, stream);
 }
-}  // namespace xsim
+}  // namespace fsim

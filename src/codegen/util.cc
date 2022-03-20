@@ -7,7 +7,7 @@
 #include "slang/compilation/Compilation.h"
 #include "slang/text/SourceManager.h"
 
-namespace xsim {
+namespace fsim {
 void write_to_file(const std::string &filename, std::stringstream &stream) {
     if (!std::filesystem::exists(filename)) {
         // doesn't exist, directly write to the file
@@ -100,4 +100,4 @@ std::pair<std::string_view, uint32_t> get_loc(const slang::SourceLocation &loc,
     return {filename, line_num};
 }
 
-}  // namespace xsim
+}  // namespace fsim

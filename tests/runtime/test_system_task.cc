@@ -4,7 +4,7 @@
 #include "gtest/gtest.h"
 #include "logic/logic.hh"
 
-using namespace xsim::runtime;
+using namespace fsim::runtime;
 using namespace logic::literals;
 
 TEST(systask, display_logic) {  // NOLINT

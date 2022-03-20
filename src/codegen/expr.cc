@@ -4,11 +4,11 @@
 #include "slang/syntax/AllSyntax.h"
 #include "util.hh"
 
-namespace xsim {
+namespace fsim {
 
-auto constexpr xsim_schedule_nba = "SCHEDULE_NBA";
-auto constexpr xsim_next_time = "xsim_next_time";
-auto constexpr xsim_schedule_delay = "SCHEDULE_DELAY";
+auto constexpr fsim_schedule_nba = "SCHEDULE_NBA";
+auto constexpr fsim_next_time = "fsim_next_time";
+auto constexpr fsim_schedule_delay = "SCHEDULE_DELAY";
 
 const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
                                        std::vector<std::string_view> &paths) {
@@ -332,7 +332,7 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
         auto const &info = std::get<1>(expr.subroutine);
         // remove the leading $
         auto name = info.subroutine->name.substr(1);
-        auto func_name = fmt::format("xsim::runtime::{0}", name);
+        auto func_name = fmt::format("fsim::runtime::{0}", name);
         s << func_name << "(";
         // depends on the context, we may or may not insert additional arguments
         if (name == "finish" || name == "time") {
@@ -419,7 +419,7 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
                 s << ";";
                 output_timing(*timing);
             }
-            s << xsim_schedule_nba << "(";
+            s << fsim_schedule_nba << "(";
             left.visit(*this);
             // put extra paraphrases to escape , in macro.
             // typically, what happens is slice<a, b> is treated as two arguments
@@ -501,11 +501,11 @@ void TimingControlCodeGen::handle(const slang::TimingControl &timing) {
             auto const &delay = timing.as<slang::DelayControl>();
 
             s << get_indent(indent_level)
-              << fmt::format("{0}({1}, (", xsim_schedule_delay,
+              << fmt::format("{0}({1}, (", fsim_schedule_delay,
                              module_info_.current_process_name());
             delay.expr.visit(expr_v);
             s << fmt::format(").to_uint64(), {0}, {1});", module_info_.scheduler_name(),
-                             module_info_.get_new_name(xsim_next_time, false));
+                             module_info_.get_new_name(fsim_next_time, false));
             break;
         }
         case slang::TimingControlKind::SignalEvent: {
@@ -513,7 +513,7 @@ void TimingControlCodeGen::handle(const slang::TimingControl &timing) {
             s << get_indent(indent_level)
               << fmt::format("SCHEDULE_EDGE({0}, ", module_info_.current_process_name());
             single_event.expr.visit(expr_v);
-            s << ", xsim::runtime::Process::EdgeControlType::";
+            s << ", fsim::runtime::Process::EdgeControlType::";
             switch (single_event.edge) {
                 case slang::EdgeKind::PosEdge:
                     s << "posedge";
@@ -537,4 +537,4 @@ void TimingControlCodeGen::handle(const slang::TimingControl &timing) {
     }
 }
 
-}  // namespace xsim
+}  // namespace fsim

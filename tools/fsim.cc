@@ -25,7 +25,7 @@
 
 using namespace slang;
 
-namespace xsim {
+namespace fsim {
 static constexpr auto warningColor = fmt::terminal_color::bright_yellow;
 static constexpr auto errorColor = fmt::terminal_color::bright_red;
 
@@ -298,7 +298,7 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
     cmdLine.add(
         "-o,--output", outputName,
         fmt::format("Set output name for compiled simulation executable. By default it's {0}",
-                    xsim::default_output_name),
+                    fsim::default_output_name),
         "<output>");
 
     // Diagnostics control
@@ -493,7 +493,7 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
 
         if (!anyErrors) {
             // compile simulation
-            xsim::BuildOptions b_opt;
+            fsim::BuildOptions b_opt;
             if (optimizationLevel) {
                 b_opt.optimization_level = *optimizationLevel;
             }
@@ -503,16 +503,16 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
             if (twoState) {
                 b_opt.use_4state = false;
             }
-            b_opt.binary_name = outputName ? *outputName : xsim::default_output_name;
+            b_opt.binary_name = outputName ? *outputName : fsim::default_output_name;
             b_opt.sv_libs = svLibs;
             b_opt.vpi_libs = vpiLibs;
             b_opt.working_directory = std::filesystem::weakly_canonical(argv[0]);
-            xsim::Builder builder(b_opt);
+            fsim::Builder builder(b_opt);
             // clear diag
             diag.clear();
             try {
                 builder.build(&compilation);
-            } catch (const xsim::Exception& e) {
+            } catch (const fsim::Exception& e) {
                 e.report(compiler.diagClient);
                 slang::OS::printE("{}", compiler.diagClient->getString());
                 builder.cleanup();
@@ -529,6 +529,6 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
     OS::printE("{}\n", e.what());
     return 5;
 }
-}  // namespace xsim
+}  // namespace fsim
 
-int main(int argc, char** argv) { return xsim::driverMain(argc, argv, false, false); }
+int main(int argc, char** argv) { return fsim::driverMain(argc, argv, false, false); }

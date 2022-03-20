@@ -8,9 +8,9 @@
 #include "version.hh"
 #include "vpi_user.h"
 
-namespace xsim::runtime {
+namespace fsim::runtime {
 
-constexpr auto SIMULATOR_NAME = "xsim";
+constexpr auto SIMULATOR_NAME = "fsim";
 
 std::unique_ptr<VPIController> VPIController::vpi_ = nullptr;
 
@@ -71,19 +71,19 @@ VPIController::~VPIController() {
     }
 }
 
-}  // namespace xsim::runtime
+}  // namespace fsim::runtime
 
 extern "C" {
 // raw VPI functions
 PLI_INT32 vpi_get_vlog_info(p_vpi_vlog_info vlog_info_p) {
-    auto vpi = xsim::runtime::VPIController::get_vpi();
+    auto vpi = fsim::runtime::VPIController::get_vpi();
     auto const &args = vpi->get_args();
 
     vlog_info_p->argc = static_cast<int>(args.size());
     vlog_info_p->argv = const_cast<char **>(args.data());
 
-    vlog_info_p->product = const_cast<char *>(xsim::runtime::SIMULATOR_NAME);
-    vlog_info_p->version = const_cast<char *>(xsim::runtime::VERSION);
+    vlog_info_p->product = const_cast<char *>(fsim::runtime::SIMULATOR_NAME);
+    vlog_info_p->version = const_cast<char *>(fsim::runtime::VERSION);
 
     return 0;
 }

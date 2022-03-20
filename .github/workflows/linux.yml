@@ -48,10 +48,10 @@ jobs:
       env:
         CC: clang-12
         CXX: clang++-12
-        XSIM_CXX: clang++-12
+        FSIM_CXX: clang++-12
     - name: Upload build artifiacts
       uses: actions/upload-artifact@v2
       if: failure()
       with:
-        name: XSIM_BUILD
+        name: FSIM_BUILD
         path: build

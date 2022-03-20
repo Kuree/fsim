@@ -1,5 +1,5 @@
-#ifndef XSIM_UTIL_HH
-#define XSIM_UTIL_HH
+#ifndef FSIM_UTIL_HH
+#define FSIM_UTIL_HH
 
 #include <filesystem>
 
@@ -20,4 +20,4 @@ inline void build_c_shared_lib(const std::string &c_content, const std::string &
     pipe.wait();
 }
 
-#endif  // XSIM_UTIL_HH
+#endif  // FSIM_UTIL_HH

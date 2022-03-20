@@ -5,7 +5,7 @@
 #include "except.hh"
 #include "fmt/format.h"
 
-namespace xsim {
+namespace fsim {
 
 [[maybe_unused]] void ModuleDefinitionVisitor::handle(const slang::InstanceSymbol &symbol) {
     auto const &def = symbol.getDefinition();
@@ -332,4 +332,4 @@ void add_init_node(const slang::Expression *expr, const slang::Symbol &var,
     // no need to visit inside
 }
 
-}  // namespace xsim
+}  // namespace fsim

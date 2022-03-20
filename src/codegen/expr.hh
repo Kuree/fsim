@@ -1,12 +1,12 @@
-#ifndef XSIM_EXPR_HH
-#define XSIM_EXPR_HH
+#ifndef FSIM_EXPR_HH
+#define FSIM_EXPR_HH
 
 #include "slang/binding/SystemSubroutine.h"
 #include "slang/compilation/Compilation.h"
 #include "slang/symbols/ASTVisitor.h"
 #include "util.hh"
 
-namespace xsim {
+namespace fsim {
 class ExprCodeGenVisitor : public slang::ASTVisitor<ExprCodeGenVisitor, false, true> {
 public:
     ExprCodeGenVisitor(std::ostream &s, CodeGenModuleInformation &module_info)
@@ -59,6 +59,6 @@ private:
     ExprCodeGenVisitor &expr_v;
 };
 
-}  // namespace xsim
+}  // namespace fsim
 
-#endif  // XSIM_EXPR_HH
+#endif  // FSIM_EXPR_HH

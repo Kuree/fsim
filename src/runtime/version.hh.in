@@ -1,8 +1,8 @@
-#ifndef XSIM_RUNTIME_VERSION_HH
-#define XSIM_RUNTIME_VERSION_HH
+#ifndef FSIM_RUNTIME_VERSION_HH
+#define FSIM_RUNTIME_VERSION_HH
 
-namespace xsim::runtime {
-auto constexpr VERSION = R"(${XSIM_VERSION})";
-}  // namespace xsim::runtime
+namespace fsim::runtime {
+auto constexpr VERSION = R"(${FSIM_VERSION})";
+}  // namespace fsim::runtime
 
-#endif  // XSIM_RUNTIME_VERSION_HH
+#endif  // FSIM_RUNTIME_VERSION_HH

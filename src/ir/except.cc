@@ -4,7 +4,7 @@
 
 #include "slang/diagnostics/TextDiagnosticClient.h"
 
-namespace xsim {
+namespace fsim {
 
 inline constexpr slang::DiagCode InvalidSyntax(slang::DiagSubsystem::Compilation, 100);
 
@@ -37,4 +37,4 @@ void InternalError::report(const std::shared_ptr<slang::TextDiagnosticClient> &)
     std::cerr << "Internal error: " << std::runtime_error::what() << std::endl;
 }
 
-}  // namespace xsim
+}  // namespace fsim

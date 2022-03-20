@@ -4,7 +4,7 @@ function(add_test target)
     target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../include
             ${CMAKE_CURRENT_SOURCE_DIR}/../extern/googletest/googletest/include
             ${CMAKE_CURRENT_SOURCE_DIR}/../extern/logic/include)
-    target_link_libraries(${target} PRIVATE gtest gtest_main xsim ${extra_lib})
+    target_link_libraries(${target} PRIVATE gtest gtest_main fsim ${extra_lib})
     gtest_discover_tests(${target})
 endfunction()
 

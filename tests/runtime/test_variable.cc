@@ -5,7 +5,7 @@
 #include "../../src/runtime/variable.hh"
 #include "gtest/gtest.h"
 
-using namespace xsim::runtime;
+using namespace fsim::runtime;
 using namespace logic::literals;
 
 class CombModuleOneBlock : public Module {

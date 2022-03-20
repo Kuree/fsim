@@ -1,9 +1,9 @@
-#ifndef XSIM_NINJA_HH
-#define XSIM_NINJA_HH
+#ifndef FSIM_NINJA_HH
+#define FSIM_NINJA_HH
 
 #include "../ir/ir.hh"
 
-namespace xsim {
+namespace fsim {
 class DPILocator;
 
 struct NinjaCodeGenOptions {
@@ -27,6 +27,6 @@ private:
     NinjaCodeGenOptions &options_;
     const DPILocator *dpi_ = nullptr;
 };
-}  // namespace xsim
+}  // namespace fsim
 
-#endif  // XSIM_NINJA_HH
+#endif  // FSIM_NINJA_HH

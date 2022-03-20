@@ -2,7 +2,7 @@
 
 #include "module.hh"
 
-namespace xsim::runtime {
+namespace fsim::runtime {
 
 cout_lock::cout_lock() { Module::cout_lock(); }
 
@@ -81,4 +81,4 @@ void display(const Module *module, std::string_view format) {
     std::cout << fmt << std::endl;
 }
 
-}  // namespace xsim::runtime
+}  // namespace fsim::runtime

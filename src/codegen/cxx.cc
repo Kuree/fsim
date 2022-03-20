@@ -9,9 +9,9 @@
 #include "stmt.hh"
 #include "util.hh"
 
-namespace xsim {
+namespace fsim {
 
-auto constexpr xsim_end_process = "END_PROCESS";
+auto constexpr fsim_end_process = "END_PROCESS";
 
 // need to generate header information about module declaration
 // this includes variable, port, and parameter definition
@@ -25,7 +25,7 @@ auto constexpr raw_header_include = R"(#include "logic/array.hh"
 #include "runtime/variable.hh"
 
 // forward declaration
-namespace xsim::runtime {
+namespace fsim::runtime {
 class Scheduler;
 }
 
@@ -80,11 +80,11 @@ void codegen_init(std::ostream &s, int &indent_level, const Process *process,
         codegen_sym(s, indent_level, stmt, options, info);
     }
 
-    s << get_indent(indent_level) << xsim_end_process << "(" << ptr_name << ");" << std::endl;
+    s << get_indent(indent_level) << fsim_end_process << "(" << ptr_name << ");" << std::endl;
     indent_level--;
     s << get_indent(indent_level) << "};" << std::endl;
     s << get_indent(indent_level)
-      << fmt::format("xsim::runtime::Scheduler::schedule_init({0});", ptr_name) << std::endl;
+      << fmt::format("fsim::runtime::Scheduler::schedule_init({0});", ptr_name) << std::endl;
     s << get_indent(indent_level) << fmt::format("init_processes_.emplace_back({0});", ptr_name)
       << std::endl;
 
@@ -117,7 +117,7 @@ void codegen_final(std::ostream &s, int &indent_level, const Process *process,
     indent_level--;
     s << get_indent(indent_level) << "};" << std::endl;
     s << get_indent(indent_level)
-      << fmt::format("xsim::runtime::Scheduler::schedule_final({0});", ptr_name) << std::endl;
+      << fmt::format("fsim::runtime::Scheduler::schedule_final({0});", ptr_name) << std::endl;
 
     indent_level--;
     info.exit_process();
@@ -154,7 +154,7 @@ void codegen_always(std::ostream &s, int &indent_level, const CombProcess *proce
 
     // general purpose always doesn't have end process since it never ends
     if (!infinite_loop)
-        s << get_indent(indent_level) << xsim_end_process << "(" << ptr_name << ");" << std::endl;
+        s << get_indent(indent_level) << fsim_end_process << "(" << ptr_name << ");" << std::endl;
 
     if (infinite_loop) {
         indent_level--;
@@ -202,7 +202,7 @@ void codegen_ff(std::ostream &s, int &indent_level, const FFProcess *process,
     }
 
     // output end process
-    s << get_indent(indent_level) << xsim_end_process << "(" << ptr_name << ");" << std::endl;
+    s << get_indent(indent_level) << fsim_end_process << "(" << ptr_name << ");" << std::endl;
 
     indent_level--;
     s << get_indent(indent_level) << "};" << std::endl;
@@ -304,10 +304,10 @@ void output_ctor(std::ostream &s, int &indent_level, const Module *module) {
     }
 
     // output name space
-    s << "namespace xsim {" << std::endl;
+    s << "namespace fsim {" << std::endl;
 
     // then output the class ctor
-    s << module->name << "::" << module->name << "(): xsim::runtime::Module(\"" << module->name
+    s << module->name << "::" << module->name << "(): fsim::runtime::Module(\"" << module->name
       << "\") {" << std::endl;
     indent_level++;
 
@@ -337,7 +337,7 @@ void output_header_file(const std::filesystem::path &filename, const Module *mod
     s << raw_header_include;
 
     // output namespace
-    s << "namespace xsim {" << std::endl;
+    s << "namespace fsim {" << std::endl;
 
     // forward declaration
     bool has_ctor = !mod->child_instances.empty();
@@ -351,7 +351,7 @@ void output_header_file(const std::filesystem::path &filename, const Module *mod
         }
     }
 
-    s << get_indent(indent_level) << "class " << mod->name << ": public xsim::runtime::Module {"
+    s << get_indent(indent_level) << "class " << mod->name << ": public fsim::runtime::Module {"
       << std::endl;
     s << get_indent(indent_level) << "public: " << std::endl;
 
@@ -361,7 +361,7 @@ void output_header_file(const std::filesystem::path &filename, const Module *mod
         // if we have ctor, we only generate a signature
         s << get_indent(indent_level) << mod->name << "();" << std::endl;
     } else {
-        s << get_indent(indent_level) << mod->name << "(): xsim::runtime::Module(\"" << mod->name
+        s << get_indent(indent_level) << mod->name << "(): fsim::runtime::Module(\"" << mod->name
           << "\") {}" << std::endl;
     }
 
@@ -381,29 +381,29 @@ void output_header_file(const std::filesystem::path &filename, const Module *mod
 
     // init function
     if (!mod->init_processes.empty()) {
-        s << get_indent(indent_level) << "void init(xsim::runtime::Scheduler *) override;"
+        s << get_indent(indent_level) << "void init(fsim::runtime::Scheduler *) override;"
           << std::endl;
     }
 
     if (!mod->final_processes.empty()) {
-        s << get_indent(indent_level) << "void final(xsim::runtime::Scheduler *) override;"
+        s << get_indent(indent_level) << "void final(fsim::runtime::Scheduler *) override;"
           << std::endl;
     }
 
     if (!mod->comb_processes.empty() || !mod->child_instances.empty()) {
-        s << get_indent(indent_level) << "void comb(xsim::runtime::Scheduler *) override;"
+        s << get_indent(indent_level) << "void comb(fsim::runtime::Scheduler *) override;"
           << std::endl;
     }
 
     if (!mod->ff_processes.empty()) {
-        s << get_indent(indent_level) << "void ff(xsim::runtime::Scheduler *) override;"
+        s << get_indent(indent_level) << "void ff(fsim::runtime::Scheduler *) override;"
           << std::endl;
     }
 
     // child instances
     for (auto const &[name, inst] : mod->child_instances) {
         // we use shared ptr instead of unique ptr to avoid import the class header
-        s << get_indent(indent_level) << "std::shared_ptr<xsim::" << inst->name << "> " << name
+        s << get_indent(indent_level) << "std::shared_ptr<fsim::" << inst->name << "> " << name
           << ";" << std::endl;
     }
 
@@ -412,7 +412,7 @@ void output_header_file(const std::filesystem::path &filename, const Module *mod
     s << get_indent(indent_level) << "};" << std::endl;
 
     // namespace
-    s << "} // namespace xsim" << std::endl;
+    s << "} // namespace fsim" << std::endl;
 
     write_to_file(filename, s);
 }
@@ -441,12 +441,12 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
         output_ctor(s, indent_level, mod);
     } else {
         // output name space
-        s << "namespace xsim {" << std::endl;
+        s << "namespace fsim {" << std::endl;
     }
 
     // initial block
     if (!mod->init_processes.empty()) {
-        s << get_indent(indent_level) << "void " << mod->name << "::init(xsim::runtime::Scheduler *"
+        s << get_indent(indent_level) << "void " << mod->name << "::init(fsim::runtime::Scheduler *"
           << info.scheduler_name() << ") {" << std::endl;
         indent_level++;
 
@@ -465,7 +465,7 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
     // final block
     if (!mod->final_processes.empty()) {
         s << get_indent(indent_level) << "void " << mod->name
-          << "::final(xsim::runtime::Scheduler *" << info.scheduler_name() << ") {" << std::endl;
+          << "::final(fsim::runtime::Scheduler *" << info.scheduler_name() << ") {" << std::endl;
         indent_level++;
 
         for (auto const &final : mod->final_processes) {
@@ -482,7 +482,7 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
 
     // always block
     if (!mod->comb_processes.empty() || !mod->child_instances.empty()) {
-        s << get_indent(indent_level) << "void " << mod->name << "::comb(xsim::runtime::Scheduler *"
+        s << get_indent(indent_level) << "void " << mod->name << "::comb(fsim::runtime::Scheduler *"
           << info.scheduler_name() << ") {" << std::endl;
         indent_level++;
 
@@ -504,7 +504,7 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
 
     // ff block
     if (!mod->ff_processes.empty()) {
-        s << get_indent(indent_level) << "void " << mod->name << "::ff(xsim::runtime::Scheduler *"
+        s << get_indent(indent_level) << "void " << mod->name << "::ff(fsim::runtime::Scheduler *"
           << info.scheduler_name() << ") {" << std::endl;
         indent_level++;
 
@@ -521,7 +521,7 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
     }
 
     // namespace
-    s << "} // namespace xsim" << std::endl;
+    s << "} // namespace fsim" << std::endl;
 
     write_to_file(filename, s);
 }
@@ -544,16 +544,16 @@ void output_main_file(const std::string &filename, const Module *top,
     s << "#include \"" << top->name << ".hh\"" << std::endl << std::endl;
     s << "int main(int argc, char *argv[]) {" << std::endl;
 
-    s << "    xsim::runtime::Scheduler scheduler;" << std::endl
-      << "    xsim::" << top->name << " top;" << std::endl;
+    s << "    fsim::runtime::Scheduler scheduler;" << std::endl
+      << "    fsim::" << top->name << " top;" << std::endl;
 
     // vpi
     if (options.add_vpi()) {
-        s << "    xsim::runtime::VPIController::get_vpi()->set_args(argc, argv);" << std::endl;
-        s << "    scheduler.set_vpi(xsim::runtime::VPIController::get_vpi());" << std::endl;
-        s << "    xsim::runtime::VPIController::get_vpi()->set_top(&top);" << std::endl;
+        s << "    fsim::runtime::VPIController::get_vpi()->set_args(argc, argv);" << std::endl;
+        s << "    scheduler.set_vpi(fsim::runtime::VPIController::get_vpi());" << std::endl;
+        s << "    fsim::runtime::VPIController::get_vpi()->set_top(&top);" << std::endl;
         for (auto const &path : options.vpi_libs) {
-            s << "    xsim::runtime::VPIController::load(\"" << path << "\");" << std::endl;
+            s << "    fsim::runtime::VPIController::load(\"" << path << "\");" << std::endl;
         }
     }
 
@@ -578,4 +578,4 @@ void CXXCodeGen::output_main(const std::string &dir) {
     output_main_file(main_filename, top_, option_);
 }
 
-}  // namespace xsim
+}  // namespace fsim

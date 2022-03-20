@@ -7,7 +7,7 @@ TEST(vpi, args) {  // NOLINT
     std::string arg2 = "bb";
     char *args[2] = {const_cast<char *>(arg1.c_str()), const_cast<char *>(arg2.c_str())};
     {
-        auto *vpi = xsim::runtime::VPIController::get_vpi();
+        auto *vpi = fsim::runtime::VPIController::get_vpi();
         vpi->set_args(2, args);
     }
 

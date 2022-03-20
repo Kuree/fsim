@@ -1,11 +1,11 @@
-#ifndef XSIM_VPI_HH
-#define XSIM_VPI_HH
+#ifndef FSIM_VPI_HH
+#define FSIM_VPI_HH
 
 #include <set>
 
 #include "module.hh"
 
-namespace xsim::runtime {
+namespace fsim::runtime {
 
 class VPIController {
     // responsible to deal with all kinds of VPI calls
@@ -34,6 +34,6 @@ private:
     static std::unique_ptr<VPIController> vpi_;
 };
 
-}  // namespace xsim::runtime
+}  // namespace fsim::runtime
 
-#endif  // XSIM_VPI_HH
+#endif  // FSIM_VPI_HH

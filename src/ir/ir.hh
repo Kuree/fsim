@@ -1,5 +1,5 @@
-#ifndef XSIM_IR_HH
-#define XSIM_IR_HH
+#ifndef FSIM_IR_HH
+#define FSIM_IR_HH
 
 #include <memory>
 #include <unordered_map>
@@ -7,7 +7,7 @@
 
 #include "slang/symbols/ASTVisitor.h"
 
-namespace xsim {
+namespace fsim {
 
 class Process {
 public:
@@ -86,6 +86,6 @@ private:
     std::string analyze_inst();
 };
 
-}  // namespace xsim
+}  // namespace fsim
 
-#endif  // XSIM_IR_HH
+#endif  // FSIM_IR_HH

@@ -3,7 +3,7 @@
 #include "gtest/gtest.h"
 #include "slang/syntax/SyntaxTree.h"
 
-using namespace xsim;
+using namespace fsim;
 using namespace slang;
 
 TEST(ir, module_process) {  // NOLINT

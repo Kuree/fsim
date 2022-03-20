@@ -1,10 +1,10 @@
-#ifndef XSIM_STMT_HH
-#define XSIM_STMT_HH
+#ifndef FSIM_STMT_HH
+#define FSIM_STMT_HH
 
 #include "cxx.hh"
 #include "expr.hh"
 
-namespace xsim {
+namespace fsim {
 
 class VarDeclarationVisitor : public slang::ASTVisitor<VarDeclarationVisitor, false, false> {
 public:
@@ -72,6 +72,6 @@ private:
     VarDeclarationVisitor decl_v;
 };
 
-}  // namespace xsim
+}  // namespace fsim
 
-#endif  // XSIM_STMT_HH
+#endif  // FSIM_STMT_HH

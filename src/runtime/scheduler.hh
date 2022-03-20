@@ -1,5 +1,5 @@
-#ifndef XSIM_SCHEDULER_HH
-#define XSIM_SCHEDULER_HH
+#ifndef FSIM_SCHEDULER_HH
+#define FSIM_SCHEDULER_HH
 
 #include <atomic>
 #include <mutex>
@@ -10,7 +10,7 @@
 #include "marl/event.h"
 #include "marl/scheduler.h"
 
-namespace xsim::runtime {
+namespace fsim::runtime {
 
 class Module;
 class Scheduler;
@@ -143,6 +143,6 @@ private:
     Module *top_ = nullptr;
     VPIController *vpi_ = nullptr;
 };
-}  // namespace xsim::runtime
+}  // namespace fsim::runtime
 
-#endif  // XSIM_SCHEDULER_HH
+#endif  // FSIM_SCHEDULER_HH

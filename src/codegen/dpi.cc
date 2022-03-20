@@ -2,7 +2,7 @@
 
 #include "slang/binding/CallExpression.h"
 
-namespace xsim {
+namespace fsim {
 std::unordered_map<std::string_view, const slang::CallExpression *> get_all_dpi_calls(
     const Module *module);
 
@@ -64,4 +64,4 @@ void codegen_dpi_header(const Module *mod, std::ostream &s, int &indent_level) {
     s << "}" << std::endl;
 }
 
-}  // namespace xsim
+}  // namespace fsim

@@ -1,5 +1,5 @@
-#ifndef XSIM_EXCEPT_HH
-#define XSIM_EXCEPT_HH
+#ifndef FSIM_EXCEPT_HH
+#define FSIM_EXCEPT_HH
 
 #include <slang/text/SourceLocation.h>
 
@@ -9,7 +9,7 @@ namespace slang {
 class TextDiagnosticClient;
 }
 
-namespace xsim {
+namespace fsim {
 
 class Exception : public std::runtime_error {
 public:
@@ -53,6 +53,6 @@ public:
     void report(const std::shared_ptr<slang::TextDiagnosticClient> &) const override;
 };
 
-}  // namespace xsim
+}  // namespace fsim
 
-#endif  // XSIM_EXCEPT_HH
+#endif  // FSIM_EXCEPT_HH

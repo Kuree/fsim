@@ -1,11 +1,11 @@
-#ifndef XSIM_VARIABLE_HH
-#define XSIM_VARIABLE_HH
+#ifndef FSIM_VARIABLE_HH
+#define FSIM_VARIABLE_HH
 
 #include <mutex>
 
 #include "logic/logic.hh"
 
-namespace xsim::runtime {
+namespace fsim::runtime {
 struct CombProcess;
 struct FFProcess;
 struct Process;
@@ -136,6 +136,6 @@ public:
         }
     }
 };
-}  // namespace xsim::runtime
+}  // namespace fsim::runtime
 
-#endif  // XSIM_VARIABLE_HH
+#endif  // FSIM_VARIABLE_HH

@@ -1,4 +1,4 @@
-add_test(test_scheduler xsim-runtime)
-add_test(test_system_task xsim-runtime)
-add_test(test_variable xsim-runtime)
-add_test(test_vpi xsim-runtime)
+add_test(test_scheduler fsim-runtime)
+add_test(test_system_task fsim-runtime)
+add_test(test_variable fsim-runtime)
+add_test(test_vpi fsim-runtime)

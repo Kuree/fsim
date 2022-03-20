@@ -1,15 +1,15 @@
-#ifndef XSIM_CODEGEN_UTIL_HH
-#define XSIM_CODEGEN_UTIL_HH
+#ifndef FSIM_CODEGEN_UTIL_HH
+#define FSIM_CODEGEN_UTIL_HH
 #include <sstream>
 
 #include "../ir/ir.hh"
 #include "fmt/format.h"
 
-namespace xsim {
+namespace fsim {
 // module is an illegal name in SV. using it will guarantee that
 // there is no conflicts
 auto constexpr main_name = "module";
-auto constexpr default_output_name = "xsim.out";
+auto constexpr default_output_name = "fsim.out";
 
 void write_to_file(const std::string &filename, std::stringstream &stream);
 
@@ -63,5 +63,5 @@ std::string_view get_indent(int indent_level);
 std::pair<std::string_view, uint32_t> get_loc(const slang::SourceLocation &loc,
                                               const slang::Compilation *compilation);
 
-}  // namespace xsim
-#endif  // XSIM_CODEGEN_UTIL_HH
+}  // namespace fsim
+#endif  // FSIM_CODEGEN_UTIL_HH

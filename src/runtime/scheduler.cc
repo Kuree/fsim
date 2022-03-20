@@ -7,7 +7,7 @@
 #include "variable.hh"
 #include "vpi.hh"
 
-namespace xsim::runtime {
+namespace fsim::runtime {
 
 void Process::schedule_nba(const std::function<void()> &f) const { scheduler->schedule_nba(f); }
 
@@ -286,4 +286,4 @@ void Scheduler::handle_edge_triggering() {
     }
 }
 
-}  // namespace xsim::runtime
+}  // namespace fsim::runtime

@@ -1,5 +1,5 @@
-#ifndef XSIM_BUILDER_HH
-#define XSIM_BUILDER_HH
+#ifndef FSIM_BUILDER_HH
+#define FSIM_BUILDER_HH
 
 #include <memory>
 #include <string>
@@ -9,7 +9,7 @@ namespace slang {
 class Compilation;
 }
 
-namespace xsim {
+namespace fsim {
 
 class Module;
 
@@ -44,6 +44,6 @@ private:
     BuildOptions options_;
 };
 
-}  // namespace xsim
+}  // namespace fsim
 
-#endif  // XSIM_BUILDER_HH
+#endif  // FSIM_BUILDER_HH

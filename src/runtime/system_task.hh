@@ -1,5 +1,5 @@
-#ifndef XSIM_SYSTEM_TASK_HH
-#define XSIM_SYSTEM_TASK_HH
+#ifndef FSIM_SYSTEM_TASK_HH
+#define FSIM_SYSTEM_TASK_HH
 
 #include <functional>
 #include <iostream>
@@ -7,7 +7,7 @@
 #include "logic/logic.hh"
 #include "scheduler.hh"
 
-namespace xsim::runtime {
+namespace fsim::runtime {
 
 class Module;
 class Scheduler;
@@ -91,6 +91,6 @@ inline void finish(Scheduler *scheduler, T code, std::string_view loc) {
 
 [[maybe_unused]] inline uint64_t time(Scheduler *scheduler) { return scheduler->sim_time; }
 
-}  // namespace xsim::runtime
+}  // namespace fsim::runtime
 
-#endif  // XSIM_SYSTEM_TASK_HH
+#endif  // FSIM_SYSTEM_TASK_HH

@@ -1,10 +1,10 @@
-#ifndef XSIM_BUILDER_DVPI_HH
-#define XSIM_BUILDER_DVPI_HH
+#ifndef FSIM_BUILDER_DVPI_HH
+#define FSIM_BUILDER_DVPI_HH
 
 #include <set>
 #include <string>
 
-namespace xsim {
+namespace fsim {
 class DPILocator {
 public:
     DPILocator();
@@ -38,6 +38,6 @@ private:
     std::set<std::string> lib_paths_;
 };
 
-}  // namespace xsim
+}  // namespace fsim
 
-#endif  // XSIM_BUILDER_DVPI_HH
+#endif  // FSIM_BUILDER_DVPI_HH

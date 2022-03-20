@@ -1,5 +1,5 @@
-#ifndef XSIM_MODULE_HH
-#define XSIM_MODULE_HH
+#ifndef FSIM_MODULE_HH
+#define FSIM_MODULE_HH
 
 #include <memory>
 #include <mutex>
@@ -7,7 +7,7 @@
 #include <string_view>
 #include <vector>
 
-namespace xsim::runtime {
+namespace fsim::runtime {
 class Scheduler;
 struct CombProcess;
 struct FFProcess;
@@ -58,6 +58,6 @@ private:
 
     static std::mutex cout_lock_;
 };
-}  // namespace xsim::runtime
+}  // namespace fsim::runtime
 
-#endif  // XSIM_MODULE_HH
+#endif  // FSIM_MODULE_HH

@@ -14,9 +14,9 @@
 #include "slang/syntax/AllSyntax.h"
 #include "subprocess.hpp"
 
-namespace xsim {
+namespace fsim {
 
-auto constexpr default_working_dir = "xsim_dir";
+auto constexpr default_working_dir = "fsim_dir";
 
 void symlink_folders(const std::string &output_dir, const std::string &simv_path) {
     // need to locate where the files are
@@ -45,14 +45,14 @@ void symlink_folders(const std::string &output_dir, const std::string &simv_path
         for (auto const &p : it) {
             std::string path_str = p.path();
             if (path_str.find("build") != std::string::npos) {
-                auto target_path = p.path() / "src" / "runtime" / "libxsim-runtime.so";
+                auto target_path = p.path() / "src" / "runtime" / "libfsim-runtime.so";
                 if (std::filesystem::exists(target_path)) {
                     runtime_path = target_path;
                 }
             }
         }
         if (runtime_path.empty()) {
-            throw std::runtime_error("Unable to locate xsim runtime library");
+            throw std::runtime_error("Unable to locate fsim runtime library");
         }
 
     } else {
@@ -62,11 +62,11 @@ void symlink_folders(const std::string &output_dir, const std::string &simv_path
         runtime = include / "runtime";
         logic = include / "logic";
         marl = include / "marl";
-        runtime_path = root / "lib" / "libxsim-runtime.so";
+        runtime_path = root / "lib" / "libfsim-runtime.so";
     }
 
     if (!std::filesystem::exists(runtime_path)) {
-        throw std::runtime_error("Unable to locate xsim libraries");
+        throw std::runtime_error("Unable to locate fsim libraries");
     }
 
     std::filesystem::path output_path = output_dir;
@@ -94,7 +94,7 @@ void symlink_folders(const std::string &output_dir, const std::string &simv_path
     // need to find the final runtime build as well
     // for now searching for any folder that contains "build" and look for path
     // once packaging is working all the search process needs to be enhanced
-    auto runtime_dst_path = dst_lib_dir / "libxsim-runtime.so";
+    auto runtime_dst_path = dst_lib_dir / "libfsim-runtime.so";
     if (!std::filesystem::exists(runtime_dst_path)) {
         std::filesystem::create_symlink(runtime_path, runtime_dst_path);
     }
@@ -277,4 +277,4 @@ void Builder::cleanup() const {
 
 Builder::~Builder() = default;
 
-}  // namespace xsim
+}  // namespace fsim

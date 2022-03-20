@@ -2,7 +2,7 @@
 
 #include "../ir/except.hh"
 
-namespace xsim {
+namespace fsim {
 
 VarDeclarationVisitor::VarDeclarationVisitor(std::ostream &s, int &indent_level,
                                              const CXXCodeGenOptions &options,
@@ -79,14 +79,14 @@ public:
         if (options_.use_4state) {
             auto four_state = type.isFourState;
             if (four_state) {
-                s_ << (module_info_.var_tracked(sym_.name) ? "xsim::runtime::logic_t"
+                s_ << (module_info_.var_tracked(sym_.name) ? "fsim::runtime::logic_t"
                                                            : "logic::logic");
             } else {
-                s_ << (module_info_.var_tracked(sym_.name) ? "xsim::runtime::bit_t" : "logic::bit");
+                s_ << (module_info_.var_tracked(sym_.name) ? "fsim::runtime::bit_t" : "logic::bit");
             }
         } else {
             // force the simulator to use two state even though the original type maybe 4-state
-            s_ << (module_info_.var_tracked(sym_.name) ? "xsim::runtime::bit_t" : "logic::bit");
+            s_ << (module_info_.var_tracked(sym_.name) ? "fsim::runtime::bit_t" : "logic::bit");
         }
     }
 
@@ -334,4 +334,4 @@ StmtCodeGenVisitor::StmtCodeGenVisitor(std::ostream &s, int &indent_level,
     }
 }
 
-}  // namespace xsim
+}  // namespace fsim

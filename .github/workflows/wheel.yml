@@ -11,7 +11,7 @@ jobs:
         shell: bash
         run: |
           git submodule update --init
-      - name: Build xsim 🎡
+      - name: Build fsim 🎡
         shell: bash
         run: bash scripts/build_wheel.sh
       - name: Run tests ⚙️
@@ -19,7 +19,7 @@ jobs:
         run: |
           echo "module top; endmodule" > test.sv
           sudo pip3 install wheelhouse/*
-          xsim test.sv -R
+          fsim test.sv -R
       - name: Prepare wheel 🎡
         if: startsWith(github.ref, 'refs/tags')
         shell: bash
@@ -40,7 +40,7 @@ jobs:
         shell: bash
         run: |
           git submodule update --init
-      - name: Build xsim 🎡
+      - name: Build fsim 🎡
         shell: bash
         run: bash scripts/build_wheel.sh
       - name: Prepare wheels
@@ -56,7 +56,7 @@ jobs:
         run: |
           echo "module top; endmodule" > test.sv
           pip3 install dist/*
-          xsim test.sv -R
+          fsim test.sv -R
       - name: Upload artifact 🛖
         uses: actions/upload-artifact@v2
         with:

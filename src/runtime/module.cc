@@ -5,7 +5,7 @@
 #include "scheduler.hh"
 #include "variable.hh"
 
-namespace xsim::runtime {
+namespace fsim::runtime {
 
 // Module static members
 std::mutex Module::cout_lock_;
@@ -189,4 +189,4 @@ void Module::schedule_ff() {  // NOLINT
     }
 }
 
-}  // namespace xsim::runtime
+}  // namespace fsim::runtime

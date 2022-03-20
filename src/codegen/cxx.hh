@@ -1,9 +1,9 @@
-#ifndef XSIM_CXX_HH
-#define XSIM_CXX_HH
+#ifndef FSIM_CXX_HH
+#define FSIM_CXX_HH
 
 #include "../ir/ir.hh"
 
-namespace xsim {
+namespace fsim {
 struct CXXCodeGenOptions {
     bool use_4state = true;
     std::vector<std::string> vpi_libs;
@@ -23,6 +23,6 @@ private:
     CXXCodeGenOptions &option_;
 };
 
-}  // namespace xsim
+}  // namespace fsim
 
-#endif  // XSIM_CXX_HH
+#endif  // FSIM_CXX_HH

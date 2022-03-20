@@ -9,7 +9,7 @@
 
 namespace fs = std::filesystem;
 
-namespace xsim {
+namespace fsim {
 
 class DLOpenHelper {
 public:
@@ -133,4 +133,4 @@ bool VPILocator::add_vpi_lib(const std::string &lib_path) {
     return res;
 }
 
-}  // namespace xsim
+}  // namespace fsim

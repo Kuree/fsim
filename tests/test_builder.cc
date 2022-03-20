@@ -3,7 +3,7 @@
 #include "slang/compilation/Compilation.h"
 #include "slang/syntax/SyntaxTree.h"
 
-using namespace xsim;
+using namespace fsim;
 using namespace slang;
 
 // -O3

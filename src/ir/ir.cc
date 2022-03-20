@@ -8,7 +8,7 @@
 #include "except.hh"
 #include "fmt/format.h"
 
-namespace xsim {
+namespace fsim {
 
 using DGraph = DependencyAnalysisVisitor::Graph;
 using DNode = DependencyAnalysisVisitor::Node;
@@ -474,7 +474,7 @@ void get_defs(const Module *module, std::unordered_set<const Module *> &result) 
 
 std::unordered_set<const Module *> Module::get_defs() const {
     std::unordered_set<const Module *> result;
-    ::xsim::get_defs(this, result);
+    ::fsim::get_defs(this, result);
     return result;
 }
 
@@ -532,4 +532,4 @@ const slang::Compilation *Module::get_compilation() const {
     return &def_->getParentScope()->getCompilation();
 }
 
-}  // namespace xsim
+}  // namespace fsim

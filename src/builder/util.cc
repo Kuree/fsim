@@ -1,6 +1,6 @@
 #include "util.hh"
 
-namespace xsim::string {
+namespace fsim::string {
 std::vector<std::string> get_tokens(const std::string &line, const std::string &delimiter) {
     std::vector<std::string> tokens;
     size_t prev = 0, pos;
@@ -20,4 +20,4 @@ std::vector<std::string> get_tokens(const std::string &line, const std::string &
         if (!t.empty()) result.emplace_back(t);
     return result;
 }
-}  // namespace xsim::string
+}  // namespace fsim::string

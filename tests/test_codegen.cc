@@ -4,7 +4,7 @@
 #include "slang/syntax/SyntaxTree.h"
 #include "util.hh"
 
-using namespace xsim;
+using namespace fsim;
 using namespace slang;
 
 // -O3
@@ -504,7 +504,7 @@ int add(int a, int b) {
 )";
 
     // build the shared library first
-    constexpr auto dpi_c_lib = "xsim_dir/dpi_c.so";
+    constexpr auto dpi_c_lib = "fsim_dir/dpi_c.so";
     build_c_shared_lib(dpi_c, dpi_c_lib);
 
     auto tree = SyntaxTree::fromText(R"(
@@ -596,7 +596,7 @@ void (*vlog_startup_routines[])() = {load, NULL};
 )";
 
     // build the shared library first
-    constexpr auto vpi_c_lib = "xsim_dir/vpi_c.so";
+    constexpr auto vpi_c_lib = "fsim_dir/vpi_c.so";
     build_c_shared_lib(vpi_c, vpi_c_lib);
 
     Compilation compilation;
@@ -611,5 +611,5 @@ void (*vlog_startup_routines[])() = {load, NULL};
     builder.build(&compilation);
     std::string output = testing::internal::GetCapturedStdout();
     EXPECT_NE(output.find("argc: 1\n"
-                          "argv[0]: ./xsim.out"), std::string::npos);
+                          "argv[0]: ./fsim.out"), std::string::npos);
 }

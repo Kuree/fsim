@@ -9,7 +9,7 @@ from setuptools.command.build_ext import build_ext
 
 GCC_VERSION = "11.2.0"
 SLANG_URL = "https://github.com/MikePopoloski/slang/releases/download/nightly/{0}"
-
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class CMakeExtension(Extension):
     def __init__(self, name, sourcedir=""):
@@ -113,12 +113,15 @@ class CMakeBuild(build_ext):
             shutil.copy(fsim_src, fsim_dst)
 
 
-with open("README.rst") as f:
+with open(os.path.join(ROOT_DIR, "README.rst")) as f:
     long_description = f.read()
+
+with open(os.path.join(ROOT_DIR, "VERSION")) as f:
+    version = f.read().strip()
 
 setup(
     name='fsim',
-    version="0.0.3",
+    version=version,
     author='Keyi Zhang',
     author_email='keyi@cs.stanford.edu',
     long_description=long_description,

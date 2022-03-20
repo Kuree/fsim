@@ -1,8 +1,8 @@
-xsim: Fiber-based SystemVerilog Simulator
+fsim: Fiber-based SystemVerilog Simulator
 ===================================================
 
-``xsim`` is a lightweight SystemVerilog simulator based on userland fibers. It leverages `slang`_
-as a frontend to parse any SystemVerilog files. ``xsim`` is guided by the following design goals:
+``fsim`` is a lightweight SystemVerilog simulator based on userland fibers. It leverages `slang`_
+as a frontend to parse any SystemVerilog files. ``fsim`` is guided by the following design goals:
 
 1. Concurrent and event-driven. Fine-grained multi-threading using fibers.
 2. Performant. Compiles SystemVerilog into C++ code.
@@ -15,9 +15,9 @@ The easiest way to install is via ``pip``. Simply do
 
 .. code:: bash
 
-    pip install xsim-python
+    pip install fsim
 
-Notice that for maximum compatibility, the Linux wheel is shipped with ``gcc``, which allows xsim to be installed
+Notice that for maximum compatibility, the Linux wheel is shipped with ``gcc``, which allows xfim to be installed
 on any Linux system. macOS should work out of the box if the development tools are installed.
 
 
@@ -34,22 +34,22 @@ in your environment path.
 
 Usage
 -----
-Once ``xsim`` is installed, you should find ``xsim`` executable in your path. The usage is similar to other
+Once ``fsim`` is installed, you should find ``fsim`` executable in your path. The usage is similar to other
 commercial simulators and C/C++ compilers. For instance, to run a simple testbench, we can do
 
 .. code:: bash
 
-   xsim design.sv tb.sv
+   fsim design.sv tb.sv
 
-The command above will compile the SystemVerilog into an executable called ``xsim.out``. You can override it
+The command above will compile the SystemVerilog into an executable called ``fsim.out``. You can override it
 with ``-o`` option. You can then start the simulation by running the executable. A working directory called
-``xsim_dir`` is created to store compilation files.
+``fsim_dir`` is created to store compilation files.
 
 To run the simulation automatically after the compilation, we can use ``-R`` flag, e.g.:
 
 .. code:: bash
 
-   xsim -R design.sv tb.sv
+   fsim -R design.sv tb.sv
 
 This feature is simular to Incisive/Xcelium. Notice that if the files are unmodified, subsequent run will not
 trigger a new compilation.

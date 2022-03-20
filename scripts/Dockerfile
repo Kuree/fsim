@@ -3,34 +3,34 @@ WORKDIR /
 
 RUN apt-get update && apt-get install cmake -y
 
-COPY . /xsim
+COPY . /fsim
 
-RUN cd /xsim/extern \
+RUN cd /fsim/extern \
   && mkdir -p slang-dist \
   && cd slang-dist \
   && wget https://github.com/MikePopoloski/slang/releases/download/v0.8/slang-linux.tar.gz \
   && tar xzf slang-linux.tar.gz --strip-components 1
 
-RUN cd /xsim &&  mkdir -p build \
+RUN cd /fsim &&  mkdir -p build \
   && cd build \
   && cmake .. -DCMAKE_BUILD_TYPE=Release \
-  && make xsim-bin xsim-runtime -j`(nproc)`
+  && make fsim-bin fsim-runtime -j`(nproc)`
 
 
 FROM gcc
 
-LABEL description="xsim docker image"
+LABEL description="fsim docker image"
 LABEL maintainer="keyi@cs.stanford.edu"
 
-RUN mkdir -p /xsim/lib
-RUN mkdir -p /xsim/bin
-RUN mkdir -p /xsim/include
+RUN mkdir -p /fsim/lib
+RUN mkdir -p /fsim/bin
+RUN mkdir -p /fsim/include
 
-COPY --from=build /xsim/extern/marl/include/marl /xsim/include/marl
-COPY --from=build /xsim/extern/logic/include/logic /xsim/include/logic
-COPY --from=build /xsim/src/runtime/ /xsim/include/runtime
-COPY --from=build /xsim/build/tools/xsim /xsim/bin/xsim
-COPY --from=build /xsim/build/src/runtime/libxsim-runtime.so /xsim/lib/
+COPY --from=build /fsim/extern/marl/include/marl /fsim/include/marl
+COPY --from=build /fsim/extern/logic/include/logic /fsim/include/logic
+COPY --from=build /fsim/src/runtime/ /fsim/include/runtime
+COPY --from=build /fsim/build/tools/fsim /fsim/bin/fsim
+COPY --from=build /fsim/build/src/runtime/libfsim-runtime.so /fsim/lib/
 
 RUN  apt-get update && apt-get install -y --no-install-recommends ninja-build \
   && apt-get clean \
@@ -38,4 +38,4 @@ RUN  apt-get update && apt-get install -y --no-install-recommends ninja-build \
 
 WORKDIR /work
 
-ENTRYPOINT ["/xsim/bin/xsim"]
+ENTRYPOINT ["/fsim/bin/fsim"]

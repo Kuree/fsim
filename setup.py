@@ -22,7 +22,7 @@ class CMakeBuild(build_ext):
         extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
 
         # required for auto-detection of auxiliary "native" libs
-        extdir = os.path.join(extdir, "xsim")
+        extdir = os.path.join(extdir, "fsim")
         if not os.path.exists(extdir):
             os.makedirs(extdir)
 
@@ -67,7 +67,7 @@ class CMakeBuild(build_ext):
             ["cmake", ext.sourcedir] + cmake_args, cwd=self.build_temp
         )
 
-        make_targets = ["xsim-bin", "xsim-runtime"]
+        make_targets = ["fsim-bin", "fsim-runtime"]
         subprocess.check_call(
             ["cmake", "--build", ".", "--target"] + make_targets + build_args, cwd=self.build_temp
         )
@@ -99,33 +99,33 @@ class CMakeBuild(build_ext):
         if not os.path.exists(runtime_dst):
             shutil.copytree(runtime_src, runtime_dst)
         # copy over the build runtime
-        runtime_src = os.path.join(self.build_temp, "src", "runtime", "libxsim-runtime.so")
-        runtime_dst = os.path.join(extdir, "lib", "libxsim-runtime.so")
+        runtime_src = os.path.join(self.build_temp, "src", "runtime", "libfsim-runtime.so")
+        runtime_dst = os.path.join(extdir, "lib", "libfsim-runtime.so")
         if not os.path.exists(runtime_dst):
             os.makedirs(os.path.dirname(runtime_dst), exist_ok=True)
             shutil.copy(runtime_src, runtime_dst)
 
-        # copy xsim binary
-        xsim_src = os.path.join(self.build_temp, "tools", "xsim")
-        xsim_dst = os.path.join(extdir, "bin", "xsim")
-        if not os.path.exists(xsim_dst):
-            os.makedirs(os.path.dirname(xsim_dst), exist_ok=True)
-            shutil.copy(xsim_src, xsim_dst)
+        # copy fsim binary
+        fsim_src = os.path.join(self.build_temp, "tools", "fsim")
+        fsim_dst = os.path.join(extdir, "bin", "fsim")
+        if not os.path.exists(fsim_dst):
+            os.makedirs(os.path.dirname(fsim_dst), exist_ok=True)
+            shutil.copy(fsim_src, fsim_dst)
 
 
 with open("README.rst") as f:
     long_description = f.read()
 
 setup(
-    name='xsim-python',
+    name='fsim',
     version="0.0.3",
     author='Keyi Zhang',
     author_email='keyi@cs.stanford.edu',
     long_description=long_description,
     long_description_content_type='text/x-rst',
-    url="https://github.com/Kuree/xsim",
-    scripts=[os.path.join("scripts", "xsim")],
-    ext_modules=[CMakeExtension("xsim")],
+    url="https://github.com/Kuree/fsim",
+    scripts=[os.path.join("scripts", "fsim")],
+    ext_modules=[CMakeExtension("fsim")],
     # use ninja package
     install_requires=["ninja"],
     cmdclass={"build_ext": CMakeBuild},

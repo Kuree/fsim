@@ -31,16 +31,16 @@ def find_glibc_header():
 
 root_dir = None
 for dirname in sys.path:
-    path = os.path.join(dirname, "xsim")
-    if os.path.exists(os.path.join(path, "bin", "xsim")):
+    path = os.path.join(dirname, "fsim")
+    if os.path.exists(os.path.join(path, "bin", "fsim")):
         root_dir = path
         break
 if root_dir is None:
-    print("unable to find xsim", file=sys.stderr)
+    print("unable to find fsim", file=sys.stderr)
     exit(1)
 
 bin_dir = os.path.join(root_dir, "bin")
-xsim_bin = os.path.join(bin_dir, "xsim")
+fsim_bin = os.path.join(bin_dir, "fsim")
 cxx_bin = os.path.join(bin_dir, "g++-" + GCC_VERSION)
 
 if os.path.exists(cxx_bin):
@@ -51,10 +51,10 @@ if os.path.exists(cxx_bin):
         exit(1)
     # find glibc headers
     cpath = find_glibc_header()
-    env = {"XSIM_CXX": cxx_bin, "LIBRARY_PATH": glibc_path + ":/usr/lib:/usr/lib64:/usr/lib/x86_64-linux-gnu/",
+    env = {"FSIM_CXX": cxx_bin, "LIBRARY_PATH": glibc_path + ":/usr/lib:/usr/lib64:/usr/lib/x86_64-linux-gnu/",
            "CPATH": cpath}
 else:
     # use system default one
     env = {}
 env.update(os.environ)
-exit(subprocess.call([xsim_bin] + sys.argv[1:], env=env))
+exit(subprocess.call([fsim_bin] + sys.argv[1:], env=env))

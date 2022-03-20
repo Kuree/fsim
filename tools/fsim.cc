@@ -12,16 +12,13 @@
 #include "slang/diagnostics/LookupDiags.h"
 #include "slang/diagnostics/TextDiagnosticClient.h"
 #include "slang/parsing/Preprocessor.h"
-#include "slang/symbols/ASTSerializer.h"
-#include "slang/symbols/CompilationUnitSymbols.h"
-#include "slang/symbols/InstanceSymbols.h"
 #include "slang/syntax/SyntaxTree.h"
 #include "slang/text/Json.h"
 #include "slang/text/SourceManager.h"
 #include "slang/util/CommandLine.h"
 #include "slang/util/OS.h"
 #include "slang/util/String.h"
-#include "slang/util/Version.h"
+#include "version.hh"
 
 using namespace slang;
 
@@ -371,8 +368,7 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
     }
 
     if (showVersion == true) {
-        OS::print("slang version {}.{}.{}\n", VersionInfo::getMajor(), VersionInfo::getMinor(),
-                  VersionInfo::getRevision());
+        OS::print("fsim version {}\n", fsim::runtime::VERSION);
         return 0;
     }
 

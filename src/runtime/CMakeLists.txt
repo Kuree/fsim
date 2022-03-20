@@ -4,7 +4,7 @@ target_include_directories(fsim-runtime PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/../../extern/marl/include
         ${CMAKE_CURRENT_SOURCE_DIR}/../../extern/logic/include
         ${CMAKE_CURRENT_SOURCE_DIR}/../../extern/vlstd
-        ${CMAKE_CURRENT_BINARY_DIR})
+        ${CMAKE_BINARY_DIR})
 
 if (${APPLE})
     target_link_libraries(fsim-runtime PUBLIC fmt marl logic ${CMAKE_DL_LIBS})
@@ -26,4 +26,4 @@ set_target_properties(fsim-runtime PROPERTIES SUFFIX ".so")
 
 # generate version files
 file (READ ${CMAKE_SOURCE_DIR}/VERSION FSIM_VERSION)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/version.hh.in ${CMAKE_CURRENT_BINARY_DIR}/version.hh)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/version.hh.in ${CMAKE_BINARY_DIR}/version.hh)

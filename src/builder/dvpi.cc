@@ -1,6 +1,10 @@
 #include "dvpi.hh"
 
+#ifdef _WIN32
+#include <Windows.h>
+#else
 #include <dlfcn.h>
+#endif
 
 #include <cstdlib>
 #include <filesystem>
@@ -11,20 +15,40 @@ namespace fs = std::filesystem;
 
 namespace fsim {
 
-class DLOpenHelper {
-public:
-    explicit DLOpenHelper(const std::string &filename) {
-        ptr = ::dlopen(filename.c_str(), RTLD_LAZY);
-    }
+namespace platform {
+DLOpenHelper::DLOpenHelper(const std::string &filename) { load(filename.c_str(), RTLD_LAZY); }
 
-    ~DLOpenHelper() {
-        if (ptr) {
-            dlclose(ptr);
-        }
-    }
+DLOpenHelper::DLOpenHelper(const std::string &filename, int mode) { load(filename.c_str(), mode); }
 
-    void *ptr = nullptr;
-};
+void DLOpenHelper::load(const char *name, int mode) {
+#ifdef _WIN32
+    ptr = LoadLibrary(filename.c_str());
+    (void)mode;
+#else
+    ptr = ::dlopen(name, mode);
+#endif
+}
+
+DLOpenHelper::~DLOpenHelper() {
+    if (ptr) {
+#ifdef _WIN32
+        FreeLibrary((HMODULE)ptr);
+#else
+        dlclose(ptr);
+#endif
+    }
+}
+
+[[nodiscard]] void *DLOpenHelper::get_sym(const std::string &name) const {
+    if (!ptr) return nullptr;
+#ifdef _WIN32
+    return (void *)GetProcAddress((HMODULE)ptr, name.c_str());
+#else
+    return ::dlsym(ptr, name.c_str());
+#endif
+}
+
+}  // namespace platform
 
 std::set<std::string> get_lib_search_path() {
     std::set<std::string> res;
@@ -40,7 +64,7 @@ std::set<std::string> get_lib_search_path() {
         for (auto const &p : paths) {
             // resolve to absolute path
             auto path = fs::absolute(p);
-            res.emplace(path);
+            res.emplace(path.string());
         }
     }
     // always add current directory
@@ -56,7 +80,7 @@ void DPILocator::add_dpi_lib(const std::string &lib_path) {
     auto p = fs::path(lib_path);
     if (p.is_relative()) {
         if (fs::exists(p)) {
-            libs_paths_.emplace(LibInfo{false, fs::absolute(p)});
+            libs_paths_.emplace(LibInfo{false, fs::absolute(p).string()});
         } else {
             // if it's a relative path, search based on variables locations
             for (auto const &dir : lib_search_dirs_) {
@@ -77,15 +101,14 @@ void DPILocator::add_dpi_lib(const std::string &lib_path) {
 bool DPILocator::resolve_lib(std::string_view func_name) const {
     // C function doesn't have parameter types
     for (auto const &lib_info : libs_paths_) {
-        DLOpenHelper dl(lib_info.path);
+        platform::DLOpenHelper dl(lib_info.path);
         auto *r = dl.ptr;
         if (!r) {
             return false;
         }
         std::string name = std::string(func_name);
-        auto *s = ::dlsym(r, name.c_str());
+        auto *s = dl.get_sym(name);
         if (!s) return false;
-        dlclose(r);
         return true;
     }
     return false;
@@ -101,7 +124,7 @@ bool VPILocator::add_vpi_lib(const std::string &lib_path) {
     auto p = fs::path(lib_path);
     if (p.is_relative()) {
         if (fs::exists(p)) {
-            resolved_lib_path = fs::absolute(p);
+            resolved_lib_path = fs::absolute(p).string();
         } else {
             // if it's a relative path, search based on variables locations
             for (auto const &dir : lib_search_dirs_) {
@@ -120,12 +143,12 @@ bool VPILocator::add_vpi_lib(const std::string &lib_path) {
     if (resolved_lib_path.empty()) return false;
     // need to check if the startup routine exists
     constexpr auto var_name = "vlog_startup_routines";
-    DLOpenHelper dl(resolved_lib_path);
+    platform::DLOpenHelper dl(resolved_lib_path);
     auto *r = dl.ptr;
     if (!r) {
         return false;
     }
-    auto *s = ::dlsym(r, var_name);
+    auto *s = dl.get_sym(var_name);
     auto res = s != nullptr;
     if (res) {
         lib_paths_.emplace(resolved_lib_path);

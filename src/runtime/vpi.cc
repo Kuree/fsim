@@ -1,10 +1,15 @@
 #include "vpi.hh"
 
+#ifdef _WIN32
+#include <Windows.h>
+#else
 #include <dlfcn.h>
+#endif
 
 #include <filesystem>
 #include <iostream>
 
+#include "util.hh"
 #include "version.hh"
 #include "vpi_user.h"
 
@@ -36,11 +41,22 @@ void VPIController::end() {}
 union vpi_func {
     void (*func)();
     void *ptr;
+
+    void run() const {
+        if (!ptr) return;
+#ifdef _WIN32
+        auto win_func = (LPFNDLLFUNC1)(ptr);
+        win_func();
+#else
+        func();
+#endif
+    }
 };
 
 void VPIController::load(std::string_view lib_path) {
     constexpr auto var_name = "vlog_startup_routines";
-    auto *r = ::dlopen(lib_path.data(), RTLD_NOW);
+    platform::DLOpenHelper dl(lib_path.data(), RTLD_NOW);
+    auto *r = dl.ptr;
     if (!r) [[unlikely]] {
         // print out error
         std::cerr << SIMULATOR_NAME << ": " << lib_path << " does not exists. " << std::endl;

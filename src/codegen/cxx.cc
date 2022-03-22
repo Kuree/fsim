@@ -414,7 +414,7 @@ void output_header_file(const std::filesystem::path &filename, const Module *mod
     // namespace
     s << "} // namespace fsim" << std::endl;
 
-    write_to_file(filename, s);
+    write_to_file(filename.string(), s);
 }
 
 void output_cc_file(const std::filesystem::path &filename, const Module *mod,
@@ -523,7 +523,7 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
     // namespace
     s << "} // namespace fsim" << std::endl;
 
-    write_to_file(filename, s);
+    write_to_file(filename.string(), s);
 }
 
 void output_main_file(const std::string &filename, const Module *top,
@@ -575,7 +575,7 @@ void CXXCodeGen::output(const std::string &dir) {
 void CXXCodeGen::output_main(const std::string &dir) {
     std::filesystem::path dir_path = dir;
     auto main_filename = dir_path / fmt::format("{0}.cc", main_name);
-    output_main_file(main_filename, top_, option_);
+    output_main_file(main_filename.string(), top_, option_);
 }
 
 }  // namespace fsim

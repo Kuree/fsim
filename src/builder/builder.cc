@@ -43,7 +43,7 @@ void symlink_folders(const std::string &output_dir, const std::string &simv_path
 
         std::filesystem::directory_iterator it(root);
         for (auto const &p : it) {
-            std::string path_str = p.path();
+            std::string path_str = p.path().string();
             if (path_str.find("build") != std::string::npos) {
                 auto target_path = p.path() / "src" / "runtime" / "libfsim-runtime.so";
                 if (std::filesystem::exists(target_path)) {

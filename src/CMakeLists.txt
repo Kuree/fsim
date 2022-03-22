@@ -2,7 +2,13 @@ function(add_warning target)
     if (MSVC)
         target_compile_options(${target} PRIVATE /W4 /WX)
     else ()
-        target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic -Werror -Wno-error=attributes)
+        # Windows has lots of rules about deprecated functions
+        # All the errors comes from the subprocess submodule.
+        # Maybe it's a good idea to switch to more mature libraries, e.g. reproc once I got more time
+        if (WIN32)
+            set(WINDOWS_FLAG "-Wno-deprecated-declarations")
+        endif()
+        target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic -Werror -Wno-error=attributes ${WINDOWS_FLAG})
     endif ()
 endfunction()
 
@@ -18,6 +24,7 @@ target_include_directories(fsim PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/../extern/cpp-subprocess)
 # force to use old fashion of span since slang is compiled against C++17
 target_compile_definitions(fsim PUBLIC span_CONFIG_SELECT_SPAN=1)
+set_property(TARGET fsim PROPERTY POSITION_INDEPENDENT_CODE ON)
 add_warning(fsim)
 
 # runtime library

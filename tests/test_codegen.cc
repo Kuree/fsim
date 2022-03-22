@@ -30,9 +30,39 @@ endmodule
     testing::internal::CaptureStdout();
     builder.build(&compilation);
     std::string output = testing::internal::GetCapturedStdout();
-    // TODO: enhance this test case once display is working
     EXPECT_NE(output.find("PASS"), std::string::npos);
 }
+
+TEST(code, single_assign) {  // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+module m;
+// use integer to test out uncommon code path
+integer a;
+integer b;
+wire  result;
+
+assign result = (a != b);
+
+initial begin
+    a = 1;
+    b = 2;
+    #0;
+    $display("result = %0d\n", result);
+end
+endmodule
+)");
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    BuildOptions options;
+    options.optimization_level = optimization_level;
+    options.run_after_build = true;
+    Builder builder(options);
+    testing::internal::CaptureStdout();
+    builder.build(&compilation);
+    std::string output = testing::internal::GetCapturedStdout();
+    EXPECT_NE(output.find("result = 1"), std::string::npos);
+}
+
 
 TEST(code, if_stmt) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(

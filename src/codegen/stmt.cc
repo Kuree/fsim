@@ -93,7 +93,9 @@ public:
     void visit(const slang::PredefinedIntegerType &type) {
         // we use bits here to avoid unnecessary conversion
         auto width = type.getBitWidth();
-        s_ << "logic::bit<" << width - 1 << ", 0, " << (type.isSigned ? "true" : "false") << ">";
+        auto type_name =
+            module_info_.var_tracked(sym_.name) ? "fsim::runtime::bit_t" : "logic::bit";
+        s_ << type_name << '<' << width - 1 << ", 0, " << (type.isSigned ? "true" : "false") << ">";
     }
     void visit(const slang::FloatingType &) { handle_not_supported(); }
     void visit(const slang::EnumType &) { handle_not_supported(); }

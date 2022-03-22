@@ -9,9 +9,10 @@ using namespace slang;
 TEST(ir, module_process) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module m;
-logic a, b, c;
+logic a, b, c, e;
 wire d = c;
 assign c = b;
+assign e = d != a;
 always_comb
     b = a;
 endmodule
@@ -25,7 +26,7 @@ endmodule
     auto error = m.analyze();
     EXPECT_TRUE(error.empty());
     EXPECT_EQ(m.comb_processes.size(), 2);
-    EXPECT_EQ(m.comb_processes[1]->stmts.size(), 2);
+    EXPECT_EQ(m.comb_processes[1]->stmts.size(), 3);
 
     EXPECT_EQ(m.comb_processes[0]->stmts[0]->kind, SymbolKind::ProceduralBlock);
     EXPECT_EQ(m.comb_processes[1]->stmts[0]->kind, SymbolKind::ContinuousAssign);
@@ -38,8 +39,9 @@ endmodule
     // and the second process (merged block) should only depend on b
     EXPECT_EQ(m.comb_processes[0]->sensitive_list.size(), 1);
     EXPECT_EQ(m.comb_processes[0]->sensitive_list[0]->name, "a");
-    EXPECT_EQ(m.comb_processes[1]->sensitive_list.size(), 1);
-    EXPECT_EQ(m.comb_processes[1]->sensitive_list[0]->name, "b");
+    EXPECT_EQ(m.comb_processes[1]->sensitive_list.size(), 2);
+    EXPECT_EQ(m.comb_processes[1]->sensitive_list[0]->name, "a");
+    EXPECT_EQ(m.comb_processes[1]->sensitive_list[1]->name, "b");
 }
 
 TEST(ir, module_always_ff) {  // NOLINT
@@ -97,7 +99,7 @@ endmodule
     EXPECT_EQ(child->outputs.size(), 1);
 }
 
-TEST(ir, edge_control) {    // NOLINT
+TEST(ir, edge_control) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module top;
 logic clk;

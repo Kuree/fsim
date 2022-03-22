@@ -366,6 +366,8 @@ void output_header_file(const std::filesystem::path &filename, const Module *mod
     }
 
     {
+        // start a new pmodule
+        info.clear_tracked_names();
         auto const &tracked_vars = mod->get_tracked_vars();
         for (auto const n : tracked_vars) {
             info.add_tracked_name(n);

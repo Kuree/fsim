@@ -42,6 +42,7 @@ public:
         return tracked_vars_.find(name) != tracked_vars_.end();
     }
 
+    void inline clear_tracked_names() { tracked_vars_.clear(); }
     void inline add_tracked_name(std::string_view name) { tracked_vars_.emplace(name); }
 
     void exit_process();

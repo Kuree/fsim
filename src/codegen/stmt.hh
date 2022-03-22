@@ -62,6 +62,8 @@ public:
 
     [[maybe_unused]] void handle(const slang::InstanceSymbol &inst);
 
+    [[maybe_unused]] void handle(const slang::SubroutineSymbol &subroutine);
+
 private:
     std::ostream &s;
     int &indent_level;

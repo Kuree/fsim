@@ -336,4 +336,10 @@ StmtCodeGenVisitor::StmtCodeGenVisitor(std::ostream &s, int &indent_level,
     }
 }
 
+// NOLINTNEXTLINE
+void StmtCodeGenVisitor::handle(const slang::SubroutineSymbol &subroutine) {
+    // TODO
+    throw NotSupportedException("Subroutine (task/function) not supported", subroutine.location);
+}
+
 }  // namespace fsim

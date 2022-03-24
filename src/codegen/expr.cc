@@ -13,13 +13,17 @@ auto constexpr fsim_schedule_delay = "SCHEDULE_DELAY";
 const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
                                        std::vector<std::string_view> &paths) {
     auto scope = symbol->getParentScope();
-    auto current = symbol;
+    const slang::Symbol *current;
     if (scope && symbol->kind == slang::SymbolKind::InstanceBody) {
         current = symbol->as<slang::InstanceBodySymbol>().parentInstance;
         scope = current->getParentScope();
         paths.emplace_back(current->name);
     }
-    return &scope->asSymbol();
+    if (scope) {
+        return &scope->asSymbol();
+    } else {
+        throw InvalidSyntaxException("Unable to determine parent symbol", symbol->location);
+    }
 }
 
 [[maybe_unused]] void ExprCodeGenVisitor::handle(const slang::StringLiteral &str) {

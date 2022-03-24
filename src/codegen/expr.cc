@@ -358,32 +358,26 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
         s << ")";
     } else {
         const auto *function = std::get<0>(expr.subroutine);
-        auto flags = function->flags;
-        if (flags.has(slang::MethodFlags::DPIImport)) {
-            // DPI calls
-            // for now we only support inputs
-            s << function->name << "(";
-            auto const &func_args = function->getArguments();
-            auto const &call_args = expr.arguments();
-            for (auto i = 0u; i < func_args.size(); i++) {
-                auto const *func_arg = func_args[i];
-                if (func_arg->direction != slang::ArgumentDirection::In) {
-                    throw NotSupportedException("Output direction in DPI not yet implemented",
-                                                func_arg->location);
-                }
-                auto const *call_arg = call_args[i];
-                // maybe need type conversion?
-                // recursive code gen
-                ExprCodeGenVisitor arg_expr(s, module_info_);
-                call_arg->visit(arg_expr);
-                if (i != (func_args.size() - 1)) s << ", ";
+        // DPI calls
+        // for now we only support inputs
+        s << function->name << "(";
+        auto const &func_args = function->getArguments();
+        auto const &call_args = expr.arguments();
+        for (auto i = 0u; i < func_args.size(); i++) {
+            auto const *func_arg = func_args[i];
+            if (func_arg->direction != slang::ArgumentDirection::In) {
+                throw NotSupportedException("Output direction in DPI not yet implemented",
+                                            func_arg->location);
             }
-            s << ")";
-            return;
+            auto const *call_arg = call_args[i];
+            // maybe need type conversion?
+            // recursive code gen
+            ExprCodeGenVisitor arg_expr(s, module_info_);
+            call_arg->visit(arg_expr);
+            if (i != (func_args.size() - 1)) s << ", ";
         }
-        throw NotSupportedException(
-            fmt::format("Export not yet implemented for function {0}", function->name),
-            function->location);
+        s << ")";
+        return;
     }
 }
 

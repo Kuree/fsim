@@ -45,6 +45,19 @@ public:
     std::vector<std::pair<slang::EdgeKind, const slang::ValueSymbol *>> edges;
 };
 
+class Function {
+public:
+    // helper information for the functions
+    explicit Function(const slang::SubroutineSymbol &subroutine)
+        : subroutine(subroutine), name(subroutine.name) {}
+
+    const slang::SubroutineSymbol &subroutine;
+    std::string_view name;
+
+    // helper function
+    [[nodiscard]] bool is_module_scope() const;
+};
+
 class Module {
 public:
     explicit Module(const slang::InstanceSymbol *def)
@@ -60,6 +73,9 @@ public:
     std::vector<PortDef> inputs;
     std::vector<PortDef> outputs;
     std::unordered_map<std::string_view, const slang::VariableSymbol *> port_vars;
+
+    // functions, tasks etc
+    std::vector<std::unique_ptr<Function>> functions;
 
     std::string analyze();
 
@@ -82,6 +98,7 @@ private:
     std::string analyze_init();
     std::string analyze_ff();
     std::string analyze_final();
+    std::string analyze_function();
 
     std::string analyze_inst();
 };

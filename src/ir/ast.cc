@@ -332,4 +332,18 @@ void add_init_node(const slang::Expression *expr, const slang::Symbol &var,
     // no need to visit inside
 }
 
+void FunctionCallVisitor::handle(const slang::CallExpression &call) {
+    auto const &func = call.subroutine;
+    if (func.index() == 0) {
+        auto *ptr = std::get<0>(func);
+        functions.emplace(ptr);
+    }
+}
+
+[[maybe_unused]] void FunctionCallVisitor::handle(const slang::InstanceSymbol &symbol) {
+    if (target_ == &symbol) {
+        visitDefault(symbol);
+    }
+}
+
 }  // namespace fsim

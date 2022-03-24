@@ -200,9 +200,14 @@ private:
     }
 };
 
-std::string VarDeclarationVisitor::get_var_decl(const slang::Symbol &sym) const {
+std::string get_symbol_type(const slang::Symbol &sym, const CodeGenModuleInformation &module_info,
+                            const CXXCodeGenOptions &options) {
     TypePrinter p(sym, module_info, options);
     return p.str();
+}
+
+std::string VarDeclarationVisitor::get_var_decl(const slang::Symbol &sym) const {
+    return get_symbol_type(sym, module_info, options);
 }
 
 StmtCodeGenVisitor::StmtCodeGenVisitor(std::ostream &s, int &indent_level,
@@ -334,12 +339,6 @@ StmtCodeGenVisitor::StmtCodeGenVisitor(std::ostream &s, int &indent_level,
             return;
         }
     }
-}
-
-// NOLINTNEXTLINE
-void StmtCodeGenVisitor::handle(const slang::SubroutineSymbol &subroutine) {
-    // TODO
-    throw NotSupportedException("Subroutine (task/function) not supported", subroutine.location);
 }
 
 }  // namespace fsim

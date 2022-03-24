@@ -13,6 +13,18 @@ namespace fsim {
 using DGraph = DependencyAnalysisVisitor::Graph;
 using DNode = DependencyAnalysisVisitor::Node;
 
+bool Function::is_module_scope() const {
+    auto const *parent_scope = subroutine.getParentScope();
+    while (parent_scope) {
+        auto const &sym = parent_scope->asSymbol();
+        if (sym.kind == slang::SymbolKind::InstanceBody) {
+            return true;
+        }
+        parent_scope = sym.getParentScope();
+    }
+    return false;
+}
+
 // NOLINTNEXTLINE
 void sort_(const DNode *node, std::unordered_set<const DNode *> &visited,
            std::stack<const DNode *> &stack) {
@@ -81,6 +93,10 @@ std::string Module::analyze() {
     if (!error.empty()) return error;
 
     error = analyze_ff();
+    if (!error.empty()) return error;
+
+    // analyze this all the functions calls
+    error = analyze_function();
     if (!error.empty()) return error;
 
     // this is a recursive call to walk through all the module definitions
@@ -346,6 +362,23 @@ std::string Module::analyze_init() {
 
 std::string Module::analyze_final() {
     extract_procedure_blocks(final_processes, def_, slang::ProceduralBlockKind::Final);
+    return {};
+}
+
+std::string Module::analyze_function() {
+    // notice that we only interested in the actual functions defined in the module/top
+    // we will handle DPI later
+    FunctionCallVisitor vis(def_);
+    def_->visit(vis);
+    // check the returned functions
+    for (auto const *func : vis.functions) {
+        auto flag = func->flags;
+        if (flag.has(slang::MethodFlags::DPIContext) || flag.has(slang::MethodFlags::DPIContext))
+            continue;
+        auto ptr = std::make_unique<Function>(*func);
+        functions.emplace_back(std::move(ptr));
+    }
+
     return {};
 }
 

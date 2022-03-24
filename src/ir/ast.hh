@@ -106,6 +106,19 @@ private:
     slang::ProceduralBlockKind kind_;
 };
 
+class FunctionCallVisitor : public slang::ASTVisitor<FunctionCallVisitor, true, true> {
+public:
+    explicit FunctionCallVisitor(const slang::InstanceSymbol *target) : target_(target) {}
+
+    [[maybe_unused]] void handle(const slang::CallExpression &call);
+    [[maybe_unused]] void handle(const slang::InstanceSymbol &symbol);
+
+    std::unordered_set<const slang::SubroutineSymbol *> functions;
+
+private:
+    const slang::InstanceSymbol *target_;
+};
+
 }  // namespace fsim
 
 #endif  // FSIM_AST_HH

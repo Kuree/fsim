@@ -62,8 +62,6 @@ public:
 
     [[maybe_unused]] void handle(const slang::InstanceSymbol &inst);
 
-    [[maybe_unused]] void handle(const slang::SubroutineSymbol &subroutine);
-
 private:
     std::ostream &s;
     int &indent_level;
@@ -73,6 +71,10 @@ private:
     ExprCodeGenVisitor expr_v;
     VarDeclarationVisitor decl_v;
 };
+
+// helper functions
+std::string get_symbol_type(const slang::Symbol &sym, const CodeGenModuleInformation &module_info,
+                            const CXXCodeGenOptions &options);
 
 }  // namespace fsim
 

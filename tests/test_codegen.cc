@@ -643,3 +643,34 @@ void (*vlog_startup_routines[])() = {load, NULL};
     EXPECT_NE(output.find("argc: 1\n"
                           "argv[0]: ./fsim.out"), std::string::npos);
 }
+
+TEST(code, function) {  // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+function int add1(int a, int b);
+    add1 = a + b;
+endfunction
+
+module top;
+
+function int add2(int a, int b);
+    return a + b;
+endfunction
+
+initial begin
+    $display("add1: %d", add1(1, 2));
+    $display("add2: %d", add2(3, 4));
+end
+
+endmodule
+
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    BuildOptions options;
+
+    options.optimization_level = optimization_level;
+    options.run_after_build = true;
+    Builder builder(options);
+    builder.build(&compilation);
+}

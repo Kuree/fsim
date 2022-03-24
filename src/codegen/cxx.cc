@@ -328,6 +328,32 @@ void output_ctor(std::ostream &s, int &indent_level, const Module *module) {
     s << "}" << std::endl;
 }
 
+void output_function_decl(std::ostream &s, int &indent_level, const CXXCodeGenOptions &options,
+                          CodeGenModuleInformation &info, const Function *function) {
+    auto const &return_sym = function->subroutine.returnValVar;
+    std::string return_type_str;
+    if (return_sym) {
+        return_type_str = get_symbol_type(*return_sym, info, options);
+    } else {
+        return_type_str = "void";
+    }
+
+    s << get_indent(indent_level) << return_type_str << " " << function->subroutine.name << "(";
+
+    auto const &args = function->subroutine.getArguments();
+    for (auto i = 0u; i < args.size(); i++) {
+        auto const *arg = args[i];
+        // TODO:
+        //   deal with output arg
+        s << get_symbol_type(*arg, info, options) << " " << arg->name;
+        if (i != (args.size() - 1)) {
+            s << ", ";
+        }
+    }
+
+    s << ");" << std::endl;
+}
+
 void output_header_file(const std::filesystem::path &filename, const Module *mod,
                         const CXXCodeGenOptions &options, CodeGenModuleInformation &info) {
     // analyze the dependencies to include which headers
@@ -407,6 +433,15 @@ void output_header_file(const std::filesystem::path &filename, const Module *mod
         // we use shared ptr instead of unique ptr to avoid import the class header
         s << get_indent(indent_level) << "std::shared_ptr<fsim::" << inst->name << "> " << name
           << ";" << std::endl;
+    }
+
+    // private information
+    s << get_indent(indent_level) << "private:" << std::endl;
+    // functions
+    for (auto const &func : mod->functions) {
+        if (func->is_module_scope()) {
+            output_function_decl(s, indent_level, options, info, func.get());
+        }
     }
 
     indent_level--;

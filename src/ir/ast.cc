@@ -7,6 +7,17 @@
 
 namespace fsim {
 
+template <slang::SymbolKind kind>
+const slang::Symbol *get_parent_of(const slang::Symbol &symbol) {
+    auto *scope = symbol.getParentScope();
+    while (scope) {
+        auto const &s = scope->asSymbol();
+        if (s.kind == kind) return &s;
+        scope = s.getParentScope();
+    }
+    return nullptr;
+}
+
 [[maybe_unused]] void ModuleDefinitionVisitor::handle(const slang::InstanceSymbol &symbol) {
     auto const &def = symbol.getDefinition();
     if (def.definitionKind == slang::DefinitionKind::Module) {
@@ -137,6 +148,9 @@ DependencyAnalysisVisitor::DependencyAnalysisVisitor(const slang::Symbol *target
 
 class SensitivityListExtraction : public slang::ASTVisitor<SensitivityListExtraction, true, true> {
 public:
+    SensitivityListExtraction(bool check_function, const slang::Symbol *instance)
+        : check_function_(check_function), instance_(instance) {}
+
     [[maybe_unused]] void handle(const slang::ExpressionStatement &s) {
         auto const &expr = s.expr;
         if (expr.kind == slang::ExpressionKind::Assignment) {
@@ -145,10 +159,14 @@ public:
             auto const &left_expr = assign.left();
             auto const &right_expr = assign.right();
             left_expr.visit(v);
-            for (auto *var : v.vars) left.emplace(var);
+            for (auto *var : v.vars) {
+                if (is_parent_scope(var)) left.emplace(var);
+            }
             v = {};
             right_expr.visit(v);
-            for (auto *var : v.vars) right.emplace(var);
+            for (auto *var : v.vars) {
+                if (is_parent_scope(var)) right.emplace(var);
+            }
         }
 
         visitDefault(s);
@@ -158,7 +176,9 @@ public:
         auto const &expr = if_.cond;
         VariableExtractor v;
         expr.visit(v);
-        for (auto *var : v.vars) right.emplace(var);
+        for (auto *var : v.vars) {
+            if (is_parent_scope(var)) right.emplace(var);
+        }
         visitDefault(if_);
     }
 
@@ -166,12 +186,39 @@ public:
         auto const &expr = case_.expr;
         VariableExtractor v;
         expr.visit(v);
-        for (auto *var : v.vars) right.emplace(var);
+        for (auto *var : v.vars) {
+            if (is_parent_scope(var)) right.emplace(var);
+        }
         visitDefault(case_);
+    }
+
+    [[maybe_unused]] void handle(const slang::CallExpression &call) {
+        if (!check_function_) return;
+        auto const &subroutine = call.subroutine;
+        if (subroutine.index() == 0) {
+            auto const *func = std::get<0>(subroutine);
+            // if it's a local function
+            auto *func_inst = get_parent_of<slang::SymbolKind::InstanceBody>(*func);
+            // out of scope functions
+            if (func_inst != instance_) return;
+            // LRM 9.2.2.2.1
+            func->getBody().visit(*this);
+        }
     }
 
     std::unordered_set<const slang::NamedValueExpression *> left;
     std::unordered_set<const slang::NamedValueExpression *> right;
+
+private:
+    bool check_function_;
+    const slang::Symbol *instance_;
+
+    [[nodiscard]] bool is_parent_scope(const slang::NamedValueExpression *expr) {
+        auto const &var = expr->symbol;
+        auto const *parent_scope = var.getParentScope();
+        auto const *parent = parent_scope ? &parent_scope->asSymbol() : nullptr;
+        return parent == instance_;
+    }
 };
 
 // See LRM 9.2.2.2.1
@@ -259,10 +306,11 @@ bool has_timing_control(const slang::ProceduralBlockSymbol &stmt) {
                     right_list = lst;
                 }
             } else {
-                // TODO:
-                //  report as an error if no timing control found
                 if (has_timing_control(stmt)) {
                     general_always_stmts.emplace_back(&stmt);
+                } else {
+                    throw InvalidSyntaxException(
+                        "Unable to determine timing control for always block", stmt.location);
                 }
                 return;
             }
@@ -271,7 +319,9 @@ bool has_timing_control(const slang::ProceduralBlockSymbol &stmt) {
         // conditions.
         // then we create a node in the graph to represent the node
         auto *node = graph->get_node(stmt);
-        SensitivityListExtraction s;
+        auto const *stmt_instance = get_parent_of<slang::SymbolKind::InstanceBody>(stmt);
+        SensitivityListExtraction s(stmt.procedureKind == slang::ProceduralBlockKind::AlwaysComb,
+                                    stmt_instance);
         stmt.visit(s);
         for (auto *left : s.left) {
             auto n = graph->get_node(left);

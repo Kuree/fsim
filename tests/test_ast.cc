@@ -185,6 +185,34 @@ endmodule
     EXPECT_NE(pos, blk2->edges_from.end());
 }
 
+TEST(ast, always_comb_function) {  // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+module m;
+logic a, b, c, d;
+function void set(logic v);
+  logic e;
+  a = v + b + e;
+endfunction
+
+always_comb begin
+    set(c);
+end
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    DependencyAnalysisVisitor v;
+    compilation.getRoot().visit(v);
+
+    auto *blk0 = v.graph->get_node(".blk0");
+    EXPECT_NE(blk0, nullptr);
+    EXPECT_EQ(blk0->edges_to.size(), 1);
+    EXPECT_EQ(blk0->edges_from.size(), 1);
+    EXPECT_EQ((*blk0->edges_from.begin())->symbol.name, "b");
+    EXPECT_EQ((*blk0->edges_to.begin())->symbol.name, "a");
+}
+
 TEST(ast, procedure_extraction) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module m2;

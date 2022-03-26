@@ -37,4 +37,32 @@
         process->edge_control.var = nullptr;        \
     } while (0)
 
+#define START_FORK(fork_name, num_fork)   \
+    std::vector<ForkProcess *> fork_name; \
+    fork_name.reserve(num_fork);
+
+#define SCHEDULE_FORK(fork_name, process) \
+    fork_name.emplace_back(process);      \
+    fsim::runtime::Scheduler::schedule_fork(process);
+
+#define SCHEDULE_JOIN(fork_name, scheduler, process)                \
+    process->cond.signal();                                         \
+    while (true) {                                                  \
+        scheduler->schedule_join_check(process);                    \
+        if (std::all_of(fork_name.begin(), fork_name.end(),         \
+                        [](auto const *p) { return p->finished; })) \
+            break;                                                  \
+        process->delay.wait();                                      \
+    }
+
+#define SCHEDULE_ANY(fork_name, scheduler, process)                 \
+    process->cond.signal();                                         \
+    while (true) {                                                  \
+        scheduler->schedule_join_check(process);                    \
+        if (std::any_of(fork_name.begin(), fork_name.end(),         \
+                        [](auto const *p) { return p->finished; })) \
+            break;                                                  \
+        process->delay.wait();                                      \
+    }
+
 #endif  // FSIM_MACRO_HH

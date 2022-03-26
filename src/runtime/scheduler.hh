@@ -91,7 +91,7 @@ public:
     static void schedule_final(FinalProcess *final);
     void schedule_delay(const ScheduledTimeslot &event);
     void schedule_join_check(const Process *process);
-    static void schedule_fork(const ForkProcess *process);
+    static void schedule_fork(ForkProcess *process);
     void schedule_finish(int code, std::string_view loc = {});
     void schedule_nba(const std::function<void()> &func);
     void add_tracked_var(TrackedVar *var) { tracked_vars_.emplace(var); }

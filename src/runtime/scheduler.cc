@@ -162,6 +162,7 @@ ForkProcess *Scheduler::create_fork_process() {
 }
 
 void Scheduler::schedule_init(InitialProcess *process) {
+    process->running = true;
     marl::schedule([process] {
         process->func();
         // notice that the done is handled by the function call side
@@ -187,7 +188,8 @@ void Scheduler::schedule_join_check(const Process *process) {
     join_processes_.emplace_back(process);
 }
 
-void Scheduler::schedule_fork(const ForkProcess *process) {
+void Scheduler::schedule_fork(ForkProcess *process) {
+    process->running = true;
     marl::schedule([process] { process->func(); });
 }
 

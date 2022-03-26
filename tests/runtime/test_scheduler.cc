@@ -798,8 +798,7 @@ public:
         {
             auto init_ptr = scheduler->create_init_process();
             init_ptr->func = [init_ptr, scheduler, this]() {
-                std::vector<ForkProcess *> join;
-                join.reserve(2);
+                START_FORK(join, 2);
                 {
                     auto fork = scheduler->create_fork_process();
                     fork->func = [fork, scheduler, this]() {
@@ -808,8 +807,7 @@ public:
                         display(this, "%t: a = %0d", scheduler->sim_time, a);
                         END_PROCESS(fork);
                     };
-                    join.emplace_back(fork);
-                    Scheduler::schedule_fork(fork);
+                    SCHEDULE_FORK(join, fork);
                 }
                 {
                     auto fork = scheduler->create_fork_process();
@@ -819,17 +817,10 @@ public:
                         display(this, "%t: b = %0d", scheduler->sim_time, b);
                         END_PROCESS(fork);
                     };
-                    join.emplace_back(fork);
-                    Scheduler::schedule_fork(fork);
+                    SCHEDULE_FORK(join, fork);
                 }
-                init_ptr->cond.signal();
-                while (true) {
-                    scheduler->schedule_join_check(init_ptr);
-                    if (std::all_of(join.begin(), join.end(),
-                                    [](auto const *p) { return p->finished; }))
-                        break;
-                    init_ptr->delay.wait();
-                }
+
+                SCHEDULE_JOIN(join, scheduler, init_ptr);
 
                 // done with this init
                 END_PROCESS(init_ptr);

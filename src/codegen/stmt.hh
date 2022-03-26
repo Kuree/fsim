@@ -62,6 +62,8 @@ public:
 
     [[maybe_unused]] void handle(const slang::InstanceSymbol &inst);
 
+    [[maybe_unused]] void handle(const slang::ReturnStatement &ret);
+
 private:
     std::ostream &s;
     int &indent_level;
@@ -74,7 +76,7 @@ private:
 
 // helper functions
 std::string get_symbol_type(const slang::Symbol &sym, const CodeGenModuleInformation &module_info,
-                            const CXXCodeGenOptions &options);
+                            const CXXCodeGenOptions &options, std::string_view name_prefix = "");
 
 }  // namespace fsim
 

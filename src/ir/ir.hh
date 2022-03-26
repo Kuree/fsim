@@ -90,6 +90,8 @@ public:
 
     [[nodiscard]] const slang::Compilation *get_compilation() const;
 
+    [[nodiscard]] std::vector<const slang::SubroutineSymbol *> get_global_functions() const;
+
 private:
     const slang::InstanceSymbol *def_;
 

@@ -48,7 +48,7 @@ public:
     void exit_process();
 
     const Module *current_module = nullptr;
-    const Function *current_function = nullptr;
+    const slang::SubroutineSymbol *current_function = nullptr;
 
     const slang::Compilation *get_compilation() const;
 

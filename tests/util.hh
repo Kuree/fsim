@@ -11,6 +11,13 @@ inline void build_c_shared_lib(const std::string &c_content, const std::string &
     auto root = current_file.parent_path().parent_path();
     auto vlstd_include = root / "extern" / "vlstd";
     auto include_flag = "-I" + std::filesystem::absolute(vlstd_include).string();
+    {
+        // check base dir
+        auto output_dir = std::filesystem::path(output_name).parent_path();
+        if (!std::filesystem::exists(output_dir)) {
+            std::filesystem::create_directories(output_dir);
+        }
+    }
     // pipe in
     auto pipe = subprocess::Popen(
         std::vector<std::string>{"cc", "-xc", "-shared", "-o", output_name, include_flag, "-"},

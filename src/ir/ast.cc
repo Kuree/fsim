@@ -338,6 +338,7 @@ void FunctionCallVisitor::handle(const slang::CallExpression &call) {
         auto *ptr = std::get<0>(func);
         functions.emplace(ptr);
     }
+    visitDefault(call);
 }
 
 [[maybe_unused]] void FunctionCallVisitor::handle(const slang::InstanceSymbol &symbol) {

@@ -373,11 +373,15 @@ std::string Module::analyze_function() {
     // check the returned functions
     for (auto const *func : vis.functions) {
         auto flag = func->flags;
-        if (flag.has(slang::MethodFlags::DPIContext) || flag.has(slang::MethodFlags::DPIContext))
+        if (flag.has(slang::MethodFlags::DPIImport) || flag.has(slang::MethodFlags::DPIContext))
             continue;
         auto ptr = std::make_unique<Function>(*func);
         functions.emplace_back(std::move(ptr));
     }
+
+    // sort functions by the name for code consistency
+    std::sort(functions.begin(), functions.end(),
+              [](auto const &f1, auto const &f2) { return f1->name < f2->name; });
 
     return {};
 }
@@ -563,6 +567,30 @@ std::unordered_set<std::string_view> Module::get_tracked_vars() const {
 const slang::Compilation *Module::get_compilation() const {
     if (!def_) return nullptr;
     return &def_->getParentScope()->getCompilation();
+}
+
+// NOLINTNEXTLINE
+void get_global_functions_helper(const Module *mod,
+                                 std::unordered_set<const slang::SubroutineSymbol *> &res) {
+    for (auto const &func : mod->functions) {
+        if (!func->is_module_scope()) {
+            res.emplace(&func->subroutine);
+        }
+    }
+
+    for (auto const &[name, inst] : mod->child_instances) {
+        // recursively get the global functions
+        get_global_functions_helper(inst.get(), res);
+    }
+}
+
+std::vector<const slang::SubroutineSymbol *> Module::get_global_functions() const {
+    std::unordered_set<const slang::SubroutineSymbol *> set;
+    get_global_functions_helper(this, set);
+    std::vector<const slang::SubroutineSymbol *> res(set.begin(), set.end());
+    std::sort(res.begin(), res.end(),
+              [](auto const *f1, auto const *f2) { return f1->name < f2->name; });
+    return res;
 }
 
 }  // namespace fsim

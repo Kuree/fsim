@@ -43,6 +43,8 @@ private:
     void output_concat(const slang::ConcatenationExpression &concat);
 
     void output_timing(const slang::TimingControl &timing);
+
+    bool is_return_symbol(const slang::Expression &expr);
 };
 
 class TimingControlCodeGen {

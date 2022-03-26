@@ -34,8 +34,9 @@ using namespace logic::literals;
 
 )";
 
-void codegen_sym(std::ostream &s, int &indent_level, const slang::Symbol *sym,
-                 const CXXCodeGenOptions &options, CodeGenModuleInformation &info) {
+template <typename T>
+void codegen_sym(std::ostream &s, int &indent_level, const T *sym, const CXXCodeGenOptions &options,
+                 CodeGenModuleInformation &info) {
     StmtCodeGenVisitor v(s, indent_level, options, info);
     sym->visit(v);
 }
@@ -328,30 +329,48 @@ void output_ctor(std::ostream &s, int &indent_level, const Module *module) {
     s << "}" << std::endl;
 }
 
-void output_function_decl(std::ostream &s, int &indent_level, const CXXCodeGenOptions &options,
-                          CodeGenModuleInformation &info, const Function *function) {
-    auto const &return_sym = function->subroutine.returnValVar;
-    std::string return_type_str;
-    if (return_sym) {
-        return_type_str = get_symbol_type(*return_sym, info, options);
-    } else {
-        return_type_str = "void";
-    }
+void output_function_header(std::ostream &s, int &indent_level, const CXXCodeGenOptions &options,
+                            CodeGenModuleInformation &info, const slang::SubroutineSymbol *function,
+                            std::string_view prefix) {
+    auto const *return_sym = function->returnValVar;
+    std::string return_type = return_sym ? get_symbol_type(*return_sym, info, options, prefix)
+                                         : fmt::format("void {0}", function->name);
 
-    s << get_indent(indent_level) << return_type_str << " " << function->subroutine.name << "(";
+    s << get_indent(indent_level) << return_type << "(";
 
-    auto const &args = function->subroutine.getArguments();
+    auto const &args = function->getArguments();
     for (auto i = 0u; i < args.size(); i++) {
         auto const *arg = args[i];
         // TODO:
         //   deal with output arg
-        s << get_symbol_type(*arg, info, options) << " " << arg->name;
+        s << get_symbol_type(*arg, info, options);
         if (i != (args.size() - 1)) {
             s << ", ";
         }
     }
 
-    s << ");" << std::endl;
+    s << ")";
+}
+
+void output_function_decl(std::ostream &s, int &indent_level, const CXXCodeGenOptions &options,
+                          CodeGenModuleInformation &info, const slang::SubroutineSymbol *function) {
+    output_function_header(s, indent_level, options, info, function, {});
+    s << ";" << std::endl;
+}
+
+void output_function_impl(std::ostream &s, int &indent_level, const CXXCodeGenOptions &options,
+                          CodeGenModuleInformation &info, const slang::SubroutineSymbol *function,
+                          std::string_view name_prefix) {
+    output_function_header(s, indent_level, options, info, function, name_prefix);
+    s << " {" << std::endl;
+    indent_level++;
+
+    info.current_function = function;
+    codegen_sym(s, indent_level, &function->getBody(), options, info);
+    info.current_function = nullptr;
+
+    indent_level--;
+    s << std::endl << get_indent(indent_level) << "}" << std::endl;
 }
 
 void output_header_file(const std::filesystem::path &filename, const Module *mod,
@@ -436,11 +455,15 @@ void output_header_file(const std::filesystem::path &filename, const Module *mod
     }
 
     // private information
-    s << get_indent(indent_level) << "private:" << std::endl;
+    {
+        indent_level--;
+        s << get_indent(indent_level) << "private:" << std::endl;
+        indent_level++;
+    }
     // functions
     for (auto const &func : mod->functions) {
         if (func->is_module_scope()) {
-            output_function_decl(s, indent_level, options, info, func.get());
+            output_function_decl(s, indent_level, options, info, &func->subroutine);
         }
     }
 
@@ -479,6 +502,13 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
     } else {
         // output name space
         s << "namespace fsim {" << std::endl;
+    }
+
+    // global functions, which has to be declared first
+    for (auto const &func : mod->functions) {
+        if (!func->is_module_scope()) {
+            output_function_decl(s, indent_level, options, info, &func->subroutine);
+        }
     }
 
     // initial block
@@ -557,6 +587,15 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
         s << get_indent(indent_level) << "}" << std::endl;
     }
 
+    // private functions
+    auto mod_name_prefix = fmt::format("{0}::", mod->name);
+    for (auto const &func : mod->functions) {
+        if (func->is_module_scope()) {
+            output_function_impl(s, indent_level, options, info, &func->subroutine,
+                                 mod_name_prefix);
+        }
+    }
+
     // namespace
     s << "} // namespace fsim" << std::endl;
 
@@ -564,7 +603,7 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
 }
 
 void output_main_file(const std::string &filename, const Module *top,
-                      const CXXCodeGenOptions &options) {
+                      const CXXCodeGenOptions &options, CodeGenModuleInformation &info) {
     std::stringstream s;
 
     s << raw_header_include;
@@ -579,6 +618,20 @@ void output_main_file(const std::string &filename, const Module *top,
 
     // include the top module file
     s << "#include \"" << top->name << ".hh\"" << std::endl << std::endl;
+
+    // global functions
+    auto global_functions = top->get_global_functions();
+    if (!global_functions.empty()) {
+        // namespace
+        s << "namespace fsim {" << std::endl;
+        int indent_level = 0;
+        for (auto const *func : global_functions) {
+            output_function_impl(s, indent_level, options, info, func, {});
+        }
+
+        s << "} // namespace fsim" << std::endl;
+    }
+
     s << "int main(int argc, char *argv[]) {" << std::endl;
 
     s << "    fsim::runtime::Scheduler scheduler;" << std::endl
@@ -612,7 +665,8 @@ void CXXCodeGen::output(const std::string &dir) {
 void CXXCodeGen::output_main(const std::string &dir) {
     std::filesystem::path dir_path = dir;
     auto main_filename = dir_path / fmt::format("{0}.cc", main_name);
-    output_main_file(main_filename.string(), top_, option_);
+    CodeGenModuleInformation info;
+    output_main_file(main_filename.string(), top_, option_, info);
 }
 
 }  // namespace fsim

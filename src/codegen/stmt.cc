@@ -17,6 +17,9 @@ VarDeclarationVisitor::VarDeclarationVisitor(std::ostream &s, int &indent_level,
 void VarDeclarationVisitor::handle(const slang::VariableSymbol &var) {
     // not interested in formal argument for now
     if (var.kind == slang::SymbolKind::FormalArgument) return;
+    auto const &flags = var.flags;
+    // we don't generate compiler generated vars
+    if (flags.has(slang::VariableFlags::CompilerGenerated)) return;
     // output variable definition
     auto var_type_decl = get_var_decl(var);
     s << get_indent(indent_level) << var_type_decl;
@@ -62,8 +65,8 @@ void VarDeclarationVisitor::handle(const slang::VariableSymbol &var) {
 class TypePrinter {
 public:
     TypePrinter(const slang::Symbol &sym, const CodeGenModuleInformation &module_info,
-                const CXXCodeGenOptions &options)
-        : sym_(sym), module_info_(module_info), options_(options) {
+                const CXXCodeGenOptions &options, std::string_view name_prefix)
+        : sym_(sym), module_info_(module_info), options_(options), name_prefix_(name_prefix) {
         auto const &t = sym.getDeclaredType()->getType();
         t.visit(*this);
 
@@ -128,7 +131,7 @@ public:
         t->visit(*this);
 
         if (!var_name_printed_) {
-            s_ << " " << sym_.name;
+            print_name();
             var_name_printed_ = true;
         }
 
@@ -161,7 +164,7 @@ public:
 
     std::string str() {
         if (!var_name_printed_) {
-            s_ << " " << sym_.name;
+            print_name();
         }
         return s_.str();
     }
@@ -170,6 +173,7 @@ private:
     const slang::Symbol &sym_;
     const CodeGenModuleInformation &module_info_;
     const CXXCodeGenOptions &options_;
+    std::string_view name_prefix_;
 
     std::stringstream s_;
     bool var_name_printed_ = false;
@@ -198,11 +202,13 @@ private:
 
         print_unpacked_array_dim(type.getArrayElementType()->getCanonicalType());
     }
+
+    void print_name() { s_ << " " << name_prefix_ << sym_.name; }
 };
 
 std::string get_symbol_type(const slang::Symbol &sym, const CodeGenModuleInformation &module_info,
-                            const CXXCodeGenOptions &options) {
-    TypePrinter p(sym, module_info, options);
+                            const CXXCodeGenOptions &options, std::string_view name_prefix) {
+    TypePrinter p(sym, module_info, options, name_prefix);
     return p.str();
 }
 
@@ -339,6 +345,15 @@ StmtCodeGenVisitor::StmtCodeGenVisitor(std::ostream &s, int &indent_level,
             return;
         }
     }
+}
+
+[[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::ReturnStatement &ret) {
+    s << get_indent(indent_level) << "return";
+    if (ret.expr) {
+        s << " ";
+        ret.expr->visit(expr_v);
+    }
+    s << ";" << std::endl;
 }
 
 }  // namespace fsim

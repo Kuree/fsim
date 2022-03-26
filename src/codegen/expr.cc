@@ -53,7 +53,8 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
 [[maybe_unused]] void ExprCodeGenVisitor::handle(const slang::ValueSymbol &sym) {
     // if the current symbol is not null, we need to resolve the hierarchy
     auto const *parent = &sym.getParentScope()->asSymbol();
-    auto const *top_body = &module_info_.current_module->def()->body;
+    auto const *top_body =
+        module_info_.current_module ? &module_info_.current_module->def()->body : parent;
     if (!parent || parent == top_body) {
         s << sym.name;
     } else {
@@ -457,9 +458,15 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
             output_concat(concat);
             s << ")";
         } else {
-            left.visit(*this);
-            left_ptr = &left;
-            s << " = ";
+            // if it's an old fashion function return
+            if (is_return_symbol(left)) [[unlikely]] {
+                s << "return ";
+            } else {
+                left.visit(*this);
+                left_ptr = &left;
+                s << " = ";
+            }
+
             if (timing) {
                 s << right_name;
             } else {
@@ -485,6 +492,13 @@ void ExprCodeGenVisitor::output_timing(const slang::TimingControl &timing) {
     TimingControlCodeGen t(s, 1, module_info_, *this);
     t.handle(timing);
     s << " ";
+}
+
+bool ExprCodeGenVisitor::is_return_symbol(const slang::Expression &expr) {
+    if (!module_info_.current_function) return false;
+    if (expr.kind != slang::ExpressionKind::NamedValue) return false;
+    auto const &named = expr.as<slang::NamedValueExpression>();
+    return named.symbol.name == module_info_.current_function->name;
 }
 
 TimingControlCodeGen::TimingControlCodeGen(std::ostream &s, int indent_level,

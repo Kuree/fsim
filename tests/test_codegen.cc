@@ -657,8 +657,8 @@ function int add2(int a, int b);
 endfunction
 
 initial begin
-    $display("add1: %d", add1(1, 2));
-    $display("add2: %d", add2(3, 4));
+    $display("add1: %0d", add1(1, 2));
+    $display("add2: %0d", add2(3, 4));
 end
 
 endmodule
@@ -672,5 +672,9 @@ endmodule
     options.optimization_level = optimization_level;
     options.run_after_build = true;
     Builder builder(options);
+    testing::internal::CaptureStdout();
     builder.build(&compilation);
+    std::string output = testing::internal::GetCapturedStdout();
+    EXPECT_NE(output.find("add1: 3\n"
+                          "add2: 7"), std::string::npos);
 }

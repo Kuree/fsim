@@ -678,3 +678,39 @@ endmodule
     EXPECT_NE(output.find("add1: 3\n"
                           "add2: 7"), std::string::npos);
 }
+
+TEST(code, task) {  // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+task task1(int a, int b);
+    a = a + b;
+    #40;
+endtask
+
+module top;
+
+task task2();
+    #2;
+endtask
+
+initial begin
+    task1(1, 2);
+    task2();
+    $finish(0);
+end
+
+endmodule
+
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    BuildOptions options;
+
+    options.optimization_level = optimization_level;
+    options.run_after_build = true;
+    Builder builder(options);
+    testing::internal::CaptureStdout();
+    builder.build(&compilation);
+    std::string output = testing::internal::GetCapturedStdout();
+    EXPECT_NE(output.find("$finish(0) called at 42"), std::string::npos);
+}

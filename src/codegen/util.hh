@@ -34,6 +34,7 @@ public:
     }
 
     std::string enter_process();
+    [[nodiscard]] bool has_process() const { return !process_names_.empty(); }
 
     std::string current_process_name() const { return process_names_.top(); }
     const std::string &scheduler_name();

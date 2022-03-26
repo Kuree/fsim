@@ -334,11 +334,24 @@ void output_function_header(std::ostream &s, int &indent_level, const CXXCodeGen
                             std::string_view prefix) {
     auto const *return_sym = function->returnValVar;
     std::string return_type = return_sym ? get_symbol_type(*return_sym, info, options, prefix)
-                                         : fmt::format("void {0}", function->name);
+                                         : fmt::format("void {0}{1}", prefix, function->name);
 
     s << get_indent(indent_level) << return_type << "(";
 
     auto const &args = function->getArguments();
+
+    if (function->subroutineKind == slang::SubroutineKind::Task) {
+        // process
+        s << "fsim::runtime::Process *";
+        if (info.has_process()) {
+            s << info.current_process_name();
+        }
+        // then scheduler
+        s << ", ";
+        s << "fsim::runtime::Scheduler *" << info.scheduler_name();
+        if (!args.empty()) s << ", ";
+    }
+
     for (auto i = 0u; i < args.size(); i++) {
         auto const *arg = args[i];
         // TODO:
@@ -361,6 +374,10 @@ void output_function_decl(std::ostream &s, int &indent_level, const CXXCodeGenOp
 void output_function_impl(std::ostream &s, int &indent_level, const CXXCodeGenOptions &options,
                           CodeGenModuleInformation &info, const slang::SubroutineSymbol *function,
                           std::string_view name_prefix) {
+    bool is_task = function->subroutineKind == slang::SubroutineKind ::Task;
+    if (is_task) {
+        info.enter_process();
+    }
     output_function_header(s, indent_level, options, info, function, name_prefix);
     s << " {" << std::endl;
     indent_level++;
@@ -368,6 +385,10 @@ void output_function_impl(std::ostream &s, int &indent_level, const CXXCodeGenOp
     info.current_function = function;
     codegen_sym(s, indent_level, &function->getBody(), options, info);
     info.current_function = nullptr;
+
+    if (is_task) {
+        info.exit_process();
+    }
 
     indent_level--;
     s << std::endl << get_indent(indent_level) << "}" << std::endl;
@@ -610,6 +631,8 @@ void output_main_file(const std::string &filename, const Module *top,
 
     // include the scheduler
     s << "#include \"runtime/scheduler.hh\"" << std::endl;
+    // and macro
+    s << "#include \"runtime/macro.hh\"" << std::endl;
 
     // VPI
     if (options.add_vpi()) {

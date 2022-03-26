@@ -368,6 +368,13 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
         s << function->name << "(";
         auto const &func_args = function->getArguments();
         auto const &call_args = expr.arguments();
+        // for task, we need to pass in the current process;
+        if (function->subroutineKind == slang::SubroutineKind::Task) {
+            s << module_info_.current_process_name() << ", ";
+            s << module_info_.scheduler_name();
+            if (!func_args.empty()) s << ", ";
+        }
+
         for (auto i = 0u; i < func_args.size(); i++) {
             auto const *func_arg = func_args[i];
             if (func_arg->direction != slang::ArgumentDirection::In) {

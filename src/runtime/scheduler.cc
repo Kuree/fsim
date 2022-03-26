@@ -73,6 +73,18 @@ void Scheduler::run(Module *top) {
             break;
         }
 
+        {
+            // check if there is any process waiting for join
+            // at this point it's stable, so we don't need a lock to check
+            if (!join_processes_.empty()) {
+                std::lock_guard guard(join_processes_lock_);
+                for (auto *p : join_processes_) {
+                    p->delay.signal();
+                }
+                join_processes_.clear();
+            }
+        }
+
         // schedule for the next time slot
         {
             // need to lock it since the moment we unlock a process, it may try to
@@ -141,6 +153,14 @@ FFProcess *Scheduler::create_ff_process() {
     return p.get();
 }
 
+ForkProcess *Scheduler::create_fork_process() {
+    auto ptr = std::make_unique<ForkProcess>();
+    ptr->id = id_count_.fetch_add(1);
+    ptr->scheduler = this;
+    auto &p = fork_processes_.emplace_back(std::move(ptr));
+    return p.get();
+}
+
 void Scheduler::schedule_init(InitialProcess *process) {
     marl::schedule([process] {
         process->func();
@@ -160,6 +180,15 @@ void Scheduler::schedule_final(FinalProcess *final) {
 void Scheduler::schedule_delay(const ScheduledTimeslot &event) {
     std::lock_guard guard(event_queue_lock_);
     event_queue_.emplace(event);
+}
+
+void Scheduler::schedule_join_check(const Process *process) {
+    std::lock_guard guard(join_processes_lock_);
+    join_processes_.emplace_back(process);
+}
+
+void Scheduler::schedule_fork(const ForkProcess *process) {
+    marl::schedule([process] { process->func(); });
 }
 
 void Scheduler::schedule_finish(int code, std::string_view loc) {
@@ -225,6 +254,13 @@ void Scheduler::terminate_processes() {
             process->delay.signal();
         }
     }
+
+    for (auto &process : fork_processes_) {
+        if (!process->finished) {
+            process->delay.signal();
+        }
+    }
+
     if (finish_flag_) {
         printout_finish(finish_.code, sim_time, finish_.loc);
     }
@@ -256,6 +292,7 @@ void Scheduler::stabilize_process() {
     settle_processes(init_processes_);
     settle_processes(comb_processes_);
     settle_processes(ff_processes_);
+    settle_processes(fork_processes_);
 }
 
 void Scheduler::handle_edge_triggering() {

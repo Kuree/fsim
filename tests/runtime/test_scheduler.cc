@@ -766,3 +766,89 @@ TEST(runtime, edge_control) {  // NOLINT
         EXPECT_NE(output.find("time is 5\ntime is 10\ntime is 15\n"), std::string::npos);
     }
 }
+
+class ForkJoin : public Module {
+    /*
+     * module top;
+     *
+     * int a, b;
+     * initial begin
+     *     fork
+     *         begin
+     *             #2;
+     *             a = 1;
+     *             $display("%t a = %0d", $time, a);
+     *         end
+     *         begin
+     *             #4;
+     *             b = 2;
+     *             $display("%t b = %0d", $time, b);
+     *         end
+     *     join
+     * end
+     *
+     * endmodule
+     */
+
+public:
+    ForkJoin() : Module("fork_join") {}
+    logic::bit<31, 0> a, b;
+
+    void init(Scheduler *scheduler) override {
+        {
+            auto init_ptr = scheduler->create_init_process();
+            init_ptr->func = [init_ptr, scheduler, this]() {
+                std::vector<ForkProcess *> join;
+                join.reserve(2);
+                {
+                    auto fork = scheduler->create_fork_process();
+                    fork->func = [fork, scheduler, this]() {
+                        SCHEDULE_DELAY(fork, 4, scheduler, n);
+                        a = 1_bit64;
+                        display(this, "%t: a = %0d", scheduler->sim_time, a);
+                        END_PROCESS(fork);
+                    };
+                    join.emplace_back(fork);
+                    Scheduler::schedule_fork(fork);
+                }
+                {
+                    auto fork = scheduler->create_fork_process();
+                    fork->func = [fork, scheduler, this]() {
+                        SCHEDULE_DELAY(fork, 2, scheduler, n);
+                        b = 2_bit64;
+                        display(this, "%t: b = %0d", scheduler->sim_time, b);
+                        END_PROCESS(fork);
+                    };
+                    join.emplace_back(fork);
+                    Scheduler::schedule_fork(fork);
+                }
+                init_ptr->cond.signal();
+                while (true) {
+                    scheduler->schedule_join_check(init_ptr);
+                    if (std::all_of(join.begin(), join.end(),
+                                    [](auto const *p) { return p->finished; }))
+                        break;
+                    init_ptr->delay.wait();
+                }
+
+                // done with this init
+                END_PROCESS(init_ptr);
+            };
+            Scheduler::schedule_init(init_ptr);
+            init_processes_.emplace_back(init_ptr);
+        }
+    }
+};
+
+TEST(runtime, fork) {  // NOLINT
+    for (auto i = 0; i < 100; i++) {
+        Scheduler scheduler;
+        ForkJoin m;
+        testing::internal::CaptureStdout();
+        scheduler.run(&m);
+        std::string output = testing::internal::GetCapturedStdout();
+        EXPECT_NE(output.find("2: b = 2\n"
+                              "4: a = 1"),
+                  std::string::npos);
+    }
+}

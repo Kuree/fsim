@@ -12,6 +12,7 @@ class Scheduler;
 struct CombProcess;
 struct FFProcess;
 struct InitialProcess;
+struct ForkProcess;
 class CombinationalGraph;
 
 class Module {
@@ -44,6 +45,7 @@ protected:
     std::vector<CombProcess *> comb_processes_;
     std::vector<FFProcess *> ff_process_;
     std::vector<InitialProcess *> init_processes_;
+    std::vector<ForkProcess *> fork_processes_;
 
     // child instances
     std::vector<Module *> child_instances_;

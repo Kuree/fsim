@@ -85,10 +85,13 @@ public:
     FinalProcess *create_final_process();
     CombProcess *create_comb_process();
     FFProcess *create_ff_process();
+    ForkProcess *create_fork_process();
 
     static void schedule_init(InitialProcess *init);
     static void schedule_final(FinalProcess *final);
     void schedule_delay(const ScheduledTimeslot &event);
+    void schedule_join_check(const Process *process);
+    static void schedule_fork(const ForkProcess *process);
     void schedule_finish(int code, std::string_view loc = {});
     void schedule_nba(const std::function<void()> &func);
     void add_tracked_var(TrackedVar *var) { tracked_vars_.emplace(var); }
@@ -108,11 +111,14 @@ private:
     // we will statically allocate time slot inside each module/class
     std::priority_queue<ScheduledTimeslot> event_queue_;
     std::mutex event_queue_lock_;
+    std::vector<const Process *> join_processes_;
+    std::mutex join_processes_lock_;
 
     std::vector<std::unique_ptr<InitialProcess>> init_processes_;
     std::vector<std::unique_ptr<FinalProcess>> final_processes_;
     std::vector<std::unique_ptr<CombProcess>> comb_processes_;
     std::vector<std::unique_ptr<FFProcess>> ff_processes_;
+    std::vector<std::unique_ptr<ForkProcess>> fork_processes_;
     marl::Scheduler marl_scheduler_;
 
     // NBA

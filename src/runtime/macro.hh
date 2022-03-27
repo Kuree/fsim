@@ -48,8 +48,8 @@
         process->edge_control.var = nullptr;        \
     } while (0)
 
-#define START_FORK(fork_name, num_fork)         \
-    std::vector<const ForkProcess *> fork_name; \
+#define START_FORK(fork_name, num_fork)                        \
+    std::vector<const fsim::runtime::ForkProcess *> fork_name; \
     fork_name.reserve(num_fork)
 
 #define SCHEDULE_FORK(fork_name, process)        \
@@ -59,9 +59,9 @@
 
 #define SCHEDULE_JOIN(fork_name, scheduler, process)                                           \
     do {                                                                                       \
-        auto fork = fsim::runtime::ScheduledJoin(fork_name, process,                           \
+        auto join = fsim::runtime::ScheduledJoin(fork_name, process,                           \
                                                  fsim::runtime::ScheduledJoin::JoinType::All); \
-        scheduler->schedule_join_check(fork);                                                  \
+        scheduler->schedule_join_check(join);                                                  \
         SUSPEND_PROCESS(process);                                                              \
     } while (0)
 

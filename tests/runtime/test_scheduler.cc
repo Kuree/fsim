@@ -802,7 +802,7 @@ public:
         {
             auto init_ptr = scheduler->create_init_process();
             init_ptr->func = [init_ptr, scheduler, this]() {
-                START_FORK(join, 2);
+                START_FORK(joins, 2);
                 {
                     auto fork = scheduler->create_fork_process();
                     fork->func = [fork, scheduler, this]() {
@@ -811,7 +811,7 @@ public:
                         display(this, "%t: a = %0d", scheduler->sim_time, a);
                         END_FORK_PROCESS(fork);
                     };
-                    SCHEDULE_FORK(join, fork)
+                    SCHEDULE_FORK(joins, fork)
                 }
                 {
                     auto fork = scheduler->create_fork_process();
@@ -821,15 +821,15 @@ public:
                         display(this, "%t: b = %0d", scheduler->sim_time, b);
                         END_FORK_PROCESS(fork);
                     };
-                    SCHEDULE_FORK(join, fork)
+                    SCHEDULE_FORK(joins, fork)
                 }
 
                 if constexpr (join_semantics == 0) {
-                    SCHEDULE_JOIN(join, scheduler, init_ptr);
+                    SCHEDULE_JOIN(joins, scheduler, init_ptr);
                 } else if constexpr (join_semantics == 1) {
-                    SCHEDULE_JOIN_ANY(join, scheduler, init_ptr);
+                    SCHEDULE_JOIN_ANY(joins, scheduler, init_ptr);
                 } else {
-                    SCHEDULE_JOIN_NONE(join, scheduler, init_ptr);
+                    SCHEDULE_JOIN_NONE(joins, scheduler, init_ptr);
                 }
 
                 display(this, "init finished: %t", scheduler->sim_time);

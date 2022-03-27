@@ -46,6 +46,8 @@ public:
 
     [[maybe_unused]] void handle(const slang::StatementBlockSymbol &);
 
+    [[maybe_unused]] void handle(const slang::BlockStatement &stmt);
+
     [[maybe_unused]] void handle(const slang::StatementList &list);
 
     [[maybe_unused]] void handle(const slang::ExpressionStatement &stmt);

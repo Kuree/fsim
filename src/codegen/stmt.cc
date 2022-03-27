@@ -4,6 +4,13 @@
 
 namespace fsim {
 
+constexpr auto START_FORK = "START_FORK";
+constexpr auto SCHEDULE_FORK = "SCHEDULE_FORK";
+constexpr auto END_FORK_PROCESS = "END_FORK_PROCESS";
+constexpr auto SCHEDULE_JOIN_ALL = "SCHEDULE_JOIN";
+constexpr auto SCHEDULE_JOIN_ANY = "SCHEDULE_ANY";
+constexpr auto SCHEDULE_JOIN_NONE = "SCHEDULE_NONE";
+
 VarDeclarationVisitor::VarDeclarationVisitor(std::ostream &s, int &indent_level,
                                              const CXXCodeGenOptions &options,
                                              CodeGenModuleInformation &module_info,
@@ -245,6 +252,81 @@ StmtCodeGenVisitor::StmtCodeGenVisitor(std::ostream &s, int &indent_level,
 
 [[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::StatementBlockSymbol &) {
     // we ignore this one for now
+}
+
+[[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::BlockStatement &stmt) {
+    // join
+    switch (stmt.blockKind) {
+        case slang::StatementBlockKind::JoinAll:
+        case slang::StatementBlockKind::JoinAny:
+        case slang::StatementBlockKind::JoinNone: {
+            auto const &body = stmt.getStatements();
+            // depends on the type
+            std::vector<const slang::Statement *> stmts;
+            auto join_name = module_info.get_new_name("fork");
+            if (body.kind == slang::StatementKind::List) {
+                auto const &list = body.as<slang::StatementList>();
+                stmts = std::vector(list.list.begin(), list.list.end());
+            } else {
+                stmts = {&body};
+            }
+            auto fork_size = stmts.size();
+            s << get_indent(indent_level) << START_FORK << "(" << join_name << ", " << fork_size
+              << ");" << std::endl;
+            for (auto const *st : stmts) {
+                s << get_indent(indent_level) << "{" << std::endl;
+                indent_level++;
+                auto p = module_info.enter_process();
+
+                s << get_indent(indent_level)
+                  << fmt::format("auto {0} = {1}->create_fork_process();", p,
+                                 module_info.scheduler_name())
+                  << std::endl;
+
+                s << get_indent(indent_level)
+                  << fmt::format("{0}->func = [{0}, {1}, this]() {{", p,
+                                 module_info.scheduler_name())
+                  << std::endl;
+                indent_level++;
+                st->visit(*this);
+                s << get_indent(indent_level) << END_FORK_PROCESS << "(" << p << ");" << std::endl;
+                indent_level--;
+                s << get_indent(indent_level) << "};" << std::endl;
+
+                s << get_indent(indent_level) << SCHEDULE_FORK << "(" << join_name << ", " << p
+                  << ");" << std::endl;
+
+                module_info.exit_process();
+                indent_level--;
+                s << get_indent(indent_level) << "}" << std::endl;
+            }
+            // join
+            std::string_view call_name;
+            switch (stmt.blockKind) {
+                case slang::StatementBlockKind::JoinAll:
+                    call_name = SCHEDULE_JOIN_ALL;
+                    break;
+                case slang::StatementBlockKind::JoinNone:
+                    call_name = SCHEDULE_JOIN_NONE;
+                    break;
+                case slang::StatementBlockKind::JoinAny:
+                    call_name = SCHEDULE_JOIN_ANY;
+                    break;
+                default:
+                    // should not reach here
+                    break;
+            }
+            s << get_indent(indent_level) << call_name << "(" << join_name << ", "
+              << module_info.scheduler_name() << ", " << module_info.current_process_name() << ");"
+              << std::endl;
+            break;
+        }
+        case slang::StatementBlockKind::Sequential: {
+            // using the default visit method
+            visitDefault(stmt);
+            break;
+        }
+    }
 }
 
 [[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::StatementList &list) {

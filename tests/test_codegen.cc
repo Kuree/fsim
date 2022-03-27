@@ -63,7 +63,6 @@ endmodule
     EXPECT_NE(output.find("result = 1"), std::string::npos);
 }
 
-
 TEST(code, if_stmt) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module m;
@@ -602,7 +601,7 @@ endmodule
     EXPECT_NE(output.find("a[1] = 1"), std::string::npos);
 }
 
-TEST(code, vpi) {   // NOLINT
+TEST(code, vpi) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module top;
 initial begin
@@ -612,9 +611,9 @@ endmodule
 )");
 
     auto vpi_c = R"(
-#include "vpi_user.h"
-
 #include <stdio.h>
+
+#include "vpi_user.h"
 
 void load() {
     s_vpi_vlog_info info;
@@ -641,7 +640,8 @@ void (*vlog_startup_routines[])() = {load, NULL};
     builder.build(&compilation);
     std::string output = testing::internal::GetCapturedStdout();
     EXPECT_NE(output.find("argc: 1\n"
-                          "argv[0]: ./fsim.out"), std::string::npos);
+                          "argv[0]: ./fsim.out"),
+              std::string::npos);
 }
 
 TEST(code, function) {  // NOLINT
@@ -662,7 +662,6 @@ initial begin
 end
 
 endmodule
-
 )");
 
     Compilation compilation;
@@ -676,7 +675,8 @@ endmodule
     builder.build(&compilation);
     std::string output = testing::internal::GetCapturedStdout();
     EXPECT_NE(output.find("add1: 3\n"
-                          "add2: 7"), std::string::npos);
+                          "add2: 7"),
+              std::string::npos);
 }
 
 TEST(code, task) {  // NOLINT
@@ -699,7 +699,6 @@ initial begin
 end
 
 endmodule
-
 )");
 
     Compilation compilation;
@@ -713,4 +712,42 @@ endmodule
     builder.build(&compilation);
     std::string output = testing::internal::GetCapturedStdout();
     EXPECT_NE(output.find("$finish(0) called at 42"), std::string::npos);
+}
+
+TEST(code, fork) {  // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+module top;
+
+int a, b;
+initial begin
+   fork
+       begin
+           #4;
+           a = 1;
+           $display("%t a = %0d", $time, a);
+       end
+       begin
+           #2;
+           b = 2;
+           $display("%t b = %0d", $time, b);
+       end
+   join
+end
+
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    BuildOptions options;
+
+    options.optimization_level = optimization_level;
+    options.run_after_build = true;
+    Builder builder(options);
+    testing::internal::CaptureStdout();
+    builder.build(&compilation);
+    std::string output = testing::internal::GetCapturedStdout();
+    EXPECT_NE(output.find("2 b = 2\n"
+                          "4 a = 1"),
+              std::string::npos);
 }

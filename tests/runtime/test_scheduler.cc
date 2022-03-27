@@ -809,7 +809,7 @@ public:
                         SCHEDULE_DELAY(fork, 4, scheduler, n);
                         a = 1_bit64;
                         display(this, "%t: a = %0d", scheduler->sim_time, a);
-                        END_PROCESS(fork);
+                        END_FORK_PROCESS(fork);
                     };
                     SCHEDULE_FORK(join, fork)
                 }
@@ -819,7 +819,7 @@ public:
                         SCHEDULE_DELAY(fork, 2, scheduler, n);
                         b = 2_bit64;
                         display(this, "%t: b = %0d", scheduler->sim_time, b);
-                        END_PROCESS(fork);
+                        END_FORK_PROCESS(fork);
                     };
                     SCHEDULE_FORK(join, fork)
                 }

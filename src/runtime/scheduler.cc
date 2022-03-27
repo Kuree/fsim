@@ -26,6 +26,10 @@ FFProcess::FFProcess() {
 ScheduledTimeslot::ScheduledTimeslot(uint64_t time, Process *process)
     : time(time), process(process) {}
 
+ScheduledJoin::ScheduledJoin(const std::vector<const ForkProcess *> &process,
+                             Process *parent_process, JoinType type)
+    : processes(process), parent_process(parent_process), type(type) {}
+
 Scheduler::Scheduler() : marl_scheduler_(marl::Scheduler::Config::allCores()) {
     // bind to the main thread
     marl_scheduler_.bind();
@@ -41,6 +45,51 @@ void printout_finish(int code, uint64_t time, std::string_view loc) {
         std::cout << " (" << loc << ")";
     }
     std::cout << std::endl;
+}
+
+inline void wake_up_thread(Process *process) {
+    process->running = true;
+    process->delay.signal();
+}
+
+bool join_processes(std::vector<ScheduledJoin> &joins) {
+    bool changed = false;
+    std::vector<ScheduledJoin> new_joins;
+    for (auto const &join : joins) {
+        switch (join.type) {
+            case ScheduledJoin::JoinType::All: {
+                auto r = std::all_of(join.processes.begin(), join.processes.end(),
+                                     [](auto const *p) { return p->finished; });
+                if (r) {
+                    changed = true;
+                    wake_up_thread(join.parent_process);
+                } else {
+                    new_joins.emplace_back(join);
+                }
+                break;
+            }
+            case ScheduledJoin::JoinType::Any: {
+                auto r = std::any_of(join.processes.begin(), join.processes.end(),
+                                     [](auto const *p) { return p->finished; });
+                if (r) {
+                    changed = true;
+                    wake_up_thread(join.parent_process);
+                } else {
+                    new_joins.emplace_back(join);
+                }
+                break;
+            }
+            case ScheduledJoin::JoinType::None: {
+                // noop
+                changed = true;
+                wake_up_thread(join.parent_process);
+                break;
+            }
+        }
+    }
+    joins.clear();
+    joins = std::vector(new_joins.begin(), new_joins.end());
+    return changed;
 }
 
 void Scheduler::run(Module *top) {
@@ -79,11 +128,8 @@ void Scheduler::run(Module *top) {
             // at this point it's stable, so we don't need a lock to check
             if (!join_processes_.empty()) {
                 std::lock_guard guard(join_processes_lock_);
-                for (auto *p : join_processes_) {
-                    p->delay.signal();
-                }
-                join_processes_.clear();
-                goto start;
+                auto changed = join_processes(join_processes_);
+                if (changed) goto start;
             }
         }
 
@@ -100,8 +146,7 @@ void Scheduler::run(Module *top) {
                 //  release all of them at once
                 while (!event_queue_.empty() && event_queue_.top().time == next_slot_time) {
                     auto const &event = event_queue_.top();
-                    event.process->running = true;
-                    event.process->delay.signal();
+                    wake_up_thread(event.process);
                     event_queue_.pop();
                 }
             }
@@ -185,9 +230,9 @@ void Scheduler::schedule_delay(const ScheduledTimeslot &event) {
     event_queue_.emplace(event);
 }
 
-void Scheduler::schedule_join_check(const Process *process) {
+void Scheduler::schedule_join_check(const ScheduledJoin &join) {
     std::lock_guard guard(join_processes_lock_);
-    join_processes_.emplace_back(process);
+    join_processes_.emplace_back(join);
 }
 
 void Scheduler::schedule_fork(ForkProcess *process) {

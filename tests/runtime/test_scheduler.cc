@@ -802,7 +802,8 @@ public:
         {
             auto init_ptr = scheduler->create_init_process();
             init_ptr->func = [init_ptr, scheduler, this]() {
-                START_FORK(join, 2) {
+                START_FORK(join, 2);
+                {
                     auto fork = scheduler->create_fork_process();
                     fork->func = [fork, scheduler, this]() {
                         SCHEDULE_DELAY(fork, 4, scheduler, n);
@@ -871,7 +872,7 @@ TEST(runtime, fork_join_any) {  // NOLINT
 }
 
 TEST(runtime, fork_join_none) {  // NOLINT
-    for (auto i = 0; i < 1; i++) {
+    for (auto i = 0; i < 100; i++) {
         Scheduler scheduler;
         ForkJoin<2> m;
         testing::internal::CaptureStdout();

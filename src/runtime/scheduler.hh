@@ -69,6 +69,16 @@ public:
     bool operator<(const ScheduledTimeslot &other) const { return time > other.time; }
 };
 
+class ScheduledJoin {
+public:
+    enum class JoinType { None, Any, All };
+    ScheduledJoin(const std::vector<const ForkProcess *> &process, Process *parent_process,
+                  JoinType type);
+    const std::vector<const ForkProcess *> &processes;
+    Process *parent_process;
+    JoinType type;
+};
+
 struct FinishInfo {
     int code;
     std::string_view loc;
@@ -90,7 +100,7 @@ public:
     static void schedule_init(InitialProcess *init);
     static void schedule_final(FinalProcess *final);
     void schedule_delay(const ScheduledTimeslot &event);
-    void schedule_join_check(const Process *process);
+    void schedule_join_check(const ScheduledJoin &join);
     static void schedule_fork(ForkProcess *process);
     void schedule_finish(int code, std::string_view loc = {});
     void schedule_nba(const std::function<void()> &func);
@@ -111,7 +121,7 @@ private:
     // we will statically allocate time slot inside each module/class
     std::priority_queue<ScheduledTimeslot> event_queue_;
     std::mutex event_queue_lock_;
-    std::vector<const Process *> join_processes_;
+    std::vector<ScheduledJoin> join_processes_;
     std::mutex join_processes_lock_;
 
     std::vector<std::unique_ptr<InitialProcess>> init_processes_;

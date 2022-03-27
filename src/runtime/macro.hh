@@ -41,28 +41,39 @@
     std::vector<ForkProcess *> fork_name; \
     fork_name.reserve(num_fork);
 
-#define SCHEDULE_FORK(fork_name, process) \
-    fork_name.emplace_back(process);      \
+#define SCHEDULE_FORK(fork_name, process)        \
+    fork_name.emplace_back(process);             \
+    this->fork_processes_.emplace_back(process); \
     fsim::runtime::Scheduler::schedule_fork(process);
 
-#define SCHEDULE_JOIN(fork_name, scheduler, process)                \
-    process->cond.signal();                                         \
-    while (true) {                                                  \
-        scheduler->schedule_join_check(process);                    \
-        if (std::all_of(fork_name.begin(), fork_name.end(),         \
-                        [](auto const *p) { return p->finished; })) \
-            break;                                                  \
-        process->delay.wait();                                      \
-    }
+#define SCHEDULE_JOIN(fork_name, scheduler, process)                    \
+    do {                                                                \
+        process->cond.signal();                                         \
+        while (true) {                                                  \
+            scheduler->schedule_join_check(process);                    \
+            if (std::all_of(fork_name.begin(), fork_name.end(),         \
+                            [](auto const *p) { return p->finished; })) \
+                break;                                                  \
+            process->delay.wait();                                      \
+        }                                                               \
+    } while (0)
 
-#define SCHEDULE_ANY(fork_name, scheduler, process)                 \
-    process->cond.signal();                                         \
-    while (true) {                                                  \
-        scheduler->schedule_join_check(process);                    \
-        if (std::any_of(fork_name.begin(), fork_name.end(),         \
-                        [](auto const *p) { return p->finished; })) \
-            break;                                                  \
-        process->delay.wait();                                      \
-    }
+#define SCHEDULE_JOIN_ANY(fork_name, scheduler, process)                \
+    do {                                                                \
+        process->cond.signal();                                         \
+        while (true) {                                                  \
+            scheduler->schedule_join_check(process);                    \
+            if (std::any_of(fork_name.begin(), fork_name.end(),         \
+                            [](auto const *p) { return p->finished; })) \
+                break;                                                  \
+            process->delay.wait();                                      \
+        }                                                               \
+    } while (0)
 
+#define SCHEDULE_JOIN_NONE(fork_name, scheduler, process) \
+    do {                                                  \
+        (void)fork_name;                                  \
+        (void)scheduler;                                  \
+        (void)process;                                    \
+    } while (0)
 #endif  // FSIM_MACRO_HH

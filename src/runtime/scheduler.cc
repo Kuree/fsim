@@ -58,6 +58,7 @@ void Scheduler::run(Module *top) {
 
     // either wait for the finish or wait for the complete from init
     while (true) {
+    start:
         do {
             // active
             active();
@@ -82,6 +83,7 @@ void Scheduler::run(Module *top) {
                     p->delay.signal();
                 }
                 join_processes_.clear();
+                goto start;
             }
         }
 

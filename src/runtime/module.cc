@@ -160,6 +160,12 @@ void Module::wait_for_timed_processes() {
             wait_process_switch(p);
         }
     }
+
+    for (auto *p : fork_processes_) {
+        if (!p->finished && p->running) {
+            wait_process_switch(p);
+        }
+    }
 }
 
 void Module::schedule_ff() {  // NOLINT

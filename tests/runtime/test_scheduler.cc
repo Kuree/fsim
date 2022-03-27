@@ -767,6 +767,10 @@ TEST(runtime, edge_control) {  // NOLINT
     }
 }
 
+// 0 for join
+// 1 for join_any
+// 2 for join_none
+template <int join_semantics>
 class ForkJoin : public Module {
     /*
      * module top;
@@ -798,8 +802,7 @@ public:
         {
             auto init_ptr = scheduler->create_init_process();
             init_ptr->func = [init_ptr, scheduler, this]() {
-                START_FORK(join, 2);
-                {
+                START_FORK(join, 2) {
                     auto fork = scheduler->create_fork_process();
                     fork->func = [fork, scheduler, this]() {
                         SCHEDULE_DELAY(fork, 4, scheduler, n);
@@ -807,7 +810,7 @@ public:
                         display(this, "%t: a = %0d", scheduler->sim_time, a);
                         END_PROCESS(fork);
                     };
-                    SCHEDULE_FORK(join, fork);
+                    SCHEDULE_FORK(join, fork)
                 }
                 {
                     auto fork = scheduler->create_fork_process();
@@ -817,10 +820,18 @@ public:
                         display(this, "%t: b = %0d", scheduler->sim_time, b);
                         END_PROCESS(fork);
                     };
-                    SCHEDULE_FORK(join, fork);
+                    SCHEDULE_FORK(join, fork)
                 }
 
-                SCHEDULE_JOIN(join, scheduler, init_ptr);
+                if constexpr (join_semantics == 0) {
+                    SCHEDULE_JOIN(join, scheduler, init_ptr);
+                } else if constexpr (join_semantics == 1) {
+                    SCHEDULE_JOIN_ANY(join, scheduler, init_ptr);
+                } else {
+                    SCHEDULE_JOIN_NONE(join, scheduler, init_ptr);
+                }
+
+                display(this, "init finished: %t", scheduler->sim_time);
 
                 // done with this init
                 END_PROCESS(init_ptr);
@@ -831,14 +842,43 @@ public:
     }
 };
 
-TEST(runtime, fork) {  // NOLINT
+TEST(runtime, fork_join) {  // NOLINT
     for (auto i = 0; i < 100; i++) {
         Scheduler scheduler;
-        ForkJoin m;
+        ForkJoin<0> m;
         testing::internal::CaptureStdout();
         scheduler.run(&m);
         std::string output = testing::internal::GetCapturedStdout();
         EXPECT_NE(output.find("2: b = 2\n"
+                              "4: a = 1\n"
+                              "init finished: 4"),
+                  std::string::npos);
+    }
+}
+
+TEST(runtime, fork_join_any) {  // NOLINT
+    for (auto i = 0; i < 100; i++) {
+        Scheduler scheduler;
+        ForkJoin<1> m;
+        testing::internal::CaptureStdout();
+        scheduler.run(&m);
+        std::string output = testing::internal::GetCapturedStdout();
+        EXPECT_NE(output.find("2: b = 2\n"
+                              "init finished: 2\n"
+                              "4: a = 1"),
+                  std::string::npos);
+    }
+}
+
+TEST(runtime, fork_join_none) {  // NOLINT
+    for (auto i = 0; i < 1; i++) {
+        Scheduler scheduler;
+        ForkJoin<2> m;
+        testing::internal::CaptureStdout();
+        scheduler.run(&m);
+        std::string output = testing::internal::GetCapturedStdout();
+        EXPECT_NE(output.find("init finished: 0\n"
+                              "2: b = 2\n"
                               "4: a = 1"),
                   std::string::npos);
     }

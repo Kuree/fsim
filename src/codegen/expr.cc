@@ -548,6 +548,9 @@ void TimingControlCodeGen::handle(const slang::TimingControl &timing) {
             s << ");";
             break;
         }
+        case slang::TimingControlKind::ImplicitEvent:
+            // noop
+            break;
         default: {
             throw NotSupportedException(
                 fmt::format("Unsupported timing control {0}", slang::toString(timing.kind)),

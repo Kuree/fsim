@@ -291,6 +291,12 @@ bool has_timing_control(const slang::ProceduralBlockSymbol &stmt) {
     return vis.has_timing_control;
 }
 
+bool in_the_sym_set(const std::unordered_set<const slang::NamedValueExpression *> &set,
+                    const slang::NamedValueExpression *expr) {
+    return std::any_of(set.begin(), set.end(),
+                       [expr](auto const *n) { return &expr->symbol == &n->symbol; });
+}
+
 // NOLINTNEXTLINE
 [[maybe_unused]] void DependencyAnalysisVisitor::handle(const slang::ProceduralBlockSymbol &stmt) {
     if (stmt.procedureKind == slang::ProceduralBlockKind::AlwaysComb ||
@@ -323,13 +329,18 @@ bool has_timing_control(const slang::ProceduralBlockSymbol &stmt) {
         SensitivityListExtraction s(stmt.procedureKind == slang::ProceduralBlockKind::AlwaysComb,
                                     stmt_instance);
         stmt.visit(s);
+        if (right_list.empty()) right_list = s.right;
         for (auto *left : s.left) {
+            // break the loop for self-triggering always block
+            if (in_the_sym_set(right_list, left))
+                continue;
             auto n = graph->get_node(left);
             node->edges_to.emplace(n);
             n->edges_from.emplace(node);
         }
-        if (right_list.empty()) right_list = s.right;
         for (auto *right : right_list) {
+            if (in_the_sym_set(s.left, right))
+                continue;
             auto n = graph->get_node(right);
             node->edges_from.emplace(n);
             n->edges_to.emplace(node);

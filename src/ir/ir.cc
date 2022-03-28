@@ -68,7 +68,6 @@ std::vector<const DependencyAnalysisVisitor::Node *> sort(const DGraph *graph) {
                 n->symbol.getHierarchicalPath(buf);
                 throw InvalidSyntaxException(fmt::format("Combinational loop detected at {0}", buf),
                                              n->symbol.location);
-                return {};
             }
         }
     }
@@ -414,7 +413,7 @@ void Module::analyze_ff() {
             } else if (single_event.edge == slang::EdgeKind::BothEdges) {
                 throw NotSupportedException("Both edges not supported", stmt->location);
             }
-        } else {
+        } else if (timing_control.kind == slang::TimingControlKind::EventList) {
             auto const &event_list = timing_control.as<slang::EventListControl>();
             for (auto const &event : event_list.events) {
                 if (event->kind == slang::TimingControlKind::SignalEvent) {

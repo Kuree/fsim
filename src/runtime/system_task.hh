@@ -41,46 +41,48 @@ void assert_(const T &v, std::string_view name, std::string_view loc,
 }
 
 std::string preprocess_display_fmt(const Module *module, std::string_view format);
-std::pair<std::string_view, uint64_t> preprocess_display_fmt(std::string_view format);
+std::pair<std::string_view, uint64_t> preprocess_display_fmt(std::string_view format,
+                                                             std::stringstream &ss);
 
 // induction case
 template <typename T, typename... Args>
-std::pair<std::string, uint64_t> sformat_(const Module *m, std::string_view format, T arg,
-                                          Args... args) {
-    auto start_pos = display_(m, format, arg);
-    return sformat_(m, format.substr(start_pos), args...);
+uint64_t sformat_(const Module *m, std::string_view format, std::stringstream &ss, T arg,
+                  Args... args) {
+    auto start_pos = sformat_(m, format, ss, arg);
+    return sformat_(m, format.substr(start_pos), ss, args...);
 }
 
 // base case
 template <typename T>
-std::pair<std::string, uint64_t> sformat_(const Module *module, std::string_view format,
-                                          const T &arg) {
+uint64_t sformat_(const Module *module, std::string_view format, std::stringstream &ss,
+                  const T &arg) {
     auto processed_format = preprocess_display_fmt(module, format);
-    auto [fmt, start_pos] = preprocess_display_fmt(format);
-    std::string res;
+    auto [fmt, start_pos] = preprocess_display_fmt(processed_format, ss);
     if (!fmt.empty()) {
         if constexpr (std::is_same_v<T, const char *> || std::is_arithmetic_v<T>) {
-            res = arg;
+            ss << arg;
         } else {
-            res = arg.str(fmt);
+            ss << arg.str(fmt);
         }
     }
 
-    return {res, start_pos};
+    return start_pos;
 }
 
 template <typename... Args>
 void display(const Module *module, std::string_view format, Args... args) {
-    auto s = sformat_(module, format, args...);
+    std::stringstream ss;
+    sformat_(module, format, ss, args...);
     cout_lock lock;
-    std::cout << s << std::endl;
+    std::cout << ss.str() << std::endl;
 }
 
 template <typename... Args>
 void write(const Module *module, std::string_view format, Args... args) {
-    auto s = sformat_(module, format, args...);
+    std::stringstream ss;
+    sformat_(module, format, ss, args...);
     cout_lock lock;
-    std::cout << s;
+    std::cout << ss.str();
 }
 
 void display(const Module *module, std::string_view format);
@@ -117,9 +119,10 @@ template <typename... Args>
 void fwrite(const Module *module, int32_t fd, std::string_view format, Args... args) {
     // only display the format for now
     cout_lock lock;
+    std::stringstream ss;
     auto fmt = preprocess_display_fmt(module, format);
-    auto s = sformat_(module, fmt, args...);
-    fwrite_(fd, s);
+    sformat_(module, fmt, ss, args...);
+    fwrite_(fd, ss.str(), false);
 }
 
 void fdisplay_(int32_t fd, std::string_view str);
@@ -127,9 +130,10 @@ template <typename... Args>
 void fdisplay(const Module *module, int32_t fd, std::string_view format, Args... args) {
     // only display the format for now
     cout_lock lock;
+    std::stringstream ss;
     auto fmt = preprocess_display_fmt(module, format);
-    auto s = sformat_(module, fmt, args...);
-    fdisplay_(fd, s);
+    sformat_(module, fmt, ss, args...);
+    fdisplay_(fd, ss.str());
 }
 
 }  // namespace fsim::runtime

@@ -45,23 +45,24 @@ std::string preprocess_display_fmt(const Module *module, std::string_view format
     return result;
 }
 
-std::pair<std::string_view, uint64_t> preprocess_display_fmt(std::string_view format) {
+std::pair<std::string_view, uint64_t> preprocess_display_fmt(std::string_view format,
+                                                             std::stringstream &ss) {
     auto total_size = format.size();
     while (true) {
         auto pos = format.find_first_of('%');
         if (pos == std::string::npos) {
             // no % symbol
-            std::cout << format;
+            ss << format;
             return std::make_pair("", total_size);
         } else if (pos < (format.size() - 1) && format[pos + 1] == '%') {
             // false positive, move to the next one
             format = format.substr(2);
             // output the one we just consumed
-            std::cout << "%%";
+            ss << "%%";
             continue;
         }
         // consume the non-format string
-        std::cout << format.substr(0, pos);
+        ss << format.substr(0, pos);
         // find string format
         format = format.substr(pos + 1);
         auto end = format.find_first_not_of("0123456789");
@@ -78,14 +79,14 @@ std::pair<std::string_view, uint64_t> preprocess_display_fmt(std::string_view fo
 
 void display(const Module *module, std::string_view format) {
     cout_lock lock;
-    auto fmt = preprocess_display_fmt(module, format);
-    std::cout << fmt << std::endl;
+    auto str = preprocess_display_fmt(module, format);
+    std::cout << str << std::endl;
 }
 
 void write(const Module *module, std::string_view format) {
     cout_lock lock;
-    auto fmt = preprocess_display_fmt(module, format);
-    std::cout << fmt;
+    auto str = preprocess_display_fmt(module, format);
+    std::cout << str;
 }
 
 struct OpenFile {

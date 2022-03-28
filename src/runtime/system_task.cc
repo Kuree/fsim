@@ -1,5 +1,7 @@
 #include "system_task.hh"
 
+#include <fstream>
+
 #include "module.hh"
 
 namespace fsim::runtime {
@@ -75,10 +77,88 @@ std::pair<std::string_view, uint64_t> preprocess_display_fmt(std::string_view fo
 }
 
 void display(const Module *module, std::string_view format) {
-    // only display the format for now
     cout_lock lock;
     auto fmt = preprocess_display_fmt(module, format);
     std::cout << fmt << std::endl;
 }
+
+void write(const Module *module, std::string_view format) {
+    cout_lock lock;
+    auto fmt = preprocess_display_fmt(module, format);
+    std::cout << fmt;
+}
+
+struct OpenFile {
+    explicit OpenFile(std::unique_ptr<std::fstream> &&stream) : stream(std::move(stream)) {}
+    std::unique_ptr<std::fstream> stream;
+    std::mutex lock;
+};
+
+static std::mutex fd_lock;
+static std::unordered_map<int, std::unique_ptr<OpenFile>> opened_files;
+static uint32_t fd_count = 0;
+
+int32_t fopen(std::string_view filename, std::string_view mode_str) {
+    auto stream = std::make_unique<std::fstream>();
+    std::ios_base::openmode mode;
+    if (mode_str.find('r') != std::string::npos) {
+        mode |= std::ios_base::in;
+    }
+    if (mode_str.find('w') != std::string::npos) {
+        mode |= std::ios_base::out;
+    }
+    if (mode_str.find('+') != std::string::npos) {
+        mode |= std::ios_base::ate | std::ios_base::app;
+    }
+    stream->open(filename.data(), mode);
+
+    if (stream->bad()) {
+        return -1;
+    }
+
+    std::lock_guard guard(fd_lock);
+    auto u_fd = fd_count++;
+    u_fd |= (1u << 31);
+    auto fd = static_cast<int32_t>(u_fd);
+    auto opened = std::make_unique<OpenFile>(std::move(stream));
+    opened_files.emplace(fd, std::move(opened));
+    return fd;
+}
+
+void fclose(int32_t fd) {
+    std::lock_guard guard(fd_lock);
+    if (opened_files.find(fd) == opened_files.end()) {
+        return;
+    }
+    auto &stream = opened_files.at(fd);
+    std::lock_guard guard_stream(stream->lock);
+    stream->stream->close();
+    opened_files.erase(fd);
+}
+
+void fwrite_(int fd, std::string_view str, bool new_line) {
+    if (fd == 1) {
+        std::cout << str;
+    } else if (fd == 2) {
+        std::cerr << str;
+    } else {
+        // per LRM 21.3.1
+        // custom file opened has the highest bit set
+        auto u_fd = static_cast<uint32_t>(fd);
+        if (!(u_fd & (1u << 31))) {
+            // ignore it so far, maybe use location future
+            return;
+        }
+        if (opened_files.find(fd) == opened_files.end()) {
+            return;
+        }
+        auto &f = opened_files.at(fd);
+        std::lock_guard guard(f->lock);
+        (*f->stream) << str;
+        if (new_line) (*f->stream) << std::endl;
+    }
+}
+
+void fdisplay_(int32_t fd, std::string_view str) { fwrite_(fd, str, true); }
 
 }  // namespace fsim::runtime

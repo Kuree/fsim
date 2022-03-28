@@ -1,6 +1,7 @@
 #ifndef FSIM_SYSTEM_TASK_HH
 #define FSIM_SYSTEM_TASK_HH
 
+#include <cstdio>
 #include <functional>
 #include <iostream>
 
@@ -44,35 +45,46 @@ std::pair<std::string_view, uint64_t> preprocess_display_fmt(std::string_view fo
 
 // induction case
 template <typename T, typename... Args>
-uint64_t display_(const Module *m, std::string_view format, T arg, Args... args) {
+std::pair<std::string, uint64_t> sformat_(const Module *m, std::string_view format, T arg,
+                                          Args... args) {
     auto start_pos = display_(m, format, arg);
-    return display_(m, format.substr(start_pos), args...);
+    return sformat_(m, format.substr(start_pos), args...);
 }
 
 // base case
 template <typename T>
-uint64_t display_(const Module *, std::string_view format, const T &arg) {
+std::pair<std::string, uint64_t> sformat_(const Module *module, std::string_view format,
+                                          const T &arg) {
+    auto processed_format = preprocess_display_fmt(module, format);
     auto [fmt, start_pos] = preprocess_display_fmt(format);
+    std::string res;
     if (!fmt.empty()) {
         if constexpr (std::is_same_v<T, const char *> || std::is_arithmetic_v<T>) {
-            std::cout << arg;
+            res = arg;
         } else {
-            std::cout << arg.str(fmt);
+            res = arg.str(fmt);
         }
     }
-    return start_pos;
+
+    return {res, start_pos};
 }
 
 template <typename... Args>
 void display(const Module *module, std::string_view format, Args... args) {
-    // only display the format for now
+    auto s = sformat_(module, format, args...);
     cout_lock lock;
-    auto fmt = preprocess_display_fmt(module, format);
-    display_(module, fmt, args...);
-    std::cout << std::endl;
+    std::cout << s << std::endl;
+}
+
+template <typename... Args>
+void write(const Module *module, std::string_view format, Args... args) {
+    auto s = sformat_(module, format, args...);
+    cout_lock lock;
+    std::cout << s;
 }
 
 void display(const Module *module, std::string_view format);
+void write(const Module *module, std::string_view format);
 
 template <typename T>
 inline void finish(Scheduler *scheduler, T code, std::string_view loc) {
@@ -90,6 +102,35 @@ inline void finish(Scheduler *scheduler, T code, std::string_view loc) {
 }
 
 [[maybe_unused]] inline uint64_t time(Scheduler *scheduler) { return scheduler->sim_time; }
+
+int32_t fopen(std::string_view filename, std::string_view mode);
+template <typename T>
+int32_t fopen(std::string_view filename, T mode) {
+    auto mod_str = mode.str("%s");
+    return fopen(filename, mod_str);
+}
+
+void fclose(int32_t fd);
+
+void fwrite_(int32_t fd, std::string_view str, bool new_line);
+template <typename... Args>
+void fwrite(const Module *module, int32_t fd, std::string_view format, Args... args) {
+    // only display the format for now
+    cout_lock lock;
+    auto fmt = preprocess_display_fmt(module, format);
+    auto s = sformat_(module, fmt, args...);
+    fwrite_(fd, s);
+}
+
+void fdisplay_(int32_t fd, std::string_view str);
+template <typename... Args>
+void fdisplay(const Module *module, int32_t fd, std::string_view format, Args... args) {
+    // only display the format for now
+    cout_lock lock;
+    auto fmt = preprocess_display_fmt(module, format);
+    auto s = sformat_(module, fmt, args...);
+    fdisplay_(fd, s);
+}
 
 }  // namespace fsim::runtime
 

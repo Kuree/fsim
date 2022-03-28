@@ -39,7 +39,7 @@ void VarDeclarationVisitor::handle(const slang::VariableSymbol &var) {
 
     s << ";" << std::endl;
     // add it to tracked names
-    module_info.add_used_names(var.name);
+    module_info.add_used_names(module_info.get_identifier_name(var.name));
 }
 
 [[maybe_unused]] void VarDeclarationVisitor::handle(const slang::NetSymbol &var) {
@@ -47,7 +47,7 @@ void VarDeclarationVisitor::handle(const slang::VariableSymbol &var) {
     auto var_type_decl = get_var_decl(var);
     s << get_indent(indent_level) << var_type_decl << ";" << std::endl;
 
-    module_info.add_used_names(var.name);
+    module_info.add_used_names(module_info.get_identifier_name(var.name));
 }
 
 [[maybe_unused]] void VarDeclarationVisitor::handle(const slang::VariableDeclStatement &stmt) {
@@ -71,7 +71,7 @@ void VarDeclarationVisitor::handle(const slang::VariableSymbol &var) {
 
 class TypePrinter {
 public:
-    TypePrinter(const slang::Symbol &sym, const CodeGenModuleInformation &module_info,
+    TypePrinter(const slang::Symbol &sym, CodeGenModuleInformation &module_info,
                 const CXXCodeGenOptions &options, std::string_view name_prefix)
         : sym_(sym), module_info_(module_info), options_(options), name_prefix_(name_prefix) {
         auto const &t = sym.getDeclaredType()->getType();
@@ -178,7 +178,7 @@ public:
 
 private:
     const slang::Symbol &sym_;
-    const CodeGenModuleInformation &module_info_;
+    CodeGenModuleInformation &module_info_;
     const CXXCodeGenOptions &options_;
     std::string_view name_prefix_;
 
@@ -210,10 +210,13 @@ private:
         print_unpacked_array_dim(type.getArrayElementType()->getCanonicalType());
     }
 
-    void print_name() { s_ << " " << name_prefix_ << sym_.name; }
+    void print_name() {
+        auto n = module_info_.get_identifier_name(sym_.name);
+        s_ << " " << name_prefix_ << n;
+    }
 };
 
-std::string get_symbol_type(const slang::Symbol &sym, const CodeGenModuleInformation &module_info,
+std::string get_symbol_type(const slang::Symbol &sym, CodeGenModuleInformation &module_info,
                             const CXXCodeGenOptions &options, std::string_view name_prefix) {
     TypePrinter p(sym, module_info, options, name_prefix);
     return p.str();
@@ -423,7 +426,9 @@ void StmtCodeGenVisitor::handle(const slang::CaseStatement &stmt) {
     }
 
     if (stmt.defaultCase) {
-        s << " else {";
+        if (!cases.empty()) [[likely]]
+            s << " else ";
+        s << "{";
         indent_level++;
 
         stmt.defaultCase->visit(*this);

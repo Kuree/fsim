@@ -56,7 +56,7 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
     auto const *top_body =
         module_info_.current_module ? &module_info_.current_module->def()->body : parent;
     if (!parent || parent == top_body) {
-        s << sym.name;
+        s << module_info_.get_identifier_name(sym.name);
     } else {
         // different path, need to generate the path
         std::vector<std::string_view> paths;
@@ -67,7 +67,7 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
         for (auto const &p : paths) {
             s << p << "->";
         }
-        s << sym.name;
+        s << module_info_.get_identifier_name(sym.name);
     }
 }
 
@@ -396,7 +396,7 @@ void ExprCodeGenVisitor::handle(const slang::RangeSelectExpression &expr) {
         const auto *function = std::get<0>(expr.subroutine);
         // DPI calls
         // for now we only support inputs
-        s << function->name << "(";
+        s << module_info_.get_identifier_name(function->name) << "(";
         auto const &func_args = function->getArguments();
         auto const &call_args = expr.arguments();
         // for task, we need to pass in the current process;

@@ -18,7 +18,7 @@ public:
 
     [[maybe_unused]] void handle(const slang::NamedValueExpression &n);
 
-    void handle(const slang::ValueSymbol &sym);
+    [[maybe_unused]] void handle(const slang::ValueSymbol &sym);
 
     [[maybe_unused]] void handle(const slang::ConversionExpression &c);
 

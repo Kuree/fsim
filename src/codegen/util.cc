@@ -81,6 +81,26 @@ const slang::Compilation *CodeGenModuleInformation::get_compilation() const {
     return current_module ? current_module->get_compilation() : nullptr;
 }
 
+inline bool valid_cxx_name(std::string_view name) {
+    if (name.empty()) return false;
+    auto first = name[0];
+    if (first != '_' && !std::isalpha(first)) return false;
+    return std::all_of(name.begin() + 1, name.end(),
+                       [](auto c) { return c == '_' || std::isdigit(c) || std::isalpha(c); });
+}
+
+std::string_view CodeGenModuleInformation::get_identifier_name(std::string_view name) {
+    if (valid_cxx_name(name)) [[likely]] {
+        return name;
+    } else {
+        if (renamed_identifier_.find(name) == renamed_identifier_.end()) {
+            auto new_name = get_new_name("renamed_var");
+            renamed_identifier_.emplace(name, new_name);
+        }
+        return renamed_identifier_.at(name);
+    }
+}
+
 std::string_view get_indent(int indent_level) {
     static std::unordered_map<int, std::string> cache;
     if (cache.find(indent_level) == cache.end()) {

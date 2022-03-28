@@ -2,6 +2,7 @@
 #define FSIM_CXX_HH
 
 #include "../ir/ir.hh"
+#include "util.hh"
 
 namespace fsim {
 struct CXXCodeGenOptions {
@@ -21,6 +22,7 @@ public:
 private:
     const Module *top_;
     CXXCodeGenOptions &option_;
+    CodeGenModuleInformation info_;
 };
 
 }  // namespace fsim

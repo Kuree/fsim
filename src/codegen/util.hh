@@ -53,10 +53,16 @@ public:
 
     const slang::Compilation *get_compilation() const;
 
+    std::string_view get_identifier_name(std::string_view name);
+
 private:
     std::stack<std::string> process_names_;
     std::unordered_set<std::string> used_names_;
     std::unordered_set<std::string_view> tracked_vars_;
+
+    // SystemVerilog allows escape for weird names
+    // e.g. escaped identifiers
+    std::unordered_map<std::string_view, std::string> renamed_identifier_;
 
     std::string scheduler_name_;
 };

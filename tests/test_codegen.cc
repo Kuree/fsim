@@ -14,9 +14,11 @@ TEST(code, declaration) {  // NOLINT
     auto tree = SyntaxTree::fromText(R"(
 module m;
 logic [3:0] a, b;
+int \`~!- ;
 logic c;
 initial begin
     logic d;
+    \`~!- = 1;
     $display("PASS", a, b, c);
 end
 endmodule

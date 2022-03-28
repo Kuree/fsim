@@ -779,3 +779,45 @@ endmodule
     std::string output = testing::internal::GetCapturedStdout();
     EXPECT_NE(output.find("b = 2 c = 2"), std::string::npos);
 }
+
+TEST(code, case_) {  // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+module top;
+
+int a, b;
+
+always_comb begin
+    case (a)
+      1: b = 1;
+      2: b = 2;
+      default: b = 3;
+    endcase
+end
+
+initial begin
+    a = 1;
+    #1;
+    $display("b = %0d", b);
+    a = 2;
+    #1;
+    $display("b = %0d", b);
+    a = 4;
+    #1;
+    $display("b = %0d", b);
+end
+
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    BuildOptions options;
+
+    options.optimization_level = optimization_level;
+    options.run_after_build = true;
+    Builder builder(options);
+    testing::internal::CaptureStdout();
+    builder.build(&compilation);
+    std::string output = testing::internal::GetCapturedStdout();
+    EXPECT_NE(output.find("b = 1\nb = 2\nb = 3"), std::string::npos);
+}

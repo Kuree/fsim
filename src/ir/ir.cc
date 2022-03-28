@@ -37,15 +37,12 @@ void sort_(const DNode *node, std::unordered_set<const DNode *> &visited,
     stack.emplace(node);
 }
 
-std::vector<const DependencyAnalysisVisitor::Node *> sort(const DGraph *graph, std::string &error) {
+std::vector<const DependencyAnalysisVisitor::Node *> sort(const DGraph *graph) {
     std::stack<const DNode *> stack;
     std::unordered_set<const DNode *> visited;
     for (auto const &n : graph->nodes) {
         if (visited.find(n.get()) == visited.end()) {
             sort_(n.get(), visited, stack);
-            if (!error.empty()) {
-                return {};
-            }
         }
     }
 
@@ -69,7 +66,8 @@ std::vector<const DependencyAnalysisVisitor::Node *> sort(const DGraph *graph, s
                 // cycle detected
                 std::string buf;
                 n->symbol.getHierarchicalPath(buf);
-                error = fmt::format("Combinational loop detected at {0}", buf);
+                throw InvalidSyntaxException(fmt::format("Combinational loop detected at {0}", buf),
+                                             n->symbol.location);
                 return {};
             }
         }
@@ -77,32 +75,23 @@ std::vector<const DependencyAnalysisVisitor::Node *> sort(const DGraph *graph, s
     return result;
 }
 
-std::string Module::analyze() {
-    std::string error;
-    error = analyze_connections();
-    if (!error.empty()) return error;
+void Module::analyze() {
+    analyze_connections();
 
     // compute procedure combinational blocks
-    error = analyze_comb();
-    if (!error.empty()) return error;
+    analyze_comb();
 
-    error = analyze_init();
-    if (!error.empty()) return error;
+    analyze_init();
 
-    error = analyze_final();
-    if (!error.empty()) return error;
+    analyze_final();
 
-    error = analyze_ff();
-    if (!error.empty()) return error;
+    analyze_ff();
 
     // analyze this all the functions calls
-    error = analyze_function();
-    if (!error.empty()) return error;
+    analyze_function();
 
     // this is a recursive call to walk through all the module definitions
     analyze_inst();
-
-    return error;
 }
 
 class PortVariableSymbolCollector
@@ -138,7 +127,7 @@ private:
     const slang::InstanceBodySymbol *instance_ = nullptr;
 };
 
-std::string Module::analyze_connections() {
+void Module::analyze_connections() {
     // we only care about ports for now
     auto const &port_list = def_->body.getPortList();
     for (auto const *sym : port_list) {
@@ -156,8 +145,9 @@ std::string Module::analyze_connections() {
                     break;
                 }
                 default:
-                    return fmt::format("Unsupported port direction {0}",
-                                       slang::toString(port.direction));
+                    throw NotSupportedException(fmt::format("Unsupported port direction {0}",
+                                                            slang::toString(port.direction)),
+                                                port.location);
             }
         }
     }
@@ -166,7 +156,6 @@ std::string Module::analyze_connections() {
     PortVariableSymbolCollector visitor(inputs, outputs);
     def_->body.visit(visitor);
     port_vars = std::move(visitor.port_vars);
-    return {};
 }
 
 class EdgeEventControlVisitor : public slang::ASTVisitor<EdgeEventControlVisitor, true, true> {
@@ -256,15 +245,13 @@ private:
     std::unordered_set<const slang::Symbol *> provides;
 };
 
-std::string Module::analyze_comb() {
-    std::string error;
+void Module::analyze_comb() {
     DependencyAnalysisVisitor v(def_);
     def_->visit(v);
     auto *graph = v.graph;
     // compute a topological order
     // then merge the nodes cross procedural block boundary
-    auto order = sort(graph, error);
-    if (!error.empty()) return error;
+    auto order = sort(graph);
 
     // merging nodes and create procedure blocks
     // we treat initial assignment and continuous assignments as combinational
@@ -335,8 +322,6 @@ std::string Module::analyze_comb() {
     for (auto const &p : comb_processes) {
         analyze_edge_event_control(p.get());
     }
-
-    return {};
 }
 
 void extract_procedure_blocks(std::vector<std::unique_ptr<Process>> &processes,
@@ -350,22 +335,20 @@ void extract_procedure_blocks(std::vector<std::unique_ptr<Process>> &processes,
     }
 }
 
-std::string Module::analyze_init() {
+void Module::analyze_init() {
     // we don't do anything to init block
     // since we just treat it as an actual fiber thread and let it do stuff
     extract_procedure_blocks(init_processes, def_, slang::ProceduralBlockKind::Initial);
     for (auto const &p : init_processes) {
         analyze_edge_event_control(p.get());
     }
-    return {};
 }
 
-std::string Module::analyze_final() {
+void Module::analyze_final() {
     extract_procedure_blocks(final_processes, def_, slang::ProceduralBlockKind::Final);
-    return {};
 }
 
-std::string Module::analyze_function() {
+void Module::analyze_function() {
     // notice that we only interested in the actual functions defined in the module/top
     // we will handle DPI later
     FunctionCallVisitor vis(def_);
@@ -382,11 +365,9 @@ std::string Module::analyze_function() {
     // sort functions by the name for code consistency
     std::sort(functions.begin(), functions.end(),
               [](auto const &f1, auto const &f2) { return f1->name < f2->name; });
-
-    return {};
 }
 
-std::string Module::analyze_ff() {
+void Module::analyze_ff() {
     // notice that we also use always_ff to refer to the old-fashion always block
     std::vector<const slang::ProceduralBlockSymbol *> stmts;
     {
@@ -425,12 +406,13 @@ std::string Module::analyze_ff() {
             if (single_event.edge != slang::EdgeKind::None) {
                 // we only deal with named expression
                 if (single_event.expr.kind != slang::ExpressionKind::NamedValue) {
-                    return "Only named value supported in the always_ff block";
+                    throw NotSupportedException("Only named value supported in the always_ff block",
+                                                stmt->location);
                 }
                 auto const &named = single_event.expr.as<slang::NamedValueExpression>();
                 edges.emplace_back(std::make_pair(single_event.edge, &named.symbol));
             } else if (single_event.edge == slang::EdgeKind::BothEdges) {
-                return "Both edges not supported";
+                throw NotSupportedException("Both edges not supported", stmt->location);
             }
         } else {
             auto const &event_list = timing_control.as<slang::EventListControl>();
@@ -440,7 +422,9 @@ std::string Module::analyze_ff() {
                     if (single_event.edge != slang::EdgeKind::None) {
                         // we only deal with named expression
                         if (single_event.expr.kind != slang::ExpressionKind::NamedValue) {
-                            return "Only named value supported in the always_ff block";
+                            throw NotSupportedException(
+                                "Only named value supported in the always_ff block",
+                                stmt->location);
                         }
                         auto const &named = single_event.expr.as<slang::NamedValueExpression>();
                         edges.emplace_back(std::make_pair(single_event.edge, &named.symbol));
@@ -459,15 +443,12 @@ std::string Module::analyze_ff() {
     for (auto const &p : ff_processes) {
         analyze_edge_event_control(p.get());
     }
-
-    return {};
 }
 
 class ModuleAnalyzeVisitor : public slang::ASTVisitor<ModuleAnalyzeVisitor, false, false> {
 public:
     explicit ModuleAnalyzeVisitor(Module *target) : target_(target) {}
     [[maybe_unused]] void handle(const slang::InstanceSymbol &inst) {
-        if (!error.empty()) return;
         if (target_->def() == &inst) {
             visitDefault(inst);
         } else {
@@ -480,7 +461,7 @@ public:
                     auto child = std::make_shared<Module>(&inst);
                     module_defs_.emplace(def_name, child);
                     // this will call the analysis function recursively
-                    error = child->analyze();
+                    child->analyze();
                 }
                 auto c = module_defs_.at(def_name);
                 target_->child_instances.emplace(inst.name, c);
@@ -488,17 +469,14 @@ public:
         }
     }
 
-    std::string error;
-
 private:
     std::unordered_map<std::string_view, std::shared_ptr<Module>> module_defs_;
     Module *target_;
 };
 
-std::string Module::analyze_inst() {
+void Module::analyze_inst() {
     ModuleAnalyzeVisitor vis(this);
     def_->visit(vis);
-    return vis.error;
 }
 
 // NOLINTNEXTLINE

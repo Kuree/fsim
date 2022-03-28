@@ -77,7 +77,7 @@ public:
     // functions, tasks etc
     std::vector<std::unique_ptr<Function>> functions;
 
-    std::string analyze();
+    void analyze();
 
     // circular dependencies is not allowed in SV, so shared pointer is fine
     std::map<std::string, std::shared_ptr<Module>> child_instances;
@@ -95,14 +95,14 @@ public:
 private:
     const slang::InstanceSymbol *def_;
 
-    std::string analyze_connections();
-    std::string analyze_comb();
-    std::string analyze_init();
-    std::string analyze_ff();
-    std::string analyze_final();
-    std::string analyze_function();
+    void analyze_connections();
+    void analyze_comb();
+    void analyze_init();
+    void analyze_ff();
+    void analyze_final();
+    void analyze_function();
 
-    std::string analyze_inst();
+    void analyze_inst();
 };
 
 }  // namespace fsim

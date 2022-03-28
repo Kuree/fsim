@@ -23,8 +23,7 @@ endmodule
     compilation.getRoot().visit(vis);
     auto *def = vis.modules.at("m");
     Module m(def);
-    auto error = m.analyze();
-    EXPECT_TRUE(error.empty());
+    m.analyze();
     EXPECT_EQ(m.comb_processes.size(), 2);
     EXPECT_EQ(m.comb_processes[1]->stmts.size(), 3);
 
@@ -62,8 +61,7 @@ endmodule
     compilation.getRoot().visit(vis);
     auto *def = vis.modules.at("m");
     Module m(def);
-    auto error = m.analyze();
-    EXPECT_TRUE(error.empty());
+    m.analyze();
 
     EXPECT_EQ(m.ff_processes.size(), 3);
     EXPECT_EQ(m.ff_processes[0]->edges.size(), 1);
@@ -91,8 +89,7 @@ endmodule
     compilation.getRoot().visit(vis);
     auto *def = vis.modules.at("m");
     Module m(def);
-    auto error = m.analyze();
-    EXPECT_TRUE(error.empty());
+    m.analyze();
 
     auto const &child = m.child_instances.at("inst");
     EXPECT_EQ(child->inputs.size(), 2);
@@ -115,8 +112,7 @@ endmodule
     compilation.getRoot().visit(vis);
     auto *def = vis.modules.at("top");
     Module m(def);
-    auto error = m.analyze();
-    EXPECT_TRUE(error.empty());
+    m.analyze();
 
     auto const &init = m.init_processes[0];
     EXPECT_EQ(init->edge_event_controls.size(), 2);

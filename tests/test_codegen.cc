@@ -751,3 +751,31 @@ endmodule
                           "4 a = 1"),
               std::string::npos);
 }
+
+TEST(code, expr) {  // NOLINT
+    auto tree = SyntaxTree::fromText(R"(
+module top;
+
+int a, b, c;
+initial begin
+   a = 1;
+   b = a? 2 : 3;
+   c = b[1:0];
+   $display("b = %0d c = %0d", b, c);
+end
+
+endmodule
+)");
+
+    Compilation compilation;
+    compilation.addSyntaxTree(tree);
+    BuildOptions options;
+
+    options.optimization_level = optimization_level;
+    options.run_after_build = true;
+    Builder builder(options);
+    testing::internal::CaptureStdout();
+    builder.build(&compilation);
+    std::string output = testing::internal::GetCapturedStdout();
+    EXPECT_NE(output.find("b = 2 c = 2"), std::string::npos);
+}

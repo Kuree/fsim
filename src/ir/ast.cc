@@ -332,15 +332,13 @@ bool in_the_sym_set(const std::unordered_set<const slang::NamedValueExpression *
         if (right_list.empty()) right_list = s.right;
         for (auto *left : s.left) {
             // break the loop for self-triggering always block
-            if (in_the_sym_set(right_list, left))
-                continue;
+            if (in_the_sym_set(right_list, left)) continue;
             auto n = graph->get_node(left);
             node->edges_to.emplace(n);
             n->edges_from.emplace(node);
         }
         for (auto *right : right_list) {
-            if (in_the_sym_set(s.left, right))
-                continue;
+            if (in_the_sym_set(s.left, right)) continue;
             auto n = graph->get_node(right);
             node->edges_from.emplace(n);
             n->edges_to.emplace(node);

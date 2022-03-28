@@ -282,6 +282,23 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
     s << ")";
 }
 
+void ExprCodeGenVisitor::handle(const slang::ConditionalExpression &expr) {
+    expr.pred().visit(*this);
+    s << "? (";
+    expr.left().visit(*this);
+    s << ") : (";
+    expr.right().visit(*this);
+    s << ")";
+}
+
+uint64_t get_constant_value(const slang::ConstantValue &constant,
+                            const slang::SourceLocation &loc) {
+    if (!constant.isInteger()) {
+        throw NotSupportedException("Only integer selection is supported", loc);
+    }
+    return *constant.integer().as<uint64_t>();
+}
+
 [[maybe_unused]] void ExprCodeGenVisitor::handle(const slang::ElementSelectExpression &sym) {
     auto const &value = sym.value();
     auto const &selector = sym.selector();
@@ -292,11 +309,7 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
     std::optional<uint64_t> select_value;
     if (selector.constant) {
         auto const &v = *selector.constant;
-        if (!v.isInteger()) {
-            throw NotSupportedException("Only integer selection is supported",
-                                        selector.syntax->sourceRange().start());
-        }
-        select_value = v.integer().as<uint64_t>();
+        select_value = get_constant_value(v, selector.syntax->sourceRange().start());
     }
     value.visit(*this);
     if (select_value) {
@@ -318,6 +331,24 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
             s << ")";
         }
     }
+}
+
+void ExprCodeGenVisitor::handle(const slang::RangeSelectExpression &expr) {
+    if (!expr.left().constant)
+        throw NotSupportedException("Only constant range select supported",
+                                    expr.left().syntax->sourceRange().start());
+
+    if (!expr.right().constant)
+        throw NotSupportedException("Only constant range select supported",
+                                    expr.right().syntax->sourceRange().start());
+
+    s << "(";
+    expr.value().visit(*this);
+    s << ").slice<";
+    s << get_constant_value(*expr.left().constant, expr.left().sourceRange.start());
+    s << ", ";
+    s << get_constant_value(*expr.right().constant, expr.right().sourceRange.start());
+    s << ">()";
 }
 
 [[maybe_unused]] void ExprCodeGenVisitor::handle(const slang::ConcatenationExpression &sym) {

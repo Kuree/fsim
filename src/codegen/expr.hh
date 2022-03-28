@@ -28,7 +28,11 @@ public:
 
     [[maybe_unused]] void handle(const slang::BinaryExpression &expr);
 
+    [[maybe_unused]] void handle(const slang::ConditionalExpression &expr);
+
     [[maybe_unused]] void handle(const slang::ElementSelectExpression &sym);
+
+    [[maybe_unused]] void handle(const slang::RangeSelectExpression &expr);
 
     [[maybe_unused]] void handle(const slang::ConcatenationExpression &sym);
 

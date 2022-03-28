@@ -108,9 +108,13 @@ int32_t fopen(std::string_view filename, std::string_view mode_str) {
     if (mode_str.find('w') != std::string::npos) {
         mode |= std::ios_base::out;
     }
-    if (mode_str.find('+') != std::string::npos) {
-        mode |= std::ios_base::ate | std::ios_base::app;
+    if (mode_str.find('a') != std::string::npos) {
+        mode |= std::ios_base::app;
     }
+    if (mode_str.find('+') != std::string::npos && mode_str.find('w') != std::string::npos) {
+        mode |= std::ios_base::trunc;
+    }
+
     stream->open(filename.data(), mode);
 
     if (stream->bad()) {
@@ -133,6 +137,7 @@ void fclose(int32_t fd) {
     }
     auto &stream = opened_files.at(fd);
     std::lock_guard guard_stream(stream->lock);
+    stream->stream->flush();
     stream->stream->close();
     opened_files.erase(fd);
 }
@@ -161,5 +166,15 @@ void fwrite_(int fd, std::string_view str, bool new_line) {
 }
 
 void fdisplay_(int32_t fd, std::string_view str) { fwrite_(fd, str, true); }
+
+void fdisplay(const Module *module, int fd, std::string_view format) {
+    auto str = preprocess_display_fmt(module, format);
+    fwrite_(fd, str, true);
+}
+
+void fwrite(const Module *module, int fd, std::string_view format) {
+    auto str = preprocess_display_fmt(module, format);
+    fwrite_(fd, str, false);
+}
 
 }  // namespace fsim::runtime

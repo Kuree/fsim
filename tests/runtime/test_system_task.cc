@@ -4,6 +4,9 @@
 #include "gtest/gtest.h"
 #include "logic/logic.hh"
 
+#include <fstream>
+#include <filesystem>
+
 using namespace fsim::runtime;
 using namespace logic::literals;
 
@@ -45,4 +48,19 @@ TEST(systask, display_bit) {    // NOLINT
     display(&m1, "PASS %0d %0d", 1_bit, 2_bit);
     output = testing::internal::GetCapturedStdout();
     EXPECT_EQ(output, "PASS 1 2\n");
+}
+
+TEST(systask, fileop) { // NOLINT
+    Module m1("test", "test2");
+    auto fd = fsim::runtime::fopen("test", "w+");
+    auto constexpr value = "hello world";
+    auto constexpr filename = "test";
+    fsim::runtime::fwrite(&m1, fd, value);
+    fsim::runtime::fclose(fd);
+    std::ifstream stream(filename);
+    std::string content;
+    std::getline(stream, content);
+    stream.close();
+    EXPECT_EQ(content, value);
+    std::filesystem::remove(filename);
 }

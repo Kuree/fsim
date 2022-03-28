@@ -107,7 +107,7 @@ inline void finish(Scheduler *scheduler, T code, std::string_view loc) {
 
 int32_t fopen(std::string_view filename, std::string_view mode);
 template <typename T>
-int32_t fopen(std::string_view filename, T mode) {
+int32_t fopen(std::string_view filename, T mode) requires(!std::is_same<const char *, T>::value) {
     auto mod_str = mode.str("%s");
     return fopen(filename, mod_str);
 }
@@ -136,6 +136,8 @@ void fdisplay(const Module *module, int32_t fd, std::string_view format, Args...
     fdisplay_(fd, ss.str());
 }
 
+void fdisplay(const Module *module, int fd, std::string_view format);
+void fwrite(const Module *module, int fd, std::string_view format);
 }  // namespace fsim::runtime
 
 #endif  // FSIM_SYSTEM_TASK_HH

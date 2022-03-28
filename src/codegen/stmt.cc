@@ -387,6 +387,52 @@ StmtCodeGenVisitor::StmtCodeGenVisitor(std::ostream &s, int &indent_level,
     loop.body.visit(*this);
 }
 
+void StmtCodeGenVisitor::handle(const slang::CaseStatement &stmt) {
+    // we use if statement for other modifiers such as unique
+    auto const &target = stmt.expr;
+    if (stmt.condition != slang::CaseStatementCondition::Normal) {
+        throw NotSupportedException("Only normal case condition supported",
+                                    stmt.sourceRange.start());
+    }
+    auto const &cases = stmt.items;
+    for (auto case_idx = 0u; case_idx < cases.size(); case_idx++) {
+        if (case_idx == 0) {
+            s << get_indent(indent_level) << "if (";
+        } else {
+            s << " else if (";
+        }
+        auto const &case_ = cases[case_idx];
+        auto const &exprs = case_.expressions;
+        for (auto expr_idx = 0u; expr_idx < exprs.size(); expr_idx++) {
+            if (expr_idx != (exprs.size() - 1)) {
+                s << " || ";
+            }
+            s << "(";
+            target.visit(expr_v);
+            s << " == ";
+            exprs[expr_idx]->visit(expr_v);
+            s << ")";
+        }
+        s << ") {" << std::endl;
+        indent_level++;
+
+        case_.stmt->visit(*this);
+
+        indent_level--;
+        s << std::endl << get_indent(indent_level) << "}";
+    }
+
+    if (stmt.defaultCase) {
+        s << " else {";
+        indent_level++;
+
+        stmt.defaultCase->visit(*this);
+
+        indent_level--;
+        s << std::endl << get_indent(indent_level) << "}" << std::endl;
+    }
+}
+
 [[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::RepeatLoopStatement &repeat) {
     // we use repeat as a variable since it won't appear in the code
     s << std::endl << get_indent(indent_level) << "for (auto repeat = 0";

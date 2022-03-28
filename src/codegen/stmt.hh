@@ -58,6 +58,8 @@ public:
 
     [[maybe_unused]] void handle(const slang::ForLoopStatement &loop);
 
+    [[maybe_unused]] void handle(const slang::CaseStatement &stmt);
+
     [[maybe_unused]] void handle(const slang::RepeatLoopStatement &repeat);
 
     [[maybe_unused]] void handle(const slang::ForeverLoopStatement &forever);

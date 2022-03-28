@@ -101,7 +101,7 @@ static uint32_t fd_count = 0;
 
 int32_t fopen(std::string_view filename, std::string_view mode_str) {
     auto stream = std::make_unique<std::fstream>();
-    std::ios_base::openmode mode;
+    std::ios_base::openmode mode = {};
     if (mode_str.find('r') != std::string::npos) {
         mode |= std::ios_base::in;
     }

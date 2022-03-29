@@ -138,6 +138,28 @@ void fdisplay(const Module *module, int32_t fd, std::string_view format, Args...
 
 void fdisplay(const Module *module, int fd, std::string_view format);
 void fwrite(const Module *module, int fd, std::string_view format);
+
+template <typename T>
+void readmemb(std::string_view filename, T &value) {
+    (void)filename;
+    (void)value;
+}
+
+template <typename T, typename I>
+void readmemb(std::string_view filename, T &value, I start) {
+    (void)filename;
+    (void)value;
+    (void)start;
+}
+
+template <typename T, typename I>
+void readmemb(std::string_view filename, T &value, I start, I end) {
+    (void)filename;
+    (void)value;
+    (void)start;
+    (void)end;
+}
+
 }  // namespace fsim::runtime
 
 #endif  // FSIM_SYSTEM_TASK_HH

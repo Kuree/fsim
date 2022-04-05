@@ -12,7 +12,7 @@
 #include "slang/compilation/Compilation.h"
 #include "slang/symbols/ASTVisitor.h"
 #include "slang/syntax/AllSyntax.h"
-#include "subprocess.hpp"
+#include "util.hh"
 
 namespace fsim {
 
@@ -211,8 +211,7 @@ void Builder::build(const Module *module) {
 
     // call ninja to build the stuff
     {
-        using namespace subprocess;
-        auto p = call("ninja", cwd{options_.working_dir});
+        auto p = platform::run({"ninja"}, options_.working_dir);
         if (p != 0) {
             return;
         }
@@ -226,8 +225,7 @@ void Builder::build(const Module *module) {
     }
     if (options_.run_after_build) {
         std::cout << std::endl;
-        using namespace subprocess;
-        auto p = call(fmt::format("./{0}", n_options.binary_name), cwd{options_.working_dir});
+        auto p = platform::run({fmt::format("./{0}", n_options.binary_name)}, options_.working_dir);
         if (p != 0) {
             throw InternalError("Internal simulator error");
         }

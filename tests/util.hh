@@ -3,7 +3,7 @@
 
 #include <filesystem>
 
-#include "subprocess.hpp"
+#include "reproc++/reproc.hpp"
 
 inline void build_c_shared_lib(const std::string &c_content, const std::string &output_name) {
     // find vlstd header
@@ -19,12 +19,13 @@ inline void build_c_shared_lib(const std::string &c_content, const std::string &
         }
     }
     // pipe in
-    auto pipe = subprocess::Popen(
-        std::vector<std::string>{"cc", "-xc", "-shared", "-o", output_name, include_flag, "-"},
-        subprocess::input(subprocess::PIPE));
-    pipe.send(c_content.c_str(), c_content.size());
-    pipe.communicate();
-    pipe.wait();
+    reproc::process process;
+    std::vector<const char *> commands = {
+        "cc", "-xc", "-shared", "-o", output_name.c_str(), include_flag.c_str(), "-", nullptr};
+    process.start(commands.data());
+    process.write(reinterpret_cast<const uint8_t *>(c_content.c_str()), c_content.size());
+    process.close(reproc::stream::in);
+    process.wait(1000ms);
 }
 
 #endif  // FSIM_UTIL_HH

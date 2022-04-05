@@ -15,3 +15,9 @@ endif()
 
 # format lib
 set_property(TARGET fmt PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+# reproc
+set(REPROC++ ON)
+add_subdirectory(reproc)
+set_property(TARGET reproc PROPERTY POSITION_INDEPENDENT_CODE ON)
+set_property(TARGET reproc++ PROPERTY POSITION_INDEPENDENT_CODE ON)

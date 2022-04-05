@@ -13,9 +13,9 @@
 [submodule "extern/marl"]
 	path = extern/marl
 	url = https://github.com/google/marl/
-[submodule "extern/cpp-subprocess"]
-	path = extern/cpp-subprocess
-	url = https://github.com/Kuree/cpp-subprocess
 [submodule "extern/vlstd"]
 	path = extern/vlstd
 	url = https://github.com/Kuree/vlstd
+[submodule "extern/reproc"]
+	path = extern/reproc
+	url = https://github.com/DaanDeMeyer/reproc

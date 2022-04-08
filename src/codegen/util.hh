@@ -1,6 +1,7 @@
 #ifndef FSIM_CODEGEN_UTIL_HH
 #define FSIM_CODEGEN_UTIL_HH
 #include <sstream>
+#include <stack>
 
 #include "../ir/ir.hh"
 #include "fmt/format.h"

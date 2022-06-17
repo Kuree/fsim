@@ -134,7 +134,7 @@ public:
         }
         curr->elementType.visit(*this);
         auto const &dim = dims[0];
-        s_ << "<" << dim.left << ", " << dim.right << ", " << (type.isSigned ? "true": "false")
+        s_ << "<" << dim.left << ", " << dim.right << ", " << (type.isSigned ? "true" : "false")
            << ">";
     }
     void visit(const slang::PackedStructType &) { handle_not_supported(); }

@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v2
       - name: Checkout submodules 🖥️
@@ -46,9 +46,9 @@ jobs:
         make -j2
         make test
       env:
-        CC: clang-12
-        CXX: clang++-12
-        FSIM_CXX: clang++-12
+        CC: clang-14
+        CXX: clang++-14
+        FSIM_CXX: clang++-14
     - name: Upload build artifiacts
       uses: actions/upload-artifact@v2
       if: failure()

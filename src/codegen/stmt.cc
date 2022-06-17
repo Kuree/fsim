@@ -22,24 +22,10 @@ VarDeclarationVisitor::VarDeclarationVisitor(std::ostream &s, int &indent_level,
       expr_v(expr_v) {}
 
 void VarDeclarationVisitor::handle(const slang::VariableSymbol &var) {
-    // not interested in formal argument for now
-    if (var.kind == slang::SymbolKind::FormalArgument) return;
     auto const &flags = var.flags;
     // we don't generate compiler generated vars
     if (flags.has(slang::VariableFlags::CompilerGenerated)) return;
-    // output variable definition
-    auto var_type_decl = get_var_decl(var);
-    s << get_indent(indent_level) << var_type_decl;
-
-    auto *init = var.getInitializer();
-    if (init) {
-        s << " = ";
-        init->visit(expr_v);
-    }
-
-    s << ";" << std::endl;
-    // add it to tracked names
-    module_info.add_used_names(module_info.get_identifier_name(var.name));
+    handle_(var);
 }
 
 [[maybe_unused]] void VarDeclarationVisitor::handle(const slang::NetSymbol &var) {
@@ -67,6 +53,28 @@ void VarDeclarationVisitor::handle(const slang::VariableSymbol &var) {
             return;
         }
     }
+}
+
+[[maybe_unused]] void VarDeclarationVisitor::handle(const slang::ParameterSymbol &param) {
+    handle_(param);
+}
+
+void VarDeclarationVisitor::handle_(const slang::ValueSymbol &var) {
+    // not interested in formal argument for now
+    if (var.kind == slang::SymbolKind::FormalArgument) return;
+    // output variable definition
+    auto var_type_decl = get_var_decl(var);
+    s << get_indent(indent_level) << var_type_decl;
+
+    auto *init = var.getInitializer();
+    if (init) {
+        s << " = ";
+        init->visit(expr_v);
+    }
+
+    s << ";" << std::endl;
+    // add it to tracked names
+    module_info.add_used_names(module_info.get_identifier_name(var.name));
 }
 
 class TypePrinter {
@@ -126,7 +134,8 @@ public:
         }
         curr->elementType.visit(*this);
         auto const &dim = dims[0];
-        s_ << "<" << dim.left << ", " << dim.right << ", " << (type.isSigned ? '1' : '0') << ">";
+        s_ << "<" << dim.left << ", " << dim.right << ", " << (type.isSigned ? "true": "false")
+           << ">";
     }
     void visit(const slang::PackedStructType &) { handle_not_supported(); }
     void visit(const slang::PackedUnionType &) { handle_not_supported(); }

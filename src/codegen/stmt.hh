@@ -19,6 +19,8 @@ public:
 
     [[maybe_unused]] void handle(const slang::InstanceSymbol &inst);
 
+    [[maybe_unused]] void handle(const slang::ParameterSymbol &param);
+
 private:
     std::ostream &s;
     int &indent_level;
@@ -29,6 +31,8 @@ private:
     const slang::InstanceSymbol *inst_ = nullptr;
 
     [[nodiscard]] std::string get_var_decl(const slang::Symbol &sym) const;
+
+    void handle_(const slang::ValueSymbol &var);
 };
 
 class StmtCodeGenVisitor : public slang::ASTVisitor<StmtCodeGenVisitor, true, true> {

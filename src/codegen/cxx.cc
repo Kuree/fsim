@@ -442,7 +442,8 @@ void output_header_file(const std::filesystem::path &filename, const Module *mod
         }
     }
 
-    // all variables are public
+    // all variables are public. although we can generate private for local variables
+    // there is no need to since it's been type checked
     {
         ExprCodeGenVisitor expr_v(s, info);
         VarDeclarationVisitor decl_v(s, indent_level, options, info, expr_v);

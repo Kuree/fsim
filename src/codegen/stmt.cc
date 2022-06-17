@@ -263,7 +263,7 @@ StmtCodeGenVisitor::StmtCodeGenVisitor(std::ostream &s, int &indent_level,
         case slang::StatementBlockKind::JoinAll:
         case slang::StatementBlockKind::JoinAny:
         case slang::StatementBlockKind::JoinNone: {
-            auto const &body = stmt.getStatements();
+            auto const &body = stmt.body;
             // depends on the type
             std::vector<const slang::Statement *> stmts;
             auto join_name = module_info.get_new_name("fork");

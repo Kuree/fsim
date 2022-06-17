@@ -84,7 +84,7 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
         } else {
             s << "logic::bit<";
         }
-        s << target_bit_width - 1 << ", " << 0 << ">(";
+        s << target_bit_width - 1 << ", 0, " << (target_is_signed ? "true" : "false") << ">(";
         c.operand().visit(*this);
         s << ")";
     } else if (!operand_type.isSimpleType() && target_type.isSimpleType() &&

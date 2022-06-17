@@ -10,7 +10,7 @@ elif [ "$(uname -s)" == "Linux" ]; then
     # currently only supports linux so far. MacOS build is just so much pain
     DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
     ROOT=$(dirname "${DIR}")
-    docker run -it -d --rm --name manylinux -v "${ROOT}":/fsim keyiz/manylinux2010 bash
+    docker run -it -d --rm --name manylinux -v "${ROOT}":/fsim keyiz/manylinux_2_24 bash
     docker exec -i manylinux bash -c 'cd /fsim && python setup.py bdist_wheel --plat-name manylinux1_x86_64'
     # use the fix wheel script
     docker exec -i manylinux bash -c 'pip install wheeltools'

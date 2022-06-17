@@ -18,7 +18,7 @@ jobs:
         run: clang-format-12 -n -Werror --style=file src/*/**.hh src/*/**.cc
 
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: lint
     steps:
     - uses: actions/checkout@v2
@@ -29,27 +29,27 @@ jobs:
     - name: Install ninja
       shell: bash
       run: sudo pip3 install ninja
-    - name: Download pre-built slang
-      shell: bash
-      run: |
-        cd extern
-        mkdir -p slang-dist
-        cd slang-dist
-        wget https://github.com/MikePopoloski/slang/releases/download/nightly/slang-linux.tar.gz
-        tar xzf slang-linux.tar.gz --strip-components 1
-    - name: Run tests ⚙️
+    - name: Build fsim
       shell: bash
       run: |
         mkdir -p build
         cd build
         cmake .. -DCMAKE_BUILD_TYPE=Release
         make -j2
+      env:
+        CC: clang-14
+        CXX: clang++-14
+        FSIM_CXX: clang++-14
+    - name: Run tests ⚙️
+      shell: bash
+      run: |
+        cd build
         make test
       env:
         CC: clang-14
         CXX: clang++-14
         FSIM_CXX: clang++-14
-    - name: Upload build artifiacts
+    - name: Upload build artifacts
       uses: actions/upload-artifact@v2
       if: failure()
       with:

@@ -5,7 +5,7 @@ import subprocess
 import sys
 import shutil
 
-GCC_VERSION = "11.2.0"
+GCC_VERSION = "11.3.0"
 
 
 def find_glibc_location():

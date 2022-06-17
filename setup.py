@@ -2,14 +2,15 @@ import os
 import subprocess
 import shutil
 import platform
+import multiprocessing
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 
 # the script should only be called within keyiz/manylinux2010 container
 
-GCC_VERSION = "11.2.0"
-SLANG_URL = "https://github.com/MikePopoloski/slang/releases/download/nightly/{0}"
+GCC_VERSION = "11.3.0"
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 
 class CMakeExtension(Extension):
     def __init__(self, name, sourcedir=""):
@@ -35,33 +36,18 @@ class CMakeBuild(build_ext):
 
         # CMake lets you override the generator - we need to check this.
         # Can be set with Conda-Build, for example.
-        cmake_generator = os.environ.get("CMAKE_GENERATOR", "")
+        is_linux = platform.system() == "Linux"
         cmake_args = [
-            "-DSTATIC_BUILD=ON",
             "-DCMAKE_BUILD_TYPE={}".format(cfg),  # not used on MSVC, but no harm
         ]
+        if is_linux:
+            cmake_args += ["-DSTATIC_BUILD=ON"]
         build_args = []
-        build_args += ["-j"]
+        num_cpu = multiprocessing.cpu_count()
+        build_args += [f"-j{num_cpu}"]
 
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
-
-        is_linux = platform.system() == "Linux"
-        is_macos = platform.system() == "Darwin"
-
-        # need to download the pre-built slang if on linux
-        slang_dir = os.path.join(self.build_temp, "slang-dist")
-        if not os.path.exists(slang_dir):
-            os.makedirs(slang_dir, exist_ok=True)
-            if is_linux:
-                tar_name = "slang-linux.tar.gz"
-            elif is_macos:
-                tar_name = "slang-macos.tar.gz"
-            else:
-                raise Exception("Unsupported platform " + platform.system())
-            subprocess.check_call(["curl", "-OL", SLANG_URL.format(tar_name)], cwd=slang_dir)
-            subprocess.check_call("tar xzf {0} --strip-components 1".format(tar_name).split(), cwd=slang_dir)
-            shutil.rmtree(os.path.join(slang_dir, tar_name), ignore_errors=True)
 
         subprocess.check_call(
             ["cmake", ext.sourcedir] + cmake_args, cwd=self.build_temp
@@ -82,7 +68,7 @@ class CMakeBuild(build_ext):
                 if not os.path.exists(dst):
                     shutil.copytree(src, dst)
             # need to delete unnecessary stuff to make the wheel smaller
-            os.remove(os.path.join(extdir, "bin", "lto-dump-11.2.0"))
+            os.remove(os.path.join(extdir, "bin", f"lto-dump-{GCC_VERSION}"))
             shutil.rmtree(os.path.join(extdir, "share"))
         # now copy other include files
         extern_include = ["marl", "logic"]

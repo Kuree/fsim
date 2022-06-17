@@ -217,6 +217,9 @@ const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
         case slang::BinaryOperator::Mod:
             s << " % ";
             break;
+        case slang::BinaryOperator::Divide:
+            s << " / ";
+            break;
         case slang::BinaryOperator::ArithmeticShiftLeft:
             s << ".ashl(";
             closing_p = true;

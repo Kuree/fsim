@@ -395,6 +395,12 @@ void ExprCodeGenVisitor::handle(const slang::RangeSelectExpression &expr) {
             }
         }
         s << ")";
+
+        // special simulation control tasks
+        if (name == "finish") {
+            s << "; " << FSIM_END_PROCESS << "(" << module_info_.current_process_name()
+              << "); return";
+        }
     } else {
         const auto *function = std::get<0>(expr.subroutine);
         // DPI calls

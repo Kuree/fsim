@@ -51,7 +51,7 @@ private:
 
     void output_timing(const slang::TimingControl &timing);
 
-    bool is_return_symbol(const slang::Expression &expr);
+    bool is_return_symbol(const slang::Expression &expr) const;
 };
 
 class TimingControlCodeGen {

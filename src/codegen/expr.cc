@@ -541,7 +541,7 @@ void ExprCodeGenVisitor::output_timing(const slang::TimingControl &timing) {
     s << " ";
 }
 
-bool ExprCodeGenVisitor::is_return_symbol(const slang::Expression &expr) {
+bool ExprCodeGenVisitor::is_return_symbol(const slang::Expression &expr) const {
     if (!module_info_.current_function) return false;
     if (expr.kind != slang::ExpressionKind::NamedValue) return false;
     auto const &named = expr.as<slang::NamedValueExpression>();

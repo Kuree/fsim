@@ -6,7 +6,6 @@ namespace fsim {
 
 constexpr auto START_FORK = "START_FORK";
 constexpr auto SCHEDULE_FORK = "SCHEDULE_FORK";
-constexpr auto END_FORK_PROCESS = "END_FORK_PROCESS";
 constexpr auto SCHEDULE_JOIN_ALL = "SCHEDULE_JOIN";
 constexpr auto SCHEDULE_JOIN_ANY = "SCHEDULE_ANY";
 constexpr auto SCHEDULE_JOIN_NONE = "SCHEDULE_NONE";
@@ -301,7 +300,7 @@ StmtCodeGenVisitor::StmtCodeGenVisitor(std::ostream &s, int &indent_level,
                   << std::endl;
                 indent_level++;
                 st->visit(*this);
-                s << get_indent(indent_level) << END_FORK_PROCESS << "(" << p << ");" << std::endl;
+                s << get_indent(indent_level) << FSIM_END_PROCESS << "(" << p << ");" << std::endl;
                 indent_level--;
                 s << get_indent(indent_level) << "};" << std::endl;
 

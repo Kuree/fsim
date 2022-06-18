@@ -11,8 +11,6 @@
 
 namespace fsim {
 
-auto constexpr fsim_end_process = "END_PROCESS";
-
 // need to generate header information about module declaration
 // this includes variable, port, and parameter definition
 
@@ -81,7 +79,7 @@ void codegen_init(std::ostream &s, int &indent_level, const Process *process,
         codegen_sym(s, indent_level, stmt, options, info);
     }
 
-    s << get_indent(indent_level) << fsim_end_process << "(" << ptr_name << ");" << std::endl;
+    s << get_indent(indent_level) << FSIM_END_PROCESS << "(" << ptr_name << ");" << std::endl;
     indent_level--;
     s << get_indent(indent_level) << "};" << std::endl;
     s << get_indent(indent_level)
@@ -155,7 +153,7 @@ void codegen_always(std::ostream &s, int &indent_level, const CombProcess *proce
 
     // general purpose always doesn't have end process since it never ends
     if (!infinite_loop)
-        s << get_indent(indent_level) << fsim_end_process << "(" << ptr_name << ");" << std::endl;
+        s << get_indent(indent_level) << FSIM_END_PROCESS << "(" << ptr_name << ");" << std::endl;
 
     if (infinite_loop) {
         indent_level--;
@@ -203,7 +201,7 @@ void codegen_ff(std::ostream &s, int &indent_level, const FFProcess *process,
     }
 
     // output end process
-    s << get_indent(indent_level) << fsim_end_process << "(" << ptr_name << ");" << std::endl;
+    s << get_indent(indent_level) << FSIM_END_PROCESS << "(" << ptr_name << ");" << std::endl;
 
     indent_level--;
     s << get_indent(indent_level) << "};" << std::endl;

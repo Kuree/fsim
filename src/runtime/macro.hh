@@ -25,13 +25,6 @@
         process->should_trigger = false; \
     } while (0)
 
-#define END_FORK_PROCESS(process) \
-    do {                          \
-        process->finished = true; \
-        process->cond.signal();   \
-        process->running = false; \
-    } while (0)
-
 #define SCHEDULE_NBA(target, value, process)                          \
     do {                                                              \
         if (!target.match(value)) {                                   \

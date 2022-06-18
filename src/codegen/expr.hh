@@ -7,6 +7,9 @@
 #include "util.hh"
 
 namespace fsim {
+
+auto constexpr FSIM_END_PROCESS = "END_PROCESS";
+
 class ExprCodeGenVisitor : public slang::ASTVisitor<ExprCodeGenVisitor, false, true> {
 public:
     ExprCodeGenVisitor(std::ostream &s, CodeGenModuleInformation &module_info)

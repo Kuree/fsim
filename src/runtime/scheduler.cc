@@ -58,8 +58,9 @@ bool join_processes(std::vector<ScheduledJoin> &joins) {
     for (auto const &join : joins) {
         switch (join.type) {
             case ScheduledJoin::JoinType::All: {
-                auto r = std::all_of(join.processes.begin(), join.processes.end(),
-                                     [](auto const *p) { return p->finished; });
+                auto r =
+                    std::all_of(join.processes.begin(), join.processes.end(),
+                                [](auto const *p) { return p->cond.isSignalled() || p->finished; });
                 if (r) {
                     changed = true;
                     wake_up_thread(join.parent_process);
@@ -69,8 +70,9 @@ bool join_processes(std::vector<ScheduledJoin> &joins) {
                 break;
             }
             case ScheduledJoin::JoinType::Any: {
-                auto r = std::any_of(join.processes.begin(), join.processes.end(),
-                                     [](auto const *p) { return p->finished; });
+                auto r =
+                    std::any_of(join.processes.begin(), join.processes.end(),
+                                [](auto const *p) { return p->cond.isSignalled() || p->finished; });
                 if (r) {
                     changed = true;
                     wake_up_thread(join.parent_process);

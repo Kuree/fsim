@@ -19,8 +19,8 @@
 
 #define END_PROCESS(process)             \
     do {                                 \
-        process->cond.signal();          \
         process->finished = true;        \
+        process->cond.signal();          \
         process->running = false;        \
         process->should_trigger = false; \
     } while (0)

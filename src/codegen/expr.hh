@@ -56,14 +56,13 @@ private:
 
 class TimingControlCodeGen {
 public:
-    TimingControlCodeGen(std::ostream &s, int indent_level, CodeGenModuleInformation &module_info,
+    TimingControlCodeGen(std::ostream &s, CodeGenModuleInformation &module_info,
                          ExprCodeGenVisitor &expr_v);
 
     void handle(const slang::TimingControl &timing);
 
 private:
     std::ostream &s;
-    int indent_level;
     CodeGenModuleInformation &module_info_;
     ExprCodeGenVisitor &expr_v;
 };

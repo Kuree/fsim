@@ -33,191 +33,156 @@ using namespace logic::literals;
 )";
 
 template <typename T>
-void codegen_sym(std::ostream &s, int &indent_level, const T *sym, const CXXCodeGenOptions &options,
+void codegen_sym(std::ostream &s, const T *sym, const CXXCodeGenOptions &options,
                  CodeGenModuleInformation &info) {
-    StmtCodeGenVisitor v(s, indent_level, options, info);
+    StmtCodeGenVisitor v(s, options, info);
     sym->visit(v);
 }
 
-void codegen_edge_control(std::ostream &s, int &indent_level, const Process *process,
-                          CodeGenModuleInformation &info) {
+void codegen_edge_control(std::ostream &s, const Process *process, CodeGenModuleInformation &info) {
     ExprCodeGenVisitor v(s, info);
     if (!process->edge_event_controls.empty()) {
         slang::SourceRange sr;
         for (auto const &[var, _] : process->edge_event_controls) {
-            s << get_indent(indent_level);
             auto name = slang::NamedValueExpression(*var, sr);
             name.visit(v);
             s << ".track_edge = true;" << std::endl;
 
-            s << get_indent(indent_level) << info.scheduler_name() << "->add_tracked_var(&";
+            s << info.scheduler_name() << "->add_tracked_var(&";
             name.visit(v);
             s << ");" << std::endl;
         }
-        s << get_indent(indent_level)
-          << fmt::format("scheduler->add_process_edge_control({0});", info.current_process_name())
+        s << fmt::format("scheduler->add_process_edge_control({0});", info.current_process_name())
           << std::endl;
     }
 }
 
-void codegen_init(std::ostream &s, int &indent_level, const Process *process,
-                  const CXXCodeGenOptions &options, CodeGenModuleInformation &info) {
-    s << get_indent(indent_level) << "{" << std::endl;
-    indent_level++;
+void codegen_init(std::ostream &s, const Process *process, const CXXCodeGenOptions &options,
+                  CodeGenModuleInformation &info) {
+    s << "{" << std::endl;
 
     auto const &ptr_name = info.enter_process();
-    s << get_indent(indent_level)
-      << fmt::format("auto {0} = {1}->create_init_process();", ptr_name, info.scheduler_name())
+    s << fmt::format("auto {0} = {1}->create_init_process();", ptr_name, info.scheduler_name())
       << std::endl
-      << get_indent(indent_level)
       << fmt::format("{0}->func = [this, {0}, {1}]() {{", ptr_name, info.scheduler_name())
       << std::endl;
-    indent_level++;
 
     auto const &stmts = process->stmts;
     for (auto const *stmt : stmts) {
-        codegen_sym(s, indent_level, stmt, options, info);
+        codegen_sym(s, stmt, options, info);
     }
 
-    s << get_indent(indent_level) << FSIM_END_PROCESS << "(" << ptr_name << ");" << std::endl;
-    indent_level--;
-    s << get_indent(indent_level) << "};" << std::endl;
-    s << get_indent(indent_level)
-      << fmt::format("fsim::runtime::Scheduler::schedule_init({0});", ptr_name) << std::endl;
-    s << get_indent(indent_level) << fmt::format("init_processes_.emplace_back({0});", ptr_name)
-      << std::endl;
+    s << FSIM_END_PROCESS << "(" << ptr_name << ");" << std::endl;
+    s << "};" << std::endl;
+    s << fmt::format("fsim::runtime::Scheduler::schedule_init({0});", ptr_name) << std::endl;
+    s << fmt::format("init_processes_.emplace_back({0});", ptr_name) << std::endl;
 
-    codegen_edge_control(s, indent_level, process, info);
+    codegen_edge_control(s, process, info);
 
-    indent_level--;
     info.exit_process();
-    s << get_indent(indent_level) << "}" << std::endl;
+    s << "}" << std::endl;
 }
 
-void codegen_final(std::ostream &s, int &indent_level, const Process *process,
-                   const CXXCodeGenOptions &options, CodeGenModuleInformation &info) {
-    s << get_indent(indent_level) << "{" << std::endl;
-    indent_level++;
+void codegen_final(std::ostream &s, const Process *process, const CXXCodeGenOptions &options,
+                   CodeGenModuleInformation &info) {
+    s << "{" << std::endl;
     auto const &ptr_name = info.enter_process();
 
-    s << get_indent(indent_level)
-      << fmt::format("auto {0} = {1}->create_final_process();", ptr_name, info.scheduler_name())
+    s << fmt::format("auto {0} = {1}->create_final_process();", ptr_name, info.scheduler_name())
       << std::endl
-      << get_indent(indent_level)
       << fmt::format("{0}->func = [this, {0}, {1}]() {{", ptr_name, info.scheduler_name())
       << std::endl;
-    indent_level++;
 
     auto const &stmts = process->stmts;
     for (auto const *stmt : stmts) {
-        codegen_sym(s, indent_level, stmt, options, info);
+        codegen_sym(s, stmt, options, info);
     }
 
-    indent_level--;
-    s << get_indent(indent_level) << "};" << std::endl;
-    s << get_indent(indent_level)
+    s << "};" << std::endl
       << fmt::format("fsim::runtime::Scheduler::schedule_final({0});", ptr_name) << std::endl;
 
-    indent_level--;
     info.exit_process();
-    s << get_indent(indent_level) << "}" << std::endl;
+    s << "}" << std::endl;
 }
 
-void codegen_always(std::ostream &s, int &indent_level, const CombProcess *process,
-                    const CXXCodeGenOptions &options, CodeGenModuleInformation &info) {
-    s << get_indent(indent_level) << "{" << std::endl;
-    indent_level++;
+void codegen_always(std::ostream &s, const CombProcess *process, const CXXCodeGenOptions &options,
+                    CodeGenModuleInformation &info) {
+    s << "{" << std::endl;
     auto const &ptr_name = info.enter_process();
 
     // depends on the comb process type, we may generate different style
     bool infinite_loop = process->kind == CombProcess::CombKind::GeneralPurpose;
     // declare the always block
 
-    s << get_indent(indent_level)
-      << fmt::format("auto {0} = {1}->create_comb_process();", ptr_name, info.scheduler_name())
+    s << fmt::format("auto {0} = {1}->create_comb_process();", ptr_name, info.scheduler_name())
       << std::endl
-      << get_indent(indent_level)
       << fmt::format("{0}->func = [this, {0}, {1}]() {{", ptr_name, info.scheduler_name())
       << std::endl;
-    indent_level++;
 
     if (infinite_loop) {
-        s << get_indent(indent_level) << "while (true) {" << std::endl;
-        indent_level++;
+        s << "while (true) {" << std::endl;
     }
 
     auto const &stmts = process->stmts;
     for (auto const *stmt : stmts) {
-        codegen_sym(s, indent_level, stmt, options, info);
+        codegen_sym(s, stmt, options, info);
     }
 
     // general purpose always doesn't have end process since it never ends
-    if (!infinite_loop)
-        s << get_indent(indent_level) << FSIM_END_PROCESS << "(" << ptr_name << ");" << std::endl;
+    if (!infinite_loop) s << FSIM_END_PROCESS << "(" << ptr_name << ");" << std::endl;
 
     if (infinite_loop) {
-        indent_level--;
-        s << get_indent(indent_level) << "}" << std::endl;
+        s << "}" << std::endl;
     }
 
-    indent_level--;
-    s << get_indent(indent_level) << "};" << std::endl;
+    s << "};" << std::endl;
 
     // set input changed
     for (auto *var : process->sensitive_list) {
-        s << get_indent(indent_level);
         ExprCodeGenVisitor v(s, info);
         var->visit(v);
         s << ".comb_processes.emplace_back(" << ptr_name << ");" << std::endl;
     }
 
-    s << get_indent(indent_level) << fmt::format("comb_processes_.emplace_back({0});", ptr_name)
-      << std::endl;
+    s << fmt::format("comb_processes_.emplace_back({0});", ptr_name) << std::endl;
 
-    codegen_edge_control(s, indent_level, process, info);
+    codegen_edge_control(s, process, info);
 
-    indent_level--;
     info.exit_process();
-    s << get_indent(indent_level) << "}" << std::endl;
+    s << "}" << std::endl;
 }
 
-void codegen_ff(std::ostream &s, int &indent_level, const FFProcess *process,
-                const CXXCodeGenOptions &options, CodeGenModuleInformation &info) {
-    s << get_indent(indent_level) << "{" << std::endl;
-    indent_level++;
+void codegen_ff(std::ostream &s, const FFProcess *process, const CXXCodeGenOptions &options,
+                CodeGenModuleInformation &info) {
+    s << "{" << std::endl;
     auto const &ptr_name = info.enter_process();
 
-    s << get_indent(indent_level)
-      << fmt::format("auto {0} = {1}->create_ff_process();", ptr_name, info.scheduler_name())
+    s << fmt::format("auto {0} = {1}->create_ff_process();", ptr_name, info.scheduler_name())
       << std::endl
-      << get_indent(indent_level)
       << fmt::format("{0}->func = [this, {0}, {1}]() {{", ptr_name, info.scheduler_name())
       << std::endl;
-    indent_level++;
 
     auto const &stmts = process->stmts;
     for (auto const *stmt : stmts) {
-        codegen_sym(s, indent_level, stmt, options, info);
+        codegen_sym(s, stmt, options, info);
     }
 
     // output end process
-    s << get_indent(indent_level) << FSIM_END_PROCESS << "(" << ptr_name << ");" << std::endl;
+    s << FSIM_END_PROCESS << "(" << ptr_name << ");" << std::endl;
 
-    indent_level--;
-    s << get_indent(indent_level) << "};" << std::endl;
+    s << "};" << std::endl;
 
-    s << get_indent(indent_level) << fmt::format("ff_process_.emplace_back({0});", ptr_name)
-      << std::endl;
+    s << fmt::format("ff_process_.emplace_back({0});", ptr_name) << std::endl;
 
     // generate edge trigger functions
     for (auto const &[edge, v] : process->edges) {
         if (edge == slang::EdgeKind::PosEdge || edge == slang::EdgeKind::BothEdges) {
-            s << get_indent(indent_level) << info.get_identifier_name(v->name)
-              << ".ff_posedge_processes.emplace_back(" << ptr_name << ");" << std::endl;
+            s << info.get_identifier_name(v->name) << ".ff_posedge_processes.emplace_back("
+              << ptr_name << ");" << std::endl;
         }
         if (edge == slang::EdgeKind::NegEdge || edge == slang::EdgeKind::BothEdges) {
-            s << get_indent(indent_level) << info.get_identifier_name(v->name)
-              << ".ff_negedge_processes.emplace_back(" << ptr_name << ");" << std::endl;
+            s << info.get_identifier_name(v->name) << ".ff_negedge_processes.emplace_back("
+              << ptr_name << ");" << std::endl;
         }
     }
 
@@ -227,17 +192,16 @@ void codegen_ff(std::ostream &s, int &indent_level, const FFProcess *process,
         vars.emplace(info.get_identifier_name(iter.second->name));
     }
     for (auto const &name : vars) {
-        s << get_indent(indent_level) << name << ".track_edge = true;" << std::endl;
+        s << name << ".track_edge = true;" << std::endl;
     }
 
-    codegen_edge_control(s, indent_level, process, info);
+    codegen_edge_control(s, process, info);
 
-    indent_level--;
     info.exit_process();
-    s << get_indent(indent_level) << "}" << std::endl;
+    s << "}" << std::endl;
 }
 
-void codegen_port_connections(std::ostream &s, int &indent_level, const Module *module,
+void codegen_port_connections(std::ostream &s, const Module *module,
                               const CXXCodeGenOptions &options, CodeGenModuleInformation &info) {
     // we generate it as an "always" process
     // to allow code re-use, we create fake assignment
@@ -293,11 +257,10 @@ void codegen_port_connections(std::ostream &s, int &indent_level, const Module *
         comb_process.sensitive_list.emplace_back(n);
     }
 
-    codegen_always(s, indent_level, &comb_process, options, info);
+    codegen_always(s, &comb_process, options, info);
 }
 
-void output_ctor(std::ostream &s, int &indent_level, const Module *module,
-                 CodeGenModuleInformation &info) {
+void output_ctor(std::ostream &s, const Module *module, CodeGenModuleInformation &info) {
     std::set<std::string_view> headers;
     for (auto const &iter : module->child_instances) {
         s << "#include \"" << iter.second->name << ".hh\"" << std::endl;
@@ -309,26 +272,22 @@ void output_ctor(std::ostream &s, int &indent_level, const Module *module,
     // then output the class ctor
     s << info.get_identifier_name(module->name) << "::" << info.get_identifier_name(module->name)
       << "(): fsim::runtime::Module(\"" << module->name << "\") {" << std::endl;
-    indent_level++;
 
     for (auto const &[name, m] : module->child_instances) {
-        s << get_indent(indent_level) << name << " = std::make_shared<"
-          << info.get_identifier_name(m->name) << ">();" << std::endl;
+        s << name << " = std::make_shared<" << info.get_identifier_name(m->name) << ">();"
+          << std::endl;
     }
 
     // add it to the child instances
-    s << get_indent(indent_level)
-      << fmt::format("child_instances_.reserve({0});", module->child_instances.size()) << std::endl;
+    s << fmt::format("child_instances_.reserve({0});", module->child_instances.size()) << std::endl;
     for (auto const &[name, _] : module->child_instances) {
-        s << get_indent(indent_level)
-          << fmt::format("child_instances_.emplace_back({0}.get());", name) << std::endl;
+        s << fmt::format("child_instances_.emplace_back({0}.get());", name) << std::endl;
     }
 
-    indent_level--;
     s << "}" << std::endl;
 }
 
-void output_function_header(std::ostream &s, int &indent_level, const CXXCodeGenOptions &options,
+void output_function_header(std::ostream &s, const CXXCodeGenOptions &options,
                             CodeGenModuleInformation &info, const slang::SubroutineSymbol *function,
                             std::string_view prefix) {
     auto const *return_sym = function->returnValVar;
@@ -336,7 +295,7 @@ void output_function_header(std::ostream &s, int &indent_level, const CXXCodeGen
         return_sym ? get_symbol_type(*return_sym, info, options, prefix)
                    : fmt::format("void {0}{1}", prefix, info.get_identifier_name(function->name));
 
-    s << get_indent(indent_level) << return_type << "(";
+    s << return_type << "(";
 
     auto const &args = function->getArguments();
 
@@ -365,40 +324,37 @@ void output_function_header(std::ostream &s, int &indent_level, const CXXCodeGen
     s << ")";
 }
 
-void output_function_decl(std::ostream &s, int &indent_level, const CXXCodeGenOptions &options,
+void output_function_decl(std::ostream &s, const CXXCodeGenOptions &options,
                           CodeGenModuleInformation &info, const slang::SubroutineSymbol *function) {
-    output_function_header(s, indent_level, options, info, function, {});
+    output_function_header(s, options, info, function, {});
     s << ";" << std::endl;
 }
 
-void output_function_impl(std::ostream &s, int &indent_level, const CXXCodeGenOptions &options,
+void output_function_impl(std::ostream &s, const CXXCodeGenOptions &options,
                           CodeGenModuleInformation &info, const slang::SubroutineSymbol *function,
                           std::string_view name_prefix) {
     bool is_task = function->subroutineKind == slang::SubroutineKind ::Task;
     if (is_task) {
         info.enter_process();
     }
-    output_function_header(s, indent_level, options, info, function, name_prefix);
+    output_function_header(s, options, info, function, name_prefix);
     s << " {" << std::endl;
-    indent_level++;
 
     info.current_function = function;
-    codegen_sym(s, indent_level, &function->getBody(), options, info);
+    codegen_sym(s, &function->getBody(), options, info);
     info.current_function = nullptr;
 
     if (is_task) {
         info.exit_process();
     }
 
-    indent_level--;
-    s << std::endl << get_indent(indent_level) << "}" << std::endl;
+    s << std::endl << "}" << std::endl;
 }
 
 void output_header_file(const std::filesystem::path &filename, const Module *mod,
                         const CXXCodeGenOptions &options, CodeGenModuleInformation &info) {
     // analyze the dependencies to include which headers
     std::stringstream s;
-    int indent_level = 0;
     s << "#pragma once" << std::endl;
     s << raw_header_include;
 
@@ -413,22 +369,21 @@ void output_header_file(const std::filesystem::path &filename, const Module *mod
             class_names.emplace(info.get_identifier_name(iter.second->name));
         }
         for (auto const &inst : class_names) {
-            s << get_indent(indent_level) << "class " << inst << ";" << std::endl;
+            s << "class " << inst << ";" << std::endl;
         }
     }
 
-    s << get_indent(indent_level) << "class " << info.get_identifier_name(mod->name)
-      << ": public fsim::runtime::Module {" << std::endl;
-    s << get_indent(indent_level) << "public: " << std::endl;
+    s << "class " << info.get_identifier_name(mod->name) << ": public fsim::runtime::Module {"
+      << std::endl;
+    s << "public: " << std::endl;
 
-    indent_level++;
     // constructor
     if (has_ctor) {
         // if we have ctor, we only generate a signature
-        s << get_indent(indent_level) << info.get_identifier_name(mod->name) << "();" << std::endl;
+        s << info.get_identifier_name(mod->name) << "();" << std::endl;
     } else {
-        s << get_indent(indent_level) << info.get_identifier_name(mod->name)
-          << "(): fsim::runtime::Module(\"" << mod->name << "\") {}" << std::endl;
+        s << info.get_identifier_name(mod->name) << "(): fsim::runtime::Module(\"" << mod->name
+          << "\") {}" << std::endl;
     }
 
     {
@@ -444,55 +399,44 @@ void output_header_file(const std::filesystem::path &filename, const Module *mod
     // there is no need to since it's been type checked
     {
         ExprCodeGenVisitor expr_v(s, info);
-        VarDeclarationVisitor decl_v(s, indent_level, options, info, expr_v);
+        VarDeclarationVisitor decl_v(s, options, info, expr_v);
         mod->def()->visit(decl_v);
     }
 
     // init function
     if (!mod->init_processes.empty()) {
-        s << get_indent(indent_level) << "void init(fsim::runtime::Scheduler *) override;"
-          << std::endl;
+        s << "void init(fsim::runtime::Scheduler *) override;" << std::endl;
     }
 
     if (!mod->final_processes.empty()) {
-        s << get_indent(indent_level) << "void final(fsim::runtime::Scheduler *) override;"
-          << std::endl;
+        s << "void final(fsim::runtime::Scheduler *) override;" << std::endl;
     }
 
     if (!mod->comb_processes.empty() || !mod->child_instances.empty()) {
-        s << get_indent(indent_level) << "void comb(fsim::runtime::Scheduler *) override;"
-          << std::endl;
+        s << "void comb(fsim::runtime::Scheduler *) override;" << std::endl;
     }
 
     if (!mod->ff_processes.empty()) {
-        s << get_indent(indent_level) << "void ff(fsim::runtime::Scheduler *) override;"
-          << std::endl;
+        s << "void ff(fsim::runtime::Scheduler *) override;" << std::endl;
     }
 
     // child instances
     for (auto const &[name, inst] : mod->child_instances) {
         // we use shared ptr instead of unique ptr to avoid import the class header
-        s << get_indent(indent_level)
-          << "std::shared_ptr<fsim::" << info.get_identifier_name(inst->name) << "> " << name << ";"
+        s << "std::shared_ptr<fsim::" << info.get_identifier_name(inst->name) << "> " << name << ";"
           << std::endl;
     }
 
     // private information
-    {
-        indent_level--;
-        s << get_indent(indent_level) << "private:" << std::endl;
-        indent_level++;
-    }
+    { s << "private:" << std::endl; }
     // functions
     for (auto const &func : mod->functions) {
         if (func->is_module_scope()) {
-            output_function_decl(s, indent_level, options, info, &func->subroutine);
+            output_function_decl(s, options, info, &func->subroutine);
         }
     }
 
-    indent_level--;
-
-    s << get_indent(indent_level) << "};" << std::endl;
+    s << "};" << std::endl;
 
     // namespace
     s << "} // namespace fsim" << std::endl;
@@ -514,14 +458,12 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
         s << "#include \"runtime/vpi.hh\"" << std::endl;
     }
 
-    int indent_level = 0;
-
     // dpi
-    codegen_dpi_header(mod, s, indent_level);
+    codegen_dpi_header(mod, s);
 
     bool has_ctor = !mod->child_instances.empty();
     if (has_ctor) {
-        output_ctor(s, indent_level, mod, info);
+        output_ctor(s, mod, info);
     } else {
         // output name space
         s << "namespace fsim {" << std::endl;
@@ -530,92 +472,83 @@ void output_cc_file(const std::filesystem::path &filename, const Module *mod,
     // global functions, which has to be declared first
     for (auto const &func : mod->functions) {
         if (!func->is_module_scope()) {
-            output_function_decl(s, indent_level, options, info, &func->subroutine);
+            output_function_decl(s, options, info, &func->subroutine);
         }
     }
 
     // initial block
     if (!mod->init_processes.empty()) {
-        s << get_indent(indent_level) << "void " << info.get_identifier_name(mod->name)
-          << "::init(fsim::runtime::Scheduler *" << info.scheduler_name() << ") {" << std::endl;
-        indent_level++;
+        s << "void " << info.get_identifier_name(mod->name) << "::init(fsim::runtime::Scheduler *"
+          << info.scheduler_name() << ") {" << std::endl;
 
         for (auto const &init : mod->init_processes) {
-            codegen_init(s, indent_level, init.get(), options, info);
+            codegen_init(s, init.get(), options, info);
         }
 
         if (!mod->child_instances.empty()) {
-            s << get_indent(indent_level) << "Module::init(scheduler);" << std::endl;
+            s << "Module::init(scheduler);" << std::endl;
         }
 
-        indent_level--;
-        s << get_indent(indent_level) << "}" << std::endl;
+        s << "}" << std::endl;
     }
 
     // final block
     if (!mod->final_processes.empty()) {
-        s << get_indent(indent_level) << "void " << info.get_identifier_name(mod->name)
-          << "::final(fsim::runtime::Scheduler *" << info.scheduler_name() << ") {" << std::endl;
-        indent_level++;
+        s << "void " << info.get_identifier_name(mod->name) << "::final(fsim::runtime::Scheduler *"
+          << info.scheduler_name() << ") {" << std::endl;
 
         for (auto const &final : mod->final_processes) {
-            codegen_final(s, indent_level, final.get(), options, info);
+            codegen_final(s, final.get(), options, info);
         }
 
         if (!mod->child_instances.empty()) {
-            s << get_indent(indent_level) << "Module::final(scheduler);" << std::endl;
+            s << "Module::final(scheduler);" << std::endl;
         }
 
-        indent_level--;
-        s << get_indent(indent_level) << "}" << std::endl;
+        s << "}" << std::endl;
     }
 
     // always block
     if (!mod->comb_processes.empty() || !mod->child_instances.empty()) {
-        s << get_indent(indent_level) << "void " << info.get_identifier_name(mod->name)
-          << "::comb(fsim::runtime::Scheduler *" << info.scheduler_name() << ") {" << std::endl;
-        indent_level++;
+        s << "void " << info.get_identifier_name(mod->name) << "::comb(fsim::runtime::Scheduler *"
+          << info.scheduler_name() << ") {" << std::endl;
 
         for (auto const &comb : mod->comb_processes) {
-            codegen_always(s, indent_level, comb.get(), options, info);
+            codegen_always(s, comb.get(), options, info);
         }
 
         for (auto const &iter : mod->child_instances) {
-            codegen_port_connections(s, indent_level, iter.second.get(), options, info);
+            codegen_port_connections(s, iter.second.get(), options, info);
         }
 
         if (!mod->child_instances.empty()) {
-            s << get_indent(indent_level) << "Module::comb(scheduler);" << std::endl;
+            s << "Module::comb(scheduler);" << std::endl;
         }
 
-        indent_level--;
-        s << get_indent(indent_level) << "}" << std::endl;
+        s << "}" << std::endl;
     }
 
     // ff block
     if (!mod->ff_processes.empty()) {
-        s << get_indent(indent_level) << "void " << info.get_identifier_name(mod->name)
-          << "::ff(fsim::runtime::Scheduler *" << info.scheduler_name() << ") {" << std::endl;
-        indent_level++;
+        s << "void " << info.get_identifier_name(mod->name) << "::ff(fsim::runtime::Scheduler *"
+          << info.scheduler_name() << ") {" << std::endl;
 
         for (auto const &comb : mod->ff_processes) {
-            codegen_ff(s, indent_level, comb.get(), options, info);
+            codegen_ff(s, comb.get(), options, info);
         }
 
         if (!mod->child_instances.empty()) {
-            s << get_indent(indent_level) << "Module::ff(scheduler);" << std::endl;
+            s << "Module::ff(scheduler);" << std::endl;
         }
 
-        indent_level--;
-        s << get_indent(indent_level) << "}" << std::endl;
+        s << "}" << std::endl;
     }
 
     // private functions
     auto mod_name_prefix = fmt::format("{0}::", info.get_identifier_name(mod->name));
     for (auto const &func : mod->functions) {
         if (func->is_module_scope()) {
-            output_function_impl(s, indent_level, options, info, &func->subroutine,
-                                 mod_name_prefix);
+            output_function_impl(s, options, info, &func->subroutine, mod_name_prefix);
         }
     }
 
@@ -649,9 +582,8 @@ void output_main_file(const std::string &filename, const Module *top,
     if (!global_functions.empty()) {
         // namespace
         s << "namespace fsim {" << std::endl;
-        int indent_level = 0;
         for (auto const *func : global_functions) {
-            output_function_impl(s, indent_level, options, info, func, {});
+            output_function_impl(s, options, info, func, {});
         }
 
         s << "} // namespace fsim" << std::endl;

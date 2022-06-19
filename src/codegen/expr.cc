@@ -536,7 +536,7 @@ void ExprCodeGenVisitor::handle(const slang::RangeSelectExpression &expr) {
 }
 
 void ExprCodeGenVisitor::output_timing(const slang::TimingControl &timing) {
-    TimingControlCodeGen t(s, 1, module_info_, *this);
+    TimingControlCodeGen t(s, module_info_, *this);
     t.handle(timing);
     s << " ";
 }
@@ -548,10 +548,9 @@ bool ExprCodeGenVisitor::is_return_symbol(const slang::Expression &expr) const {
     return named.symbol.name == module_info_.current_function->name;
 }
 
-TimingControlCodeGen::TimingControlCodeGen(std::ostream &s, int indent_level,
-                                           CodeGenModuleInformation &module_info,
+TimingControlCodeGen::TimingControlCodeGen(std::ostream &s, CodeGenModuleInformation &module_info,
                                            ExprCodeGenVisitor &expr_v)
-    : s(s), indent_level(indent_level), module_info_(module_info), expr_v(expr_v) {}
+    : s(s), module_info_(module_info), expr_v(expr_v) {}
 
 void TimingControlCodeGen::handle(const slang::TimingControl &timing) {
     switch (timing.kind) {
@@ -559,8 +558,7 @@ void TimingControlCodeGen::handle(const slang::TimingControl &timing) {
             // we first release the current condition holds
             auto const &delay = timing.as<slang::DelayControl>();
 
-            s << get_indent(indent_level)
-              << fmt::format("{0}({1}, (", fsim_schedule_delay,
+            s << fmt::format("{0}({1}, (", fsim_schedule_delay,
                              module_info_.current_process_name());
             delay.expr.visit(expr_v);
             s << fmt::format(").to_uint64(), {0}, {1});", module_info_.scheduler_name(),
@@ -569,8 +567,7 @@ void TimingControlCodeGen::handle(const slang::TimingControl &timing) {
         }
         case slang::TimingControlKind::SignalEvent: {
             auto const &single_event = timing.as<slang::SignalEventControl>();
-            s << get_indent(indent_level)
-              << fmt::format("SCHEDULE_EDGE({0}, ", module_info_.current_process_name());
+            s << fmt::format("SCHEDULE_EDGE({0}, ", module_info_.current_process_name());
             single_event.expr.visit(expr_v);
             s << ", fsim::runtime::Process::EdgeControlType::";
             switch (single_event.edge) {

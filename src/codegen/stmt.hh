@@ -8,7 +8,7 @@ namespace fsim {
 
 class VarDeclarationVisitor : public slang::ASTVisitor<VarDeclarationVisitor, false, false> {
 public:
-    VarDeclarationVisitor(std::ostream &s, int &indent_level, const CXXCodeGenOptions &options,
+    VarDeclarationVisitor(std::ostream &s, const CXXCodeGenOptions &options,
                           CodeGenModuleInformation &module_info, ExprCodeGenVisitor &expr_v);
 
     [[maybe_unused]] void handle(const slang::VariableSymbol &var);
@@ -23,7 +23,6 @@ public:
 
 private:
     std::ostream &s;
-    int &indent_level;
     const CXXCodeGenOptions &options;
     CodeGenModuleInformation &module_info;
     ExprCodeGenVisitor &expr_v;
@@ -37,7 +36,7 @@ private:
 
 class StmtCodeGenVisitor : public slang::ASTVisitor<StmtCodeGenVisitor, true, true> {
 public:
-    StmtCodeGenVisitor(std::ostream &s, int &indent_level, const CXXCodeGenOptions &options,
+    StmtCodeGenVisitor(std::ostream &s, const CXXCodeGenOptions &options,
                        CodeGenModuleInformation &module_info);
 
     [[maybe_unused]] void handle(const slang::VariableSymbol &var);
@@ -74,7 +73,6 @@ public:
 
 private:
     std::ostream &s;
-    int &indent_level;
     CodeGenModuleInformation &module_info;
 
     const slang::InstanceSymbol *inst_ = nullptr;

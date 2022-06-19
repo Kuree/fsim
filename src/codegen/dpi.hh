@@ -5,7 +5,7 @@
 #include "util.hh"
 
 namespace fsim {
-void codegen_dpi_header(const Module *mod, std::ostream &s, int &indent_level);
+void codegen_dpi_header(const Module *mod, std::ostream &s);
 }
 
 #endif  // FSIM_CODEGEN_DPI_HH

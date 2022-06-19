@@ -11,15 +11,10 @@ constexpr auto SCHEDULE_JOIN_ALL = "SCHEDULE_JOIN";
 constexpr auto SCHEDULE_JOIN_ANY = "SCHEDULE_ANY";
 constexpr auto SCHEDULE_JOIN_NONE = "SCHEDULE_NONE";
 
-VarDeclarationVisitor::VarDeclarationVisitor(std::ostream &s, int &indent_level,
-                                             const CXXCodeGenOptions &options,
+VarDeclarationVisitor::VarDeclarationVisitor(std::ostream &s, const CXXCodeGenOptions &options,
                                              CodeGenModuleInformation &module_info,
                                              ExprCodeGenVisitor &expr_v)
-    : s(s),
-      indent_level(indent_level),
-      options(options),
-      module_info(module_info),
-      expr_v(expr_v) {}
+    : s(s), options(options), module_info(module_info), expr_v(expr_v) {}
 
 void VarDeclarationVisitor::handle(const slang::VariableSymbol &var) {
     auto const &flags = var.flags;
@@ -31,7 +26,7 @@ void VarDeclarationVisitor::handle(const slang::VariableSymbol &var) {
 [[maybe_unused]] void VarDeclarationVisitor::handle(const slang::NetSymbol &var) {
     // output variable definition
     auto var_type_decl = get_var_decl(var);
-    s << get_indent(indent_level) << var_type_decl << ";" << std::endl;
+    s << var_type_decl << ";" << std::endl;
 
     module_info.add_used_names(module_info.get_identifier_name(var.name));
 }
@@ -64,7 +59,7 @@ void VarDeclarationVisitor::handle_(const slang::ValueSymbol &var) {
     if (var.kind == slang::SymbolKind::FormalArgument) return;
     // output variable definition
     auto var_type_decl = get_var_decl(var);
-    s << get_indent(indent_level) << var_type_decl;
+    s << var_type_decl;
 
     auto *init = var.getInitializer();
     if (init) {
@@ -235,14 +230,12 @@ std::string VarDeclarationVisitor::get_var_decl(const slang::Symbol &sym) const 
     return get_symbol_type(sym, module_info, options);
 }
 
-StmtCodeGenVisitor::StmtCodeGenVisitor(std::ostream &s, int &indent_level,
-                                       const CXXCodeGenOptions &options,
+StmtCodeGenVisitor::StmtCodeGenVisitor(std::ostream &s, const CXXCodeGenOptions &options,
                                        CodeGenModuleInformation &module_info)
     : s(s),
-      indent_level(indent_level),
       module_info(module_info),
       expr_v(s, module_info),
-      decl_v(s, indent_level, options, module_info, expr_v) {}
+      decl_v(s, options, module_info, expr_v) {}
 
 [[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::VariableSymbol &var) {
     var.visit(decl_v);
@@ -257,7 +250,7 @@ StmtCodeGenVisitor::StmtCodeGenVisitor(std::ostream &s, int &indent_level,
 [[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::TimedStatement &stmt) {
     s << std::endl;
     auto const &timing = stmt.timing;
-    TimingControlCodeGen timing_codegen(s, indent_level, module_info, expr_v);
+    TimingControlCodeGen timing_codegen(s, module_info, expr_v);
     timing_codegen.handle(timing);
     stmt.stmt.visit(*this);
 }
@@ -283,34 +276,25 @@ StmtCodeGenVisitor::StmtCodeGenVisitor(std::ostream &s, int &indent_level,
                 stmts = {&body};
             }
             auto fork_size = stmts.size();
-            s << get_indent(indent_level) << START_FORK << "(" << join_name << ", " << fork_size
-              << ");" << std::endl;
+            s << START_FORK << "(" << join_name << ", " << fork_size << ");" << std::endl;
             for (auto const *st : stmts) {
-                s << get_indent(indent_level) << "{" << std::endl;
-                indent_level++;
+                s << "{" << std::endl;
                 auto p = module_info.enter_process();
-
-                s << get_indent(indent_level)
-                  << fmt::format("auto {0} = {1}->create_fork_process();", p,
+                s << fmt::format("auto {0} = {1}->create_fork_process();", p,
+                                 module_info.scheduler_name())
+                  << std::endl;
+                s << fmt::format("{0}->func = [{0}, {1}, this]() {{", p,
                                  module_info.scheduler_name())
                   << std::endl;
 
-                s << get_indent(indent_level)
-                  << fmt::format("{0}->func = [{0}, {1}, this]() {{", p,
-                                 module_info.scheduler_name())
-                  << std::endl;
-                indent_level++;
                 st->visit(*this);
-                s << get_indent(indent_level) << END_FORK_PROCESS << "(" << p << ");" << std::endl;
-                indent_level--;
-                s << get_indent(indent_level) << "};" << std::endl;
+                s << END_FORK_PROCESS << "(" << p << ");" << std::endl;
 
-                s << get_indent(indent_level) << SCHEDULE_FORK << "(" << join_name << ", " << p
-                  << ");" << std::endl;
+                s << "};" << std::endl;
+                s << SCHEDULE_FORK << "(" << join_name << ", " << p << ");" << std::endl;
 
                 module_info.exit_process();
-                indent_level--;
-                s << get_indent(indent_level) << "}" << std::endl;
+                s << "}" << std::endl;
             }
             // join
             std::string_view call_name;
@@ -328,9 +312,8 @@ StmtCodeGenVisitor::StmtCodeGenVisitor(std::ostream &s, int &indent_level,
                     // should not reach here
                     break;
             }
-            s << get_indent(indent_level) << call_name << "(" << join_name << ", "
-              << module_info.scheduler_name() << ", " << module_info.current_process_name() << ");"
-              << std::endl;
+            s << call_name << "(" << join_name << ", " << module_info.scheduler_name() << ", "
+              << module_info.current_process_name() << ");" << std::endl;
             break;
         }
         case slang::StatementBlockKind::Sequential: {
@@ -343,40 +326,37 @@ StmtCodeGenVisitor::StmtCodeGenVisitor(std::ostream &s, int &indent_level,
 
 [[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::StatementList &list) {
     // entering a scope
-    s << get_indent(indent_level) << "{";
-    indent_level++;
+    s << "{";
     this->template visitDefault(list);
-    indent_level--;
-    s << std::endl << get_indent(indent_level) << "}" << std::endl;
+    s << std::endl << "}" << std::endl;
 }
 
 [[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::ExpressionStatement &stmt) {
-    s << std::endl << get_indent(indent_level);
+    s << std::endl;
     stmt.expr.visit(expr_v);
     s << ";";
 }
 
 [[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::ConditionalStatement &stmt) {
-    s << std::endl << get_indent(indent_level);
+    s << std::endl;
     auto const &cond = stmt.cond;
     s << "if (";
     cond.visit(expr_v);
     s << ")";
     stmt.ifTrue.visit(*this);
     if (stmt.ifFalse) {
-        s << get_indent(indent_level) << "else ";
+        s << "else ";
         stmt.ifFalse->visit(*this);
     }
 }
 
 [[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::ContinuousAssignSymbol &sym) {
-    s << get_indent(indent_level);
     sym.visitExprs(expr_v);
     s << ";" << std::endl;
 }
 
 [[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::ForLoopStatement &loop) {
-    s << get_indent(indent_level) << "for (";
+    s << "for (";
     for (uint64_t i = 0; i < loop.initializers.size(); i++) {
         auto const *expr = loop.initializers[i];
         expr->visit(expr_v);
@@ -409,7 +389,7 @@ void StmtCodeGenVisitor::handle(const slang::CaseStatement &stmt) {
     auto const &cases = stmt.items;
     for (auto case_idx = 0u; case_idx < cases.size(); case_idx++) {
         if (case_idx == 0) {
-            s << get_indent(indent_level) << "if (";
+            s << "if (";
         } else {
             s << " else if (";
         }
@@ -426,30 +406,26 @@ void StmtCodeGenVisitor::handle(const slang::CaseStatement &stmt) {
             s << ")";
         }
         s << ") {" << std::endl;
-        indent_level++;
 
         case_.stmt->visit(*this);
 
-        indent_level--;
-        s << std::endl << get_indent(indent_level) << "}";
+        s << std::endl << "}";
     }
 
     if (stmt.defaultCase) {
         if (!cases.empty()) [[likely]]
             s << " else ";
         s << "{";
-        indent_level++;
 
         stmt.defaultCase->visit(*this);
 
-        indent_level--;
-        s << std::endl << get_indent(indent_level) << "}" << std::endl;
+        s << std::endl << "}" << std::endl;
     }
 }
 
 [[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::RepeatLoopStatement &repeat) {
     // we use repeat as a variable since it won't appear in the code
-    s << std::endl << get_indent(indent_level) << "for (auto repeat = 0";
+    s << std::endl << "for (auto repeat = 0";
     if (repeat.count.type->isFourState()) {
         s << "_logic";
     } else {
@@ -458,22 +434,18 @@ void StmtCodeGenVisitor::handle(const slang::CaseStatement &stmt) {
     s << "; repeat < ";
     repeat.count.visit(expr_v);
     s << "; repeat++) {";
-    indent_level++;
 
     repeat.body.visit(*this);
 
-    indent_level--;
-    s << std::endl << get_indent(indent_level) << "}";
+    s << std::endl << "}";
 }
 
 [[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::ForeverLoopStatement &forever) {
-    s << std::endl << get_indent(indent_level) << "while (true) {" << std::endl;
-    indent_level++;
+    s << std::endl << "while (true) {" << std::endl;
 
     forever.body.visit(*this);
 
-    indent_level--;
-    s << std::endl << get_indent(indent_level) << "}";
+    s << std::endl << "}";
 }
 
 [[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::InstanceSymbol &inst) {
@@ -490,7 +462,7 @@ void StmtCodeGenVisitor::handle(const slang::CaseStatement &stmt) {
 }
 
 [[maybe_unused]] void StmtCodeGenVisitor::handle(const slang::ReturnStatement &ret) {
-    s << get_indent(indent_level) << "return";
+    s << "return";
     if (ret.expr) {
         s << " ";
         ret.expr->visit(expr_v);

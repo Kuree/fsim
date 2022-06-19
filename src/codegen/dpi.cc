@@ -32,14 +32,14 @@ std::string_view get_dpi_type(const slang::Type &type) {
     }
 }
 
-void codegen_dpi_header(const Module *mod, std::ostream &s, int &indent_level) {
+void codegen_dpi_header(const Module *mod, std::ostream &s) {
     // for now, we dump all dpi calls into every module implementation file, and then let the
     // linker figure out what to link. this, of course, can be improved later on to conditionally
     // generate the
     auto calls = get_all_dpi_calls(mod);
     if (calls.empty()) return;
 
-    s << get_indent(indent_level) << "extern \"C\" {" << std::endl;
+    s << "extern \"C\" {" << std::endl;
 
     for (auto const &[name, func_call] : calls) {
         auto sub = func_call->subroutine;
@@ -47,7 +47,7 @@ void codegen_dpi_header(const Module *mod, std::ostream &s, int &indent_level) {
         auto const *dpi = std::get<0>(sub);
         auto return_type = get_dpi_type(dpi->getReturnType());
 
-        s << get_indent(indent_level) << return_type << " " << name << "(";
+        s << return_type << " " << name << "(";
         auto const &args = dpi->getArguments();
         for (auto i = 0u; i < args.size(); i++) {
             auto const &arg = args[i];

@@ -77,8 +77,6 @@ private:
     std::string scheduler_name_;
 };
 
-std::string_view get_indent(int indent_level);
-
 std::pair<std::string_view, uint32_t> get_loc(const slang::SourceLocation &loc,
                                               const slang::Compilation *compilation);
 

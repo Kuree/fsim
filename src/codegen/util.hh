@@ -12,7 +12,16 @@ namespace fsim {
 auto constexpr main_name = "module";
 auto constexpr default_output_name = "fsim.out";
 
-void write_to_file(const std::string &filename, std::stringstream &stream);
+void write_to_file(const std::string &filename, std::stringstream &stream, bool format = true);
+
+namespace util::fs {
+std::optional<std::string> which(std::string_view name);
+std::string join(std::string_view path1, std::string_view path2);
+}  // namespace util::fs
+
+namespace util::string {
+std::vector<std::string> get_tokens(const std::string &line, const std::string &delimiter);
+}
 
 template <typename T>
 inline std::string get_cc_filename(const T &name) {

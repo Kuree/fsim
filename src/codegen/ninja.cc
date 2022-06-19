@@ -94,6 +94,6 @@ void NinjaCodeGen::output(const std::string &dir) {
            << std::endl;
     stream << "build " << options_.binary_name << ": main " << objs << std::endl;
 
-    write_to_file(ninja_filename.string(), stream);
+    write_to_file(ninja_filename.string(), stream, false);
 }
 }  // namespace fsim

@@ -116,6 +116,6 @@ setup(
     scripts=[os.path.join("scripts", "fsim")],
     ext_modules=[CMakeExtension("fsim")],
     # use ninja package
-    install_requires=["ninja"],
+    install_requires=["ninja", "clang-format"],
     cmdclass={"build_ext": CMakeBuild},
 )

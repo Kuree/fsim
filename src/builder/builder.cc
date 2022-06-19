@@ -9,6 +9,9 @@
 #include "../ir/except.hh"
 #include "dvpi.hh"
 #include "fmt/format.h"
+#include "marl/defer.h"
+#include "marl/scheduler.h"
+#include "marl/waitgroup.h"
 #include "slang/compilation/Compilation.h"
 #include "slang/symbols/ASTVisitor.h"
 #include "slang/syntax/AllSyntax.h"
@@ -190,18 +193,32 @@ void Builder::build(const Module *module) {
     ninja.output(options_.working_dir);
 
     // then generate the C++ code
-    CXXCodeGenOptions c_options;
-    c_options.vpi_libs = options_.vpi_libs;
-    c_options.use_4state = options_.use_4state;
-
-    // could be parallelized here
+    // use marl for parallelism
     auto modules = module->get_defs();
+    marl::Scheduler scheduler(marl::Scheduler::Config::allCores());
+    scheduler.bind();
+    defer(scheduler.unbind());  // Automatically unbind before returning.
+
+    marl::WaitGroup wg_modules(modules.size());
+
     for (auto const *mod : modules) {
-        CXXCodeGen cxx(mod, c_options);
-        cxx.output(options_.working_dir);
+        marl::schedule([wg_modules, mod, this] {
+            CXXCodeGenOptions c_options;
+            c_options.vpi_libs = options_.vpi_libs;
+            c_options.use_4state = options_.use_4state;
+            CXXCodeGen cxx(mod, c_options);
+            cxx.output(options_.working_dir);
+            wg_modules.done();
+        });
     }
+
+    wg_modules.wait();
+
     // output main as well
     {
+        CXXCodeGenOptions c_options;
+        c_options.vpi_libs = options_.vpi_libs;
+        c_options.use_4state = options_.use_4state;
         CXXCodeGen cxx(module, c_options);
         cxx.output_main(options_.working_dir);
     }

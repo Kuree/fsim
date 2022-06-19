@@ -2,12 +2,9 @@ function(add_warning target)
     if (MSVC)
         target_compile_options(${target} PRIVATE /W4 /WX)
     else ()
-        # Windows has lots of rules about deprecated functions
-        # All the errors comes from the subprocess submodule.
-        # Maybe it's a good idea to switch to more mature libraries, e.g. reproc once I got more time
         if (WIN32)
             set(WINDOWS_FLAG "-Wno-deprecated-declarations")
-        endif()
+        endif ()
         target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic -Werror -Wno-error=attributes ${WINDOWS_FLAG})
     endif ()
 endfunction()
@@ -17,11 +14,12 @@ set(IR_SRC ir/ast.cc ir/ir.cc ir/except.cc)
 set(BUILDER_SRC builder/builder.cc builder/dvpi.cc builder/util.cc)
 
 add_library(fsim ${BUILDER_SRC} ${CODEGEN_SRC} ${IR_SRC})
-target_link_libraries(fsim PUBLIC slangcompiler ${CMAKE_DL_LIBS} reproc++)
+target_link_libraries(fsim PUBLIC slangcompiler ${CMAKE_DL_LIBS} reproc++ marl)
 # use some libraries already used for slang to avoid linking errors
 target_include_directories(fsim PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/../extern/slang/external
-        ${CMAKE_CURRENT_SOURCE_DIR}/../extern/reproc/reproc++/include)
+        ${CMAKE_CURRENT_SOURCE_DIR}/../extern/reproc/reproc++/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../extern/marl/include)
 # force to use old fashion of span since slang is compiled against C++17
 target_compile_definitions(fsim PUBLIC span_CONFIG_SELECT_SPAN=1)
 set_property(TARGET fsim PROPERTY POSITION_INDEPENDENT_CODE ON)

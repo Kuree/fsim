@@ -20,9 +20,10 @@ The easiest way to install is via ``pip``. Simply do
 Notice that for maximum compatibility, the Linux wheel is shipped with ``gcc``, which allows xfim to be installed
 on any Linux system. macOS should work out of the box if the development tools are installed.
 
-
-To build from source, you can use the following commands. Notice that you also need ``ninja`` installed
-in your environment path.
+Development
++++++++++++
+To build from source, you can use the following commands. Notice that you also need ``ninja`` and
+``clang-format`` installed in your environment path.
 
 .. code:: bash
 

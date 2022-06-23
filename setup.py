@@ -43,7 +43,17 @@ class CMakeBuild(build_ext):
         if is_linux:
             cmake_args += ["-DSTATIC_BUILD=ON"]
         if is_windows:
-            cmake_args.append("-DCMAKE_GENERATOR=ninja")
+            cmake_args += ["-G", "Ninja"]
+            # make sure clang is in the PATH
+            clang_path = shutil.which("clang")
+            assert clang_path is not None, \
+                "Unable to find clang. Currently only clang is supported " \
+                "on Windows"
+            cxx_path = shutil.which("clang++")
+            rc_path = shutil.which("llvm-rc")
+            cmake_args += ["-DCMAKE_C_COMPILER:PATH=" + clang_path]
+            cmake_args += ["-DCMAKE_CXX_COMPILER:PATH=" + cxx_path]
+            cmake_args += ["-DCMAKE_RC_COMPILER:PATH=" + rc_path]
 
         build_args = []
         num_cpu = multiprocessing.cpu_count()

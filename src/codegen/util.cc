@@ -43,7 +43,7 @@ std::string join(std::string_view path1, std::string_view path2) {
     namespace fs = std::filesystem;
     fs::path p1 = path1;
     fs::path p2 = path2;
-    return p1 / p2;
+    return (p1 / p2).string();
 }
 
 }  // namespace util::fs

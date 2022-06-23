@@ -6,6 +6,7 @@ function(add_test target)
             ${CMAKE_CURRENT_SOURCE_DIR}/../extern/logic/include)
     target_link_libraries(${target} PRIVATE gtest gtest_main fsim ${extra_lib})
     gtest_discover_tests(${target})
+    target_compile_options(${target} PRIVATE "-Wno-attributes")
 endfunction()
 
 add_test(test_ast)

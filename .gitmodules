@@ -1,6 +1,6 @@
 [submodule "extern/slang"]
 	path = extern/slang
-	url = https://github.com/MikePopoloski/slang/
+	url = https://github.com/Kuree/slang/
 [submodule "extern/logic"]
 	path = extern/logic
 	url = https://github.com/Kuree/logic

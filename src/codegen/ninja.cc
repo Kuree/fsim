@@ -3,7 +3,7 @@
 #include <filesystem>
 #include <set>
 
-#include "../builder/dvpi.hh"
+#include "../platform/dvpi.hh"
 #include "fmt/format.h"
 #include "util.hh"
 
@@ -18,7 +18,7 @@ std::set<std::string_view> get_defs(const Module *module) {
     return result;
 }
 
-std::string get_linker_flags(const DPILocator *dpi) {
+std::string get_linker_flags(const platform::DPILocator *dpi) {
     if (!dpi) return {};
     auto const &libs = dpi->lib_paths();
     std::vector<std::string> lib_flags;

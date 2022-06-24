@@ -4,7 +4,9 @@
 #include "../ir/ir.hh"
 
 namespace fsim {
+namespace platform {
 class DPILocator;
+}
 
 struct NinjaCodeGenOptions {
     uint8_t optimization_level = 3;
@@ -17,7 +19,7 @@ struct NinjaCodeGenOptions {
 class NinjaCodeGen {
     // generates native ninja code (bypass cmake)
 public:
-    NinjaCodeGen(const Module *top, NinjaCodeGenOptions &options, const DPILocator *dpi)
+    NinjaCodeGen(const Module *top, NinjaCodeGenOptions &options, const platform::DPILocator *dpi)
         : top_(top), options_(options), dpi_(dpi) {}
 
     void output(const std::string &dir);
@@ -25,7 +27,7 @@ public:
 private:
     const Module *top_;
     NinjaCodeGenOptions &options_;
-    const DPILocator *dpi_ = nullptr;
+    const platform::DPILocator *dpi_ = nullptr;
 };
 }  // namespace fsim
 

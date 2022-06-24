@@ -11,7 +11,7 @@ typedef UINT(CALLBACK *LPFNDLLFUNC1)();
 #include <filesystem>
 #include <iostream>
 
-#include "util.hh"
+#include "dvpi.hh"
 #include "version.hh"
 #include "vpi_user.h"
 

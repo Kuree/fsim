@@ -1,10 +1,26 @@
-#ifndef FSIM_BUILDER_DVPI_HH
-#define FSIM_BUILDER_DVPI_HH
+#ifndef FSIM_PLATFORM_DVPI_HH
+#define FSIM_PLATFORM_DVPI_HH
 
 #include <set>
 #include <string>
 
-namespace fsim {
+namespace fsim::platform {
+
+class DLOpenHelper {
+public:
+    explicit DLOpenHelper(const std::string &filename);
+    DLOpenHelper(const std::string &filename, int mode);
+
+    ~DLOpenHelper();
+
+    [[nodiscard]] void *get_sym(const std::string &name) const;
+
+    void *ptr = nullptr;
+
+private:
+    void load(const char *name, int mode);
+};
+
 class DPILocator {
 public:
     DPILocator();
@@ -38,6 +54,6 @@ private:
     std::set<std::string> lib_paths_;
 };
 
-}  // namespace fsim
+}  // namespace fsim::platform
 
-#endif  // FSIM_BUILDER_DVPI_HH
+#endif  // FSIM_PLATFORM_DVPI_HH

@@ -4,18 +4,18 @@ target_include_directories(fsim-runtime PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/../../extern/marl/include
         ${CMAKE_CURRENT_SOURCE_DIR}/../../extern/logic/include
         ${CMAKE_CURRENT_SOURCE_DIR}/../../extern/vlstd
-        ${CMAKE_CURRENT_SOURCE_DIR}/../builder/
+        ${CMAKE_CURRENT_SOURCE_DIR}/../platform/
         ${CMAKE_BINARY_DIR})
 
 if (UNIX AND NOT APPLE)
     set(LINUX_LINK_FLAGS "-Wl,--whole-archive $<TARGET_FILE:logic> $<TARGET_FILE:marl> -Wl,--no-whole-archive ${STATIC_CXX_FLAG}")
     # remove trailing space if any
     string(STRIP "${LINUX_LINK_FLAGS}" LINUX_LINK_FLAGS)
-    target_link_libraries(fsim-runtime PUBLIC fmt fsim ${CMAKE_DL_LIBS} ${LINUX_LINK_FLAGS})
+    target_link_libraries(fsim-runtime PUBLIC fmt fsim-platform ${CMAKE_DL_LIBS} ${LINUX_LINK_FLAGS})
     # force dependencies
     add_dependencies(fsim-runtime marl logic)
 else ()
-    target_link_libraries(fsim-runtime PUBLIC fmt marl logic fsim ${CMAKE_DL_LIBS})
+    target_link_libraries(fsim-runtime PUBLIC fmt marl logic fsim-platform ${CMAKE_DL_LIBS})
 endif ()
 
 

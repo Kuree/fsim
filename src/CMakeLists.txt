@@ -11,10 +11,13 @@ endfunction()
 
 set(CODEGEN_SRC codegen/cxx.cc codegen/expr.cc codegen/ninja.cc codegen/stmt.cc codegen/util.cc codegen/dpi.cc)
 set(IR_SRC ir/ast.cc ir/ir.cc ir/except.cc)
-set(BUILDER_SRC builder/builder.cc builder/dvpi.cc builder/util.cc)
+set(BUILDER_SRC builder/builder.cc builder/util.cc)
+set(PLATFORM_SRC platform/dvpi.cc)
 
+add_library(fsim-platform ${PLATFORM_SRC})
+target_link_libraries(fsim-platform PRIVATE ${CMAKE_DL_LIBS})
 add_library(fsim ${BUILDER_SRC} ${CODEGEN_SRC} ${IR_SRC})
-target_link_libraries(fsim PRIVATE slangcompiler ${CMAKE_DL_LIBS} reproc++ marl)
+target_link_libraries(fsim PRIVATE slangcompiler fsim-platform reproc++ marl)
 # use some libraries already used for slang to avoid linking errors
 target_include_directories(fsim PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/../extern/slang/external

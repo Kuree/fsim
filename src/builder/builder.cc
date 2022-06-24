@@ -7,7 +7,7 @@
 #include "../codegen/cxx.hh"
 #include "../codegen/ninja.hh"
 #include "../ir/except.hh"
-#include "dvpi.hh"
+#include "../platform/dvpi.hh"
 #include "fmt/format.h"
 #include "marl/defer.h"
 #include "marl/scheduler.h"
@@ -138,7 +138,8 @@ std::unordered_map<std::string_view, const slang::CallExpression *> get_all_dpi_
     return names;
 }
 
-void verify_dpi_functions(DPILocator *dpi, const Module *module, const BuildOptions &options) {
+void verify_dpi_functions(platform::DPILocator *dpi, const Module *module,
+                          const BuildOptions &options) {
     auto names = get_all_dpi_calls(module);
     for (auto const &p : options.sv_libs) {
         dpi->add_dpi_lib(p);
@@ -155,7 +156,7 @@ void verify_dpi_functions(DPILocator *dpi, const Module *module, const BuildOpti
     }
 }
 
-void verify_vpi_functions(VPILocator *vpi, BuildOptions &options) {
+void verify_vpi_functions(platform::VPILocator *vpi, BuildOptions &options) {
     for (auto const &path : options.vpi_libs) {
         if (!vpi->add_vpi_lib(path)) {
             throw InvalidInput(fmt::format("{0} is not a valid VPI library", path));
@@ -183,10 +184,10 @@ void Builder::build(const Module *module) {
     n_options.binary_name = options_.binary_name;
     n_options.sv_libs = options_.sv_libs;
     // check all the DPI functions to see if they are valid
-    DPILocator dpi_locator;
+    platform::DPILocator dpi_locator;
     verify_dpi_functions(&dpi_locator, module, options_);
     // check the vpi
-    VPILocator vpi_locator;
+    platform::VPILocator vpi_locator;
     verify_vpi_functions(&vpi_locator, options_);
 
     NinjaCodeGen ninja(module, n_options, &dpi_locator);

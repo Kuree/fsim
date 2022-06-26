@@ -4,8 +4,12 @@ import os
 import subprocess
 import sys
 import shutil
+import platform
+
 
 GCC_VERSION = "11.3.0"
+
+is_windows = platform.system() == "Windows"
 
 
 def find_glibc_location():
@@ -29,10 +33,15 @@ def find_glibc_header():
     return "/usr/include/:/usr/include/x86_64-linux-gnu"
 
 
+if is_windows:
+    fsim_name = "fsim.exe"
+else:
+    fsim_name = "fsim"
+
 root_dir = None
 for dirname in sys.path:
     path = os.path.join(dirname, "fsim")
-    if os.path.exists(os.path.join(path, "bin", "fsim")):
+    if os.path.exists(os.path.join(path, "bin", fsim_name)):
         root_dir = path
         break
 if root_dir is None:
@@ -40,19 +49,26 @@ if root_dir is None:
     exit(1)
 
 bin_dir = os.path.join(root_dir, "bin")
-fsim_bin = os.path.join(bin_dir, "fsim")
-cxx_bin = os.path.join(bin_dir, "g++-" + GCC_VERSION)
+fsim_bin = os.path.join(bin_dir, fsim_name)
+if is_windows:
+    # we only support clang on windows
+    cxx_bin = "clang++"
+else:
+    cxx_bin = os.path.join(bin_dir, "g++-" + GCC_VERSION)
 
-if os.path.exists(cxx_bin):
-    # also need to find out the library path for crt1.o etc
-    glibc_path = find_glibc_location()
-    if glibc_path is None:
-        print("unable to find glibc", file=sys.stderr)
-        exit(1)
-    # find glibc headers
-    cpath = find_glibc_header()
-    env = {"FSIM_CXX": cxx_bin, "LIBRARY_PATH": glibc_path + ":/usr/lib:/usr/lib64:/usr/lib/x86_64-linux-gnu/",
-           "CPATH": cpath}
+if os.path.exists(cxx_bin) or shutil.which(cxx_bin) is not None:
+    if is_windows:
+        env = {"FSIM_CXX": cxx_bin}
+    else:
+        # also need to find out the library path for crt1.o etc
+        glibc_path = find_glibc_location()
+        if glibc_path is None:
+            print("unable to find glibc", file=sys.stderr)
+            exit(1)
+        # find glibc headers
+        cpath = find_glibc_header()
+        env = {"FSIM_CXX": cxx_bin, "LIBRARY_PATH": glibc_path + ":/usr/lib:/usr/lib64:/usr/lib/x86_64-linux-gnu/",
+               "CPATH": cpath}
 else:
     # use system default one
     env = {}

@@ -1,4 +1,10 @@
-add_library(fsim-runtime SHARED system_task.cc scheduler.cc module.cc variable.cc vpi.cc)
+if (WIN32)
+    set(BUILD_TYPE STATIC)
+else()
+    set(BUILD_TYPE SHARED)
+endif()
+
+add_library(fsim-runtime ${BUILD_TYPE} system_task.cc scheduler.cc module.cc variable.cc vpi.cc)
 target_include_directories(fsim-runtime PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/../../extern/fmt/include
         ${CMAKE_CURRENT_SOURCE_DIR}/../../extern/marl/include
@@ -20,10 +26,13 @@ endif ()
 
 
 set_property(TARGET fsim-runtime PROPERTY POSITION_INDEPENDENT_CODE ON)
-target_compile_options(fsim-runtime PRIVATE -Wall -Werror -Wpedantic -Wno-gnu-zero-variadic-macro-arguments
-        -Wno-unknown-attributes -Wno-unknown-warning-option -Wno-microsoft-enum-value -Wno-language-extension-token)
-# force the extension to be so regardless of the platform
-set_target_properties(fsim-runtime PROPERTIES SUFFIX ".so")
+target_compile_options(fsim-runtime PRIVATE -fvisibility=default -Wall -Werror -Wpedantic
+        -Wno-gnu-zero-variadic-macro-arguments -Wno-unknown-attributes -Wno-unknown-warning-option
+        -Wno-microsoft-enum-value -Wno-language-extension-token)
+
+if (NOT WIN32)
+    set_target_properties(fsim-runtime PROPERTIES SUFFIX ".so")
+endif ()
 
 # generate version files
 file(READ ${CMAKE_SOURCE_DIR}/VERSION FSIM_VERSION)

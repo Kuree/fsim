@@ -83,7 +83,17 @@ void NinjaCodeGen::output(const std::string &dir) {
         stream << "build " << obj_name << ": cc " << get_cc_filename(name) << std::endl;
         objs.append(obj_name).append(" ");
     }
+#ifdef _WIN32
+    auto const lib_names = {"marl",  "fsim-runtime", "fsim-platform",
+                            "fmt",   "logic",        "clang_rt.builtins-x86_64.lib",
+                            "msvcrt"};
+    auto flags = fmt::format("-l{0}", fmt::join(lib_names.begin(), lib_names.end(), " -l"));
+    auto main_linkers = fmt::format("-fuse-ld=lld -L{0}/ {1} ", lib_path.string(), flags);
+    // we don't need runtime lib anymore
+    runtime_lib_path.clear();
+#else
     auto main_linkers = fmt::format("-pthread -lstdc++ -Wl,-rpath,{0} ", lib_path.string());
+#endif
     auto dpi_linkers = get_linker_flags(dpi_);
     main_linkers.append(dpi_linkers);
     // build the main

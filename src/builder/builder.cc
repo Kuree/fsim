@@ -34,12 +34,15 @@ void symlink_folders(const std::string &output_dir, const std::string &simv_path
             in_tree_build = true;
         }
     }
+
+    std::filesystem::path root;
+
     if (in_tree_build) {
         std::filesystem::path current_file = __FILE__;
         // builder is in its own folder
         auto src = current_file.parent_path().parent_path();
         runtime = src / "runtime";
-        auto root = src.parent_path();
+        root = src.parent_path();
         auto extern_ = root / "extern";
         logic = extern_ / "logic" / "include" / "logic";
         marl = extern_ / "marl" / "include" / "marl";
@@ -60,7 +63,7 @@ void symlink_folders(const std::string &output_dir, const std::string &simv_path
 
     } else {
         std::filesystem::path exe = simv_path;
-        auto root = exe.parent_path().parent_path();
+        root = exe.parent_path().parent_path();
         auto include = root / "include";
         runtime = include / "runtime";
         logic = include / "logic";
@@ -79,6 +82,15 @@ void symlink_folders(const std::string &output_dir, const std::string &simv_path
     auto marl_include = dst_include_dir / "marl";
 
     auto dst_lib_dir = output_path / "lib";
+
+    // for Windows, we just symbolically link the entire directory
+    // for now, we don't support Windows in-tree build
+#ifdef _WIN32
+    if (!in_tree_build && !std::filesystem::exists(dst_lib_dir)) {
+        std::filesystem::create_directory_symlink(root / "lib", dst_lib_dir);
+    }
+#endif
+
     for (auto const &d : {dst_include_dir, dst_lib_dir}) {
         if (!std::filesystem::exists(d)) {
             std::filesystem::create_directories(d);
@@ -97,10 +109,13 @@ void symlink_folders(const std::string &output_dir, const std::string &simv_path
     // need to find the final runtime build as well
     // for now searching for any folder that contains "build" and look for path
     // once packaging is working all the search process needs to be enhanced
+    // this only works on unix
+#ifndef _WIN32
     auto runtime_dst_path = dst_lib_dir / "libfsim-runtime.so";
     if (!std::filesystem::exists(runtime_dst_path)) {
         std::filesystem::create_symlink(runtime_path, runtime_dst_path);
     }
+#endif
 }
 
 class DPIFunctionVisitor : public slang::ASTVisitor<DPIFunctionVisitor, true, true> {

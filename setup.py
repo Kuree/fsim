@@ -100,11 +100,11 @@ class CMakeBuild(build_ext):
             shutil.copytree(runtime_src, runtime_dst)
         # copy over the build runtime
         if is_windows:
-            runtime_src_name = "fsim-runtime.so"
+            runtime_src_name = "fsim-runtime.dll"
         else:
             runtime_src_name = "libfsim-runtime.so"
         runtime_src = os.path.join(self.build_temp, "src", "runtime", runtime_src_name)
-        runtime_dst = os.path.join(extdir, "lib", "libfsim-runtime.so")
+        runtime_dst = os.path.join(extdir, "lib", runtime_src_name)
         if not os.path.exists(runtime_dst):
             os.makedirs(os.path.dirname(runtime_dst), exist_ok=True)
             shutil.copy(runtime_src, runtime_dst)

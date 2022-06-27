@@ -5,7 +5,6 @@ on: [push, pull_request]
 jobs:
   linux:
     runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, 'skip test')"
     steps:
       - uses: actions/checkout@v2
       - name: Checkout submodules 🖥️
@@ -35,7 +34,6 @@ jobs:
 
   macos:
     runs-on: macos-latest
-    if: "!contains(github.event.head_commit.message, 'skip test')"
     steps:
       - uses: actions/checkout@v2
       - name: Checkout submodules 🖥️

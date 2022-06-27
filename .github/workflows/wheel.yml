@@ -86,6 +86,12 @@ jobs:
         env:
           CC: clang
           CXX: clang++
+      - name: Run tests ⚙️
+        shell: bash
+        run: |
+          echo "module top; endmodule" > test.sv
+          pip3 install dist/*
+          fsim test.sv -R
       - name: Prepare wheels
         shell: bash
         run: |

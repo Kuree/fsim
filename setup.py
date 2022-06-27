@@ -82,7 +82,7 @@ class CMakeBuild(build_ext):
                     if not os.path.exists(dst):
                         shutil.copytree(src, dst)
                 # need to delete unnecessary stuff to make the wheel smaller
-                os.remove(os.path.join(extdir, "bin", "lto-dump-11.2.0"))
+                os.remove(os.path.join(extdir, "bin", f"lto-dump-{GCC_VERSION}"))
                 shutil.rmtree(os.path.join(extdir, "share"))
         # now copy other include files
         extern_include = ["marl", "logic"]
@@ -90,9 +90,10 @@ class CMakeBuild(build_ext):
         for extern_dir in extern_include:
             src = os.path.join(src_root, "extern", extern_dir, "include", extern_dir)
             dst = os.path.join(extdir, "include", extern_dir)
-            if not os.path.exists(dst):
-                os.makedirs(os.path.dirname(dst), exist_ok=True)
-                shutil.copytree(src, dst)
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            if os.path.exists(dst):
+                shutil.rmtree(dst)
+            shutil.copytree(src, dst)
         # copy runtime header
         runtime_src = os.path.join(src_root, "src", "runtime")
         runtime_dst = os.path.join(extdir, "include", "runtime")
@@ -100,22 +101,23 @@ class CMakeBuild(build_ext):
             shutil.copytree(runtime_src, runtime_dst)
         # copy over the build runtime
         if is_windows:
-            runtime_src_name = "fsim-runtime.dll"
+            runtime_src_name = "fsim-runtime.lib"
         else:
             runtime_src_name = "libfsim-runtime.so"
         runtime_src = os.path.join(self.build_temp, "src", "runtime", runtime_src_name)
         runtime_dst = os.path.join(extdir, "lib", runtime_src_name)
-        if not os.path.exists(runtime_dst):
-            os.makedirs(os.path.dirname(runtime_dst), exist_ok=True)
-            shutil.copy(runtime_src, runtime_dst)
+        os.makedirs(os.path.dirname(runtime_dst), exist_ok=True)
+        if os.path.exists(runtime_dst):
+            os.remove(runtime_dst)
+        shutil.copy(runtime_src, runtime_dst)
         # windows is painful, and I don't know why it won't statically link with the runtime lib
         # need to copy them all over
         if is_windows:
-            files = [("marl", "marl.lib"), ("fmt", "fmt.lib"), ("logic", "src", "logic.lib"), ["src",
-                                                                                               "fsim-platform.lib"]]
+            files = [("extern", "marl", "marl.lib"), ("extern", "fmt", "fmt.lib"),
+                     ("extern", "logic", "src", "logic.lib"), ["src", "fsim-platform.lib"]]
             for paths in files:
                 src = os.path.join(self.build_temp, *paths)
-                dst = os.path.join(ext, "lib", paths[-1])
+                dst = os.path.join(extdir, "lib", paths[-1])
                 shutil.copy(src, dst)
 
         # copy fsim binary

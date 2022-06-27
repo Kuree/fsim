@@ -37,6 +37,12 @@ void symlink_folders(const std::string &output_dir, const std::string &simv_path
 
     std::filesystem::path root;
 
+#ifdef _WIN32
+    auto constexpr fsim_runtime_name = "fsim-runtime.lib";
+#else
+    auto constexpr fsim_runtime_name = "libfsim-runtime.so";
+#endif
+
     if (in_tree_build) {
         std::filesystem::path current_file = __FILE__;
         // builder is in its own folder
@@ -51,7 +57,7 @@ void symlink_folders(const std::string &output_dir, const std::string &simv_path
         for (auto const &p : it) {
             std::string path_str = p.path().string();
             if (path_str.find("build") != std::string::npos) {
-                auto target_path = p.path() / "src" / "runtime" / "libfsim-runtime.so";
+                auto target_path = p.path() / "src" / "runtime" / fsim_runtime_name;
                 if (std::filesystem::exists(target_path)) {
                     runtime_path = target_path;
                 }
@@ -68,7 +74,7 @@ void symlink_folders(const std::string &output_dir, const std::string &simv_path
         runtime = include / "runtime";
         logic = include / "logic";
         marl = include / "marl";
-        runtime_path = root / "lib" / "libfsim-runtime.so";
+        runtime_path = root / "lib" / fsim_runtime_name;
     }
 
     if (!std::filesystem::exists(runtime_path)) {

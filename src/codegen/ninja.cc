@@ -63,7 +63,11 @@ void NinjaCodeGen::output(const std::string &dir) {
         stream << "-g ";
     }
     // ignore warning flags for apple clang
-    stream << "-Wno-unknown-attributes ";
+    stream << "-Wno-unknown-attributes -Wno-unused-command-line-argument ";
+    // windows need to have dynmac flag
+#ifdef _WIN32
+    stream << "-D_DLL ";
+#endif
     stream << std::endl << std::endl;
     // codegen rules
     stream << "rule cc" << std::endl;

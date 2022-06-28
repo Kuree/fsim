@@ -9,7 +9,10 @@
 #include "slang/compilation/Compilation.h"
 #include "slang/diagnostics/DeclarationsDiags.h"
 #include "slang/diagnostics/DiagnosticEngine.h"
+#include "slang/diagnostics/ExpressionsDiags.h"
 #include "slang/diagnostics/LookupDiags.h"
+#include "slang/diagnostics/ParserDiags.h"
+#include "slang/diagnostics/SysFuncsDiags.h"
 #include "slang/diagnostics/TextDiagnosticClient.h"
 #include "slang/parsing/Preprocessor.h"
 #include "slang/syntax/SyntaxTree.h"
@@ -163,6 +166,8 @@ bool loadAllSources(Compilation& compilation, SourceManager& sourceManager,
     return ok;
 }
 
+enum class CompatMode { None, VCS };
+
 class Compiler {
 public:
     Compilation& compilation;
@@ -177,7 +182,18 @@ public:
     }
 
     void setDiagnosticOptions(const std::vector<std::string>& warningOptions,
-                              bool ignoreUnknownModules, bool allowUseBeforeDeclare) {
+                              bool ignoreUnknownModules, bool allowUseBeforeDeclare,
+                              CompatMode compatMode) {
+        if (compatMode == CompatMode::VCS) {
+            diagEngine.setSeverity(diag::StaticInitializerMustBeExplicit,
+                                   DiagnosticSeverity::Ignored);
+            diagEngine.setSeverity(diag::ImplicitConvert, DiagnosticSeverity::Ignored);
+            diagEngine.setSeverity(diag::BadFinishNum, DiagnosticSeverity::Ignored);
+            diagEngine.setSeverity(diag::NonstandardSysFunc, DiagnosticSeverity::Ignored);
+            diagEngine.setSeverity(diag::NonstandardForeach, DiagnosticSeverity::Ignored);
+            diagEngine.setSeverity(diag::NonstandardDist, DiagnosticSeverity::Ignored);
+        }
+
         Diagnostics optionDiags = diagEngine.setWarningOptions(warningOptions);
         Diagnostics pragmaDiags = diagEngine.setMappingsFromPragmas();
         if (ignoreUnknownModules)
@@ -234,10 +250,12 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
     std::vector<std::string> includeSystemDirs;
     std::vector<std::string> libDirs;
     std::vector<std::string> libExts;
-    cmdLine.add("-I,--include-directory", includeDirs, "Additional include search paths", "<dir>");
+    cmdLine.add("-I,--include-directory,+incdir", includeDirs, "Additional include search paths",
+                "<dir>");
     cmdLine.add("--isystem", includeSystemDirs, "Additional system include search paths", "<dir>");
     cmdLine.add("-y,--libdir", libDirs,
-                "Library search paths, which will be searched for missing modules", "<dir>");
+                "Library search paths, which will be searched for missing modules", "<dir>",
+                /* isFileName */ true);
     cmdLine.add("-Y,--libext", libExts, "Additional library file extensions to search", "<ext>");
 
     // Preprocessor
@@ -246,7 +264,8 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
     optional<uint32_t> maxIncludeDepth;
     std::vector<std::string> defines;
     std::vector<std::string> undefines;
-    cmdLine.add("-D,--define-macro", defines,
+    optional<bool> allowUseBeforeDeclare;
+    cmdLine.add("-D,--define-macro,+define", defines,
                 "Define <macro> to <value> (or 1 if <value> ommitted) in all source files",
                 "<macro>=<value>");
     cmdLine.add("-U,--undefine-macro", undefines,
@@ -256,6 +275,17 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
                 "Include compiler directives in preprocessed output (with -E)");
     cmdLine.add("--max-include-depth", maxIncludeDepth,
                 "Maximum depth of nested include files allowed", "<depth>");
+
+    // Compilation
+    optional<std::string> compat;
+    optional<bool> relaxEnumConversions;
+    optional<bool> allowHierarchicalConst;
+    cmdLine.add("--compat", compat, "Attempt to increase compatibility with the specified tool",
+                "vcs");
+    cmdLine.add("--allow-use-before-declare", allowUseBeforeDeclare,
+                "Don't issue an error for use of names before their declarations.");
+    cmdLine.add("--allow-hierarchical-const", allowHierarchicalConst,
+                "Allow hierarchical references in constant expressions.");
 
     // Parsing
     optional<uint32_t> maxLexerErrors;
@@ -308,7 +338,6 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
     optional<bool> diagMacroExpansion;
     optional<bool> diagHierarchy;
     optional<bool> ignoreUnknownModules;
-    optional<bool> allowUseBeforeDeclare;
     optional<uint32_t> errorLimit;
     std::vector<std::string> warningOptions;
     cmdLine.add("-W", warningOptions, "Control the specified warning", "<warning>");
@@ -334,8 +363,6 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
     cmdLine.add("--ignore-unknown-modules", ignoreUnknownModules,
                 "Don't issue an error for instantiations of unknown modules, "
                 "interface, and programs.");
-    cmdLine.add("--allow-use-before-declare", allowUseBeforeDeclare,
-                "Don't issue an error for use of names before their declarations.");
 
     // simulation
     optional<uint32_t> optimizationLevel;
@@ -349,13 +376,13 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
     optional<bool> singleUnit;
     std::vector<std::string> sourceFiles;
     cmdLine.add("--single-unit", singleUnit, "Treat all input files as a single compilation unit");
-    cmdLine.setPositional(sourceFiles, "files");
+    cmdLine.setPositional(sourceFiles, "files", /* isFileName */ true);
 
     std::vector<std::string> libraryFiles;
     cmdLine.add("-v", libraryFiles,
                 "One or more library files, which are separate compilation units "
                 "where modules are not automatically instantiated.",
-                "<filename>");
+                "<filename>", /* isFileName */ true);
 
     if (!cmdLine.parse(argc, argv)) {
         for (auto& err : cmdLine.getErrors()) OS::printE("{}\n", err);
@@ -406,6 +433,20 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
         }
     }
 
+    CompatMode compatMode = CompatMode::None;
+    if (compat.has_value()) {
+        if (compat == "vcs") {
+            compatMode = CompatMode::VCS;
+            if (!allowHierarchicalConst.has_value()) allowHierarchicalConst = true;
+            if (!allowUseBeforeDeclare.has_value()) allowUseBeforeDeclare = true;
+            if (!relaxEnumConversions.has_value()) relaxEnumConversions = true;
+        } else {
+            OS::printE(fg(errorColor), "error: ");
+            OS::printE("invalid value for compat option: '{}'", *compat);
+            return 1;
+        }
+    }
+
     PreprocessorOptions ppoptions;
     ppoptions.predefines = defines;
     ppoptions.undefines = undefines;
@@ -420,6 +461,8 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
     CompilationOptions coptions;
     coptions.suppressUnused = true;
     if (errorLimit.has_value()) coptions.errorLimit = *errorLimit * 2;
+    if (allowHierarchicalConst == true) coptions.allowHierarchicalConst = true;
+    if (relaxEnumConversions == true) coptions.relaxEnumConversions = true;
 
     for (auto& name : topModules) coptions.topModules.emplace(name);
     for (auto& opt : paramOverrides) coptions.paramOverrides.emplace_back(opt);
@@ -483,7 +526,7 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
 
         compiler.diagEngine.setErrorLimit((int)errorLimit.value_or(20));
         compiler.setDiagnosticOptions(warningOptions, ignoreUnknownModules == true,
-                                      allowUseBeforeDeclare == true);
+                                      allowUseBeforeDeclare == true, compatMode);
 
         anyErrors |= !compiler.run();
 

@@ -17,9 +17,9 @@ jobs:
       - name: Run tests ⚙️
         shell: bash
         run: |
-          echo "module top; endmodule" > test.sv
-          sudo pip3 install wheelhouse/*
-          fsim test.sv -R
+          echo "module top; initial \$display(\"hello world\"); endmodule" > test.sv
+          pip3 install dist/*
+          [[ $(fsim -R test.sv) =~ "hello world"  ]]
       - name: Prepare wheel 🎡
         if: startsWith(github.ref, 'refs/tags')
         shell: bash
@@ -54,9 +54,9 @@ jobs:
       - name: Run tests ⚙️
         shell: bash
         run: |
-          echo "module top; endmodule" > test.sv
+          echo "module top; initial \$display(\"hello world\"); endmodule" > test.sv
           pip3 install dist/*
-          fsim test.sv -R
+          [[ $(fsim -R test.sv) =~ "hello world"  ]]
       - name: Upload artifact 🛖
         uses: actions/upload-artifact@v2
         with:
@@ -87,9 +87,9 @@ jobs:
       - name: Run tests ⚙️
         shell: bash
         run: |
-          echo "module top; endmodule" > test.sv
+          echo "module top; initial \$display(\"hello world\"); endmodule" > test.sv
           pip3 install dist/*
-          fsim test.sv -R
+          [[ $(fsim -R test.sv) =~ "hello world"  ]]
       - name: Prepare wheels
         shell: bash
         run: |

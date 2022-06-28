@@ -252,7 +252,7 @@ void Builder::build(const Module *module) {
     {
         auto p = platform::run({"ninja"}, options_.working_dir);
         if (p != 0) {
-            return;
+            throw fsim::InternalError("Unable to build simulation using ninja");
         }
         // symlink the output to the current directory
         if (std::filesystem::exists(n_options.binary_name)) {

@@ -512,6 +512,7 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
                 e.report(compiler.diagClient);
                 slang::OS::printE("{}", compiler.diagClient->getString());
                 builder.cleanup();
+                return 4;
             }
         }
 

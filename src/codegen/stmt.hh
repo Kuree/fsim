@@ -31,7 +31,8 @@ private:
 
     [[nodiscard]] std::string get_var_decl(const slang::Symbol &sym) const;
 
-    void handle_(const slang::ValueSymbol &var);
+    void handle_(const slang::ValueSymbol &var,
+                 slang::VariableLifetime = slang::VariableLifetime::Automatic);
 };
 
 class StmtCodeGenVisitor : public slang::ASTVisitor<StmtCodeGenVisitor, true, true> {

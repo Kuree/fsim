@@ -16,11 +16,23 @@ VarDeclarationVisitor::VarDeclarationVisitor(std::ostream &s, const CXXCodeGenOp
                                              ExprCodeGenVisitor &expr_v)
     : s(s), options(options), module_info(module_info), expr_v(expr_v) {}
 
+bool defined_in_function(const slang::ValueSymbol &var) {
+    auto const *p = var.getParentScope();
+    while (p) {
+        auto const &sym = p->asSymbol();
+        if (sym.kind == slang::SymbolKind::Subroutine) {
+            return true;
+        }
+        p = sym.getParentScope();
+    }
+    return false;
+}
+
 void VarDeclarationVisitor::handle(const slang::VariableSymbol &var) {
     auto const &flags = var.flags;
     // we don't generate compiler generated vars
     if (flags.has(slang::VariableFlags::CompilerGenerated)) return;
-    handle_(var);
+    handle_(var, var.lifetime);
 }
 
 [[maybe_unused]] void VarDeclarationVisitor::handle(const slang::NetSymbol &var) {
@@ -54,9 +66,15 @@ void VarDeclarationVisitor::handle(const slang::VariableSymbol &var) {
     handle_(param);
 }
 
-void VarDeclarationVisitor::handle_(const slang::ValueSymbol &var) {
+void VarDeclarationVisitor::handle_(const slang::ValueSymbol &var,
+                                    slang::VariableLifetime life_time) {
     // not interested in formal argument for now
     if (var.kind == slang::SymbolKind::FormalArgument) return;
+    // static. only required if the declaration scope is not module
+    bool defined_in_func = defined_in_function(var);
+    if (defined_in_func && life_time == slang::VariableLifetime::Static) {
+        s << "static ";
+    }
     // output variable definition
     auto var_type_decl = get_var_decl(var);
     s << var_type_decl;

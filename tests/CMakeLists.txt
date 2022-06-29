@@ -7,6 +7,8 @@ function(add_test target)
     target_link_libraries(${target} PRIVATE gtest gtest_main fsim ${extra_lib})
     gtest_discover_tests(${target})
     target_compile_options(${target} PRIVATE "-Wno-attributes")
+    # because the test will load runtime, make sure the test is built after the runtime
+    add_dependencies(${target} fsim-runtime)
 endfunction()
 
 add_test(test_ast)

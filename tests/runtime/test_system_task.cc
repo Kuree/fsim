@@ -35,6 +35,10 @@ TEST(systask, display_logic) {  // NOLINT
     display(&m2, "PASS");
     output = testing::internal::GetCapturedStdout();
     EXPECT_EQ(output, "PASS\n");
+    testing::internal::CaptureStdout();
+    display(&m2, ":assert:(%d == 1)", 1_logic);
+    output = testing::internal::GetCapturedStdout();
+    EXPECT_EQ(output, ":assert:(         1 == 1)\n");
 }
 
 TEST(systask, display_bit) {    // NOLINT

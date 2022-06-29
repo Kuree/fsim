@@ -49,7 +49,7 @@ template <typename T, typename... Args>
 uint64_t sformat_(const Module *m, std::string_view format, std::stringstream &ss, T arg,
                   Args... args) {
     auto start_pos = sformat_(m, format, ss, arg);
-    return sformat_(m, format.substr(start_pos), ss, args...);
+    return start_pos + sformat_(m, format.substr(start_pos), ss, args...);
 }
 
 // base case
@@ -72,7 +72,10 @@ uint64_t sformat_(const Module *module, std::string_view format, std::stringstre
 template <typename... Args>
 void display(const Module *module, std::string_view format, Args... args) {
     std::stringstream ss;
-    sformat_(module, format, ss, args...);
+    auto pos = sformat_(module, format, ss, args...);
+    if (pos != format.size()) {
+        ss << format.substr(pos);
+    }
     cout_lock lock;
     std::cout << ss.str() << std::endl;
 }

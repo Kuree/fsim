@@ -390,7 +390,7 @@ int driverMain(int argc, TArgs argv, bool suppressColorsStdout, bool suppressCol
     }
 
     if (showHelp == true) {
-        OS::print("{}", cmdLine.getHelpText("slang SystemVerilog compiler"));
+        OS::print("{}", cmdLine.getHelpText("fsim fiber-based SystemVerilog simulator"));
         return 0;
     }
 

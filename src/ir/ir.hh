@@ -72,7 +72,7 @@ public:
     using PortDef = std::pair<const slang::PortSymbol *, const slang::Expression *>;
     std::vector<PortDef> inputs;
     std::vector<PortDef> outputs;
-    std::unordered_map<std::string_view, const slang::VariableSymbol *> port_vars;
+    std::unordered_map<std::string_view, const slang::ValueSymbol *> port_vars;
 
     // functions, tasks etc
     std::vector<std::unique_ptr<Function>> functions;

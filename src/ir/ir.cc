@@ -112,6 +112,12 @@ public:
         }
     }
 
+    [[maybe_unused]] void handle(const slang::NetSymbol &sym) {
+        if (names_.find(sym.name) != names_.end()) {
+            port_vars.emplace(sym.name, &sym);
+        }
+    }
+
     [[maybe_unused]] void handle(const slang::InstanceBodySymbol &sym) {
         if (!names_.empty() && !instance_) {
             instance_ = &sym;
@@ -119,7 +125,7 @@ public:
         }
     }
 
-    std::unordered_map<std::string_view, const slang::VariableSymbol *> port_vars;
+    std::unordered_map<std::string_view, const slang::ValueSymbol *> port_vars;
 
 private:
     std::unordered_set<std::string_view> names_;
@@ -134,6 +140,10 @@ void Module::analyze_connections() {
             auto const &port = sym->as<slang::PortSymbol>();
             auto connection = def_->getPortConnection(port);
             auto const *expr = connection->getExpression();
+            if (!expr) {
+                // not connected.
+                continue;
+            }
             switch (port.direction) {
                 case slang::ArgumentDirection::In: {
                     inputs.emplace_back(std::make_pair(&port, expr));

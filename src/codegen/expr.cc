@@ -12,6 +12,7 @@ auto constexpr fsim_schedule_delay = "SCHEDULE_DELAY";
 
 const slang::Symbol *get_parent_symbol(const slang::Symbol *symbol,
                                        std::vector<std::string_view> &paths) {
+    if (symbol->kind == slang::SymbolKind::Root) return nullptr;
     auto scope = symbol->getParentScope();
     const slang::Symbol *current;
     if (scope && symbol->kind == slang::SymbolKind::InstanceBody) {

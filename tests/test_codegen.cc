@@ -764,6 +764,10 @@ initial begin
    b = a? 2 : 3;
    c = b[1:0];
    $display("b = %0d c = %0d", b, c);
+   a = 'hFFFF;
+   b = 3;
+   c = a[b+:8];
+   $display("c = %0d", c);
 end
 
 endmodule
@@ -780,6 +784,7 @@ endmodule
     builder.build(&compilation);
     std::string output = testing::internal::GetCapturedStdout();
     EXPECT_NE(output.find("b = 2 c = 2"), std::string::npos);
+    EXPECT_NE(output.find("c = 255"), std::string::npos);
 }
 
 TEST(code, case_) {  // NOLINT

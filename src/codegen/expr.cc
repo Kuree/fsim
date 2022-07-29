@@ -338,21 +338,41 @@ uint64_t get_constant_value(const slang::ConstantValue &constant,
 }
 
 void ExprCodeGenVisitor::handle(const slang::RangeSelectExpression &expr) {
-    if (!expr.left().constant)
-        throw NotSupportedException("Only constant range select supported",
-                                    expr.left().syntax->sourceRange().start());
-
-    if (!expr.right().constant)
-        throw NotSupportedException("Only constant range select supported",
-                                    expr.right().syntax->sourceRange().start());
-
     s << "(";
     expr.value().visit(*this);
-    s << ").slice<";
-    s << get_constant_value(*expr.left().constant, expr.left().sourceRange.start());
-    s << ", ";
-    s << get_constant_value(*expr.right().constant, expr.right().sourceRange.start());
-    s << ">()";
+    s << ")";
+    switch (expr.selectionKind) {
+        case slang::RangeSelectionKind::Simple: {
+            if (!expr.left().constant)
+                throw NotSupportedException("Only constant range select supported",
+                                            expr.left().syntax->sourceRange().start());
+
+            if (!expr.right().constant)
+                throw NotSupportedException("Only constant range select supported",
+                                            expr.right().syntax->sourceRange().start());
+
+            s << ".slice<";
+            s << get_constant_value(*expr.left().constant, expr.left().sourceRange.start());
+            s << ", ";
+            s << get_constant_value(*expr.right().constant, expr.right().sourceRange.start());
+            s << ">()";
+            break;
+        }
+        case slang::RangeSelectionKind::IndexedDown:
+        case slang::RangeSelectionKind::IndexedUp: {
+            if (!expr.right().constant)
+                throw NotSupportedException("Only constant range select supported",
+                                            expr.right().syntax->sourceRange().start());
+            auto target_size =
+                get_constant_value(*expr.right().constant, expr.right().sourceRange.start());
+            const auto *increase =
+                expr.selectionKind == slang::RangeSelectionKind::IndexedUp ? "true" : "false";
+            s << ".slice<";
+            s << target_size << ", " << increase << ">(";
+            expr.left().visit(*this);
+            s << ")";
+        }
+    }
 }
 
 [[maybe_unused]] void ExprCodeGenVisitor::handle(const slang::ConcatenationExpression &sym) {
